@@ -177,8 +177,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
         // Add all files in directories.
         var directories = data.Where(d => Directory.Exists(d) && File.GetAttributes(d).HasFlag(FileAttributes.Directory)).ToList();
-        directories.ForEach(d => assemblies.AddRange(Directory.GetFiles(d, "*.exe", SearchOption.TopDirectoryOnly)));
-        directories.ForEach(d => assemblies.AddRange(Directory.GetFiles(d, "*.dll", SearchOption.TopDirectoryOnly)));
+        directories.ForEach(d => assemblies.AddRange(Directory.GetFiles(d, "*.exe", SearchOption.AllDirectories)));
+        directories.ForEach(d => assemblies.AddRange(Directory.GetFiles(d, "*.dll", SearchOption.AllDirectories)));
 
         foreach (var assembly in assemblies)
         {

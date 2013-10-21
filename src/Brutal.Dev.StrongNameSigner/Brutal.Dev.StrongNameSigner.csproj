@@ -52,6 +52,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AlreadySignedException.cs" />
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="External\ExternalProcess.cs" />
     <Compile Include="External\CorFlags.cs" />

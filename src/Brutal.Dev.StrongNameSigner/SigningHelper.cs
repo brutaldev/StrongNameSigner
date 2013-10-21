@@ -83,9 +83,10 @@ namespace Brutal.Dev.StrongNameSigner
     /// Could not find provided strong-name key file file.
     /// </exception>
     /// <exception cref="System.InvalidOperationException">
-    /// The assembly is already strong-name signed.
-    /// or
     /// An error was detected when using an external tool, check the output log information for details on the error.
+    /// </exception>
+    /// <exception cref="Brutal.Dev.StrongNameSigner.AlreadySignedException">
+    /// The assembly is already strong-name signed.
     /// </exception>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath, Action<string> outputHandler)
     {
@@ -113,7 +114,7 @@ namespace Brutal.Dev.StrongNameSigner
       // Don't sign assemblies with a strong-name signature.
       if (info.IsSigned)
       {
-        throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "The assembly '{0}' is already strong-name signed.", assemblyPath));
+        throw new AlreadySignedException(string.Format(CultureInfo.CurrentCulture, "The assembly '{0}' is already strong-name signed.", assemblyPath));
       }
 
       // Disassemble

@@ -24,7 +24,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
     [ArgExistingDirectory]
     [ArgDescription("A directory of assemblies to strong-name sign.")]
-    [ArgShortcut("in")] 
+    [ArgShortcut("in")]
     public string InputDirectory { get; set; }
 
     [ArgExistingDirectory]
@@ -44,7 +44,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
     {
       if (string.IsNullOrWhiteSpace(AssemblyFile) && string.IsNullOrWhiteSpace(InputDirectory))
       {
-        throw new ArgException("Please provide an assembly file or an input directory.");        
+        throw new ArgException("Please provide an assembly file or an input directory.");
       }
 
       if (!string.IsNullOrWhiteSpace(AssemblyFile) && !string.IsNullOrWhiteSpace(InputDirectory))

@@ -80,7 +80,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {
-        foreach (var filePath in Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.TopDirectoryOnly)
+        foreach (var filePath in Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
           .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
                       Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
         {
@@ -125,6 +125,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
 
         return true;
+      }
+      catch (AlreadySignedException ase)
+      {
+        C.WriteLine(ase.Message);
       }
       catch (InvalidOperationException ioe)
       {

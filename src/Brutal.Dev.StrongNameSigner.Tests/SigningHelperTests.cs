@@ -63,7 +63,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
-    [ExpectedException(typeof(InvalidOperationException))]
+    [ExpectedException(typeof(AlreadySignedException))]
     public void SignAssembly_Public_API_Signed_File_Should_Throw_Exception()
     {
       SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Signed.exe"), s => output.Append(s));
