@@ -21,6 +21,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner.UI", "Brutal.Dev.StrongNameSigner.UI\Brutal.Dev.StrongNameSigner.UI.csproj", "{17E01B70-04DC-4446-BF8F-D2543E6C5056}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner.TestAssembly.A", "Brutal.Dev.StrongNameSigner.TestAssembly.A\Brutal.Dev.StrongNameSigner.TestAssembly.A.csproj", "{811C605F-B23F-41D6-B35F-2DA82E40129F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner.TestAssembly.B", "Brutal.Dev.StrongNameSigner.TestAssembly.B\Brutal.Dev.StrongNameSigner.TestAssembly.B.csproj", "{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -51,6 +55,14 @@ Global
 		{17E01B70-04DC-4446-BF8F-D2543E6C5056}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{17E01B70-04DC-4446-BF8F-D2543E6C5056}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{17E01B70-04DC-4446-BF8F-D2543E6C5056}.Release|Any CPU.Build.0 = Release|Any CPU
+		{811C605F-B23F-41D6-B35F-2DA82E40129F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{811C605F-B23F-41D6-B35F-2DA82E40129F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{811C605F-B23F-41D6-B35F-2DA82E40129F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{811C605F-B23F-41D6-B35F-2DA82E40129F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

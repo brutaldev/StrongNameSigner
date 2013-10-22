@@ -63,6 +63,7 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
+    <Compile Include="External\PublicKeyToolTests.cs" />
     <Compile Include="SigningHelperTests.cs" />
     <Compile Include="External\ILAsmTests.cs" />
     <Compile Include="External\ILDasmTests.cs" />
@@ -140,6 +141,22 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.A.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.B.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.A.Signed.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.B.Signed.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
