@@ -12,6 +12,21 @@ Screenshots
 
 ![Console](http://brutaldev.com/image.axd?picture=StrongNameSigner_Console_1.png)
 
+Build Process
+-------------
+You can call the console version in your Visual Studio project files to sign assemblies before it gets built. This will change the references to your assemblies to strong-name signed ones allowing to sign your own projects and reference unsigned assemblies. All assemblies that are found (including signed ones) will have their references corrected if they were using any files that now have public key tokens.
+
+For example, if you want to strong-name sign and fix references to all the NuGet packages that your project uses, you can add this to you Visual Studio project file:
+
+```
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;C:\Program Files\BrutalDev\.NET Assembly Strong-Name Signer\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+</Target>
+```
+
+Note that any files that are already strong-name signed will not be modified. If you are using NuGet package restore then this works on build servers as well.
+
 API Usage
 ---------
 Reference **Brutal.Dev.StrongNameSigner.dll** in your project or include it in a PowerShell script.
