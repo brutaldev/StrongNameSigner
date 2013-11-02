@@ -107,7 +107,7 @@ namespace Brutal.Dev.StrongNameSigner
       {
         keyPairArray = GenerateStrongNameKeyPair();
       }
-      
+
       if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
       {
         // Make a backup before overwriting.
@@ -173,6 +173,23 @@ namespace Brutal.Dev.StrongNameSigner
       return FixAssemblyReference(assemblyPath, referenceAssemblyPath, string.Empty);
     }
 
+    /// <summary>
+    /// Fixes an assembly reference.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
+    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <returns>The assembly information of the fixed assembly.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// assemblyPath was not provided.
+    /// or
+    /// referenceAssemblyPath was not provided.
+    /// </exception>
+    /// <exception cref="System.IO.FileNotFoundException">
+    /// Could not find provided assembly file.
+    /// or
+    /// Could not find provided reference assembly file.
+    /// </exception>
     public static AssemblyInfo FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath)
     {
       // Verify assembly path was passed in.
@@ -181,7 +198,7 @@ namespace Brutal.Dev.StrongNameSigner
         throw new ArgumentNullException("assemblyPath");
       }
 
-       if (string.IsNullOrWhiteSpace(referenceAssemblyPath))
+      if (string.IsNullOrWhiteSpace(referenceAssemblyPath))
       {
         throw new ArgumentNullException("referenceAssemblyPath");
       }
@@ -210,24 +227,7 @@ namespace Brutal.Dev.StrongNameSigner
         {
           reference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
 
-          if (signAfterFix)
-          {
-            byte[] keyPairArray = null;
-            if (!string.IsNullOrEmpty(keyPath))
-            {
-              keyPairArray = File.ReadAllBytes(keyPath);
-            }
-            else
-            {
-              keyPairArray = GenerateStrongNameKeyPair();
-            }
-
-            a.Write(assemblyPath, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
-          }
-          else
-          {
-            a.Write(assemblyPath);
-          }          
+          a.Write(assemblyPath);
         }
       }
 
