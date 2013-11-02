@@ -204,7 +204,7 @@ namespace Brutal.Dev.StrongNameSigner
         IsSigned = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
         IsManagedAssembly = a.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
         Is64BitOnly = a.MainModule.Architecture == TargetArchitecture.AMD64 || a.MainModule.Architecture == TargetArchitecture.IA64,
-        Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit),
+        Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
         Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
       };
     }
