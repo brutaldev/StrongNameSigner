@@ -20,9 +20,6 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
       try
       {
-        // Verify we have everything we need.
-        SigningHelper.CheckForRequiredSoftware();
-
         var parsed = Args.Parse<Options>(args);
 
         if (args.Length == 0 || parsed.Help)
@@ -109,17 +106,17 @@ namespace Brutal.Dev.StrongNameSigner.Console
         C.WriteLine();
         C.WriteLine("Strong-name signing {0}...", assemblyPath);
 
-        var info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory);
+        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        if (!info.IsSigned)
+        {
+          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory);
 
-        C.ForegroundColor = ConsoleColor.Green;
-        C.WriteLine("{0} was strong-name signed successfully.", info.FilePath);
-        C.ResetColor();
+          C.ForegroundColor = ConsoleColor.Green;
+          C.WriteLine("{0} was strong-name signed successfully.", info.FilePath);
+          C.ResetColor();
 
-        return true;
-      }
-      catch (AlreadySignedException ase)
-      {
-        C.WriteLine(ase.Message);
+          return true;
+        }        
       }
       catch (InvalidOperationException ioe)
       {

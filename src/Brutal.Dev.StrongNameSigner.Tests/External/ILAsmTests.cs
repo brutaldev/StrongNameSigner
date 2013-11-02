@@ -136,6 +136,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests.External
       info.Is64BitOnly.ShouldBe(true);
       info.IsSigned.ShouldBe(true);
     }
+
     private AssemblyInfo RoundTrip(string fileName, bool signFile)
     {
       // Disassemble first

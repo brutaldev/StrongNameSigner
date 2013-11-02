@@ -60,16 +60,6 @@ namespace Brutal.Dev.StrongNameSigner.UI
       ResizeColumnWidths();
 
       textBoxKey.Focus();
-
-      try
-      {
-        SigningHelper.CheckForRequiredSoftware();
-      }
-      catch (FileNotFoundException ex)
-      {
-        MessageBox.Show(ex.Message + Environment.NewLine + "Please ensure you have installed the Windows Software Development Kit (SDK).", "Required Software Missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        Application.Exit();
-      }
     }
 
     private void ButtonKeyClick(object sender, EventArgs e)

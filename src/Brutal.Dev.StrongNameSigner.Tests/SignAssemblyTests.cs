@@ -32,24 +32,100 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
-    [ExpectedException(typeof(FileNotFoundException))]
-    public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception()
+    [ExpectedException(typeof(DirectoryNotFoundException))]
+    public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_Directory()
     {
       SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\DoesNotExist\\KeyFile.snk");
     }
 
     [Test]
-    [ExpectedException(typeof(InvalidOperationException))]
-    public void SignAssembly_Public_API_Obfuscated_File_Should_Throw_Exception()
+    [ExpectedException(typeof(FileNotFoundException))]
+    public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_File()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Obfuscated.exe"));
+      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\KeyFileThatDoesNotExist.snk");
     }
 
     [Test]
-    [ExpectedException(typeof(AlreadySignedException))]
-    public void SignAssembly_Public_API_Signed_File_Should_Throw_Exception()
+    public void SignAssembly_Should_Reassemble_NET_20_Assembly_Correctly()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Signed.exe"));
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("2.0.50727");
+      info.IsAnyCpu.ShouldBe(true);
+      info.Is32BitOnly.ShouldBe(false);
+      info.Is32BitPreferred.ShouldBe(false);
+      info.Is64BitOnly.ShouldBe(false);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_NET_40_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("4.0.30319");
+      info.IsAnyCpu.ShouldBe(true);
+      info.Is32BitOnly.ShouldBe(false);
+      info.Is32BitPreferred.ShouldBe(false);
+      info.Is64BitOnly.ShouldBe(false);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_NET_45_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET45.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("4.0.30319");
+      info.IsAnyCpu.ShouldBe(true);
+      info.Is32BitOnly.ShouldBe(false);
+      info.Is32BitPreferred.ShouldBe(true);
+      info.Is64BitOnly.ShouldBe(false);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_NET_20_x86_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("2.0.50727");
+      info.IsAnyCpu.ShouldBe(false);
+      info.Is32BitOnly.ShouldBe(true);
+      info.Is64BitOnly.ShouldBe(false);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_NET_40_x86_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("4.0.30319");
+      info.IsAnyCpu.ShouldBe(false);
+      info.Is32BitOnly.ShouldBe(true);
+      info.Is32BitPreferred.ShouldBe(false);
+      info.Is64BitOnly.ShouldBe(false);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_NET_20_x64_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("2.0.50727");
+      info.IsAnyCpu.ShouldBe(false);
+      info.Is32BitOnly.ShouldBe(false);
+      info.Is32BitPreferred.ShouldBe(false);
+      info.Is64BitOnly.ShouldBe(true);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_NET_40_x64_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("4.0.30319");
+      info.IsAnyCpu.ShouldBe(false);
+      info.Is32BitOnly.ShouldBe(false);
+      info.Is32BitPreferred.ShouldBe(false);
+      info.Is64BitOnly.ShouldBe(true);
+      info.IsSigned.ShouldBe(true);
     }
   }
 }

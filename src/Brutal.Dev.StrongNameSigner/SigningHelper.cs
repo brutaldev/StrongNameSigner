@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.Cryptography;
 using Brutal.Dev.StrongNameSigner.External;
 using Mono.Cecil;
+using System.Reflection;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -12,6 +13,18 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
+    /// <summary>
+    /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
+    /// </summary>
+    /// <returns>A strong-name key pair array.</returns>
+    public static byte[] GenerateStrongNameKeyPair()
+    {
+      using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
+      {
+        return provider.ExportCspBlob(!provider.PublicOnly);
+      }
+    }
+
     /// <summary>
     /// Signs the assembly at the specified path.
     /// </summary>
@@ -47,11 +60,8 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file file.
     /// </exception>
-    /// <exception cref="System.InvalidOperationException">
-    /// An error was detected when using an external tool, check the output log information for details on the error.
-    /// </exception>
-    /// <exception cref="Brutal.Dev.StrongNameSigner.AlreadySignedException">
-    /// The assembly is already strong-name signed.
+    /// <exception cref="System.BadImageFormatException">
+    /// The file is not a .NET managed assembly.
     /// </exception>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
     {
@@ -79,44 +89,31 @@ namespace Brutal.Dev.StrongNameSigner
       // Don't sign assemblies with a strong-name signature.
       if (info.IsSigned)
       {
-        throw new AlreadySignedException(string.Format(CultureInfo.CurrentCulture, "The assembly '{0}' is already strong-name signed.", assemblyPath));
+        return info;
+      }
+
+      byte[] keyPairArray = null;
+      if (!string.IsNullOrEmpty(keyPath))
+      {
+        keyPairArray = File.ReadAllBytes(keyPath);
+      }
+      else
+      {
+        keyPairArray = GenerateStrongNameKeyPair();
       }
 
       // Disassemble.
-      using (var ildasm = new ILDasm(info))
+      string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
+
+      if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
       {
-        if (!ildasm.Run())
-        {
-          throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILDASM failed to execute for assembly '{0}'.", assemblyPath));
-        }
-
-        // Check if we have a key.
-        bool deleteKeyFile = false;
-        if (string.IsNullOrEmpty(keyPath))
-        {
-          deleteKeyFile = true;
-          keyPath = CreateStrongNameKeyFile();
-        }
-        else if (!File.Exists(keyPath))
-        {
-          throw new FileNotFoundException("Could not find provided strong-name key file file.", keyPath);
-        }
-
-        using (var ilasm = new ILAsm(info, ildasm.BinaryILFilePath, keyPath, outputPath))
-        {
-          if (!ilasm.Run())
-          {
-            throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILASM failed to execute for assembly '{0}'.", assemblyPath));
-          }
-
-          if (deleteKeyFile && File.Exists(keyPath))
-          {
-            File.Delete(keyPath);
-          }
-
-          return GetAssemblyInfo(ilasm.SignedAssemblyPath);
-        }
+        // Make a backup before overwriting.
+        File.Copy(outputFile, outputFile + ".unsigned", true);
       }
+
+      AssemblyDefinition.ReadAssembly(assemblyPath).Write(outputFile, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
+
+      return GetAssemblyInfo(outputFile);
     }
 
     /// <summary>
@@ -172,31 +169,6 @@ namespace Brutal.Dev.StrongNameSigner
       };
     }
 
-    /// <summary>
-    /// Checks that all the required software is available on the client machine.
-    /// </summary>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find a required external application file.
-    /// </exception>
-    public static void CheckForRequiredSoftware()
-    {
-      using (var ilasm = new ILAsm())
-      {
-        if (!File.Exists(ilasm.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'ILASM.exe'.", ilasm.Executable);
-        }
-      }
-
-      using (var ildasm = new ILDasm())
-      {
-        if (!File.Exists(ildasm.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'ILDASM.exe'.", ildasm.Executable);
-        }
-      }
-    }
-
     private static string GetDotNetVersion(TargetRuntime runtime)
     {
       switch (runtime)
@@ -212,18 +184,6 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return "UNKNOWN";
-    }
-
-    private static string CreateStrongNameKeyFile()
-    {
-      string fileName = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".snk");
-
-      using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
-      {
-        File.WriteAllBytes(fileName, provider.ExportCspBlob(!provider.PublicOnly));
-      }
-
-      return fileName;
     }
   }
 }
