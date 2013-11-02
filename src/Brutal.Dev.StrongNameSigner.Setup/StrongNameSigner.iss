@@ -4,7 +4,7 @@
 #define MyAppID "{A89C23E7-A764-4F59-8EF3-5AB0A33E5849}"
 #define MyAppName ".NET Assembly Strong-Name Signer"
 #define MyAppNameNoSpaces "StrongNameSigner"
-#define MyAppVersion "1.1.0.0"
+#define MyAppVersion "1.2.0.0"
 #define MyAppPublisher "BrutalDev"
 #define MyAppURL "http://brutaldev.com"
 #define MyAppExeName "StrongNameSigner.exe"
@@ -38,7 +38,6 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 MinVersion=0,5.01sp3
 ArchitecturesInstallIn64BitMode=x64 ia64
 ShowLanguageDialog=auto
-PrivilegesRequired=admin
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
