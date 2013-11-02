@@ -123,16 +123,12 @@ namespace Brutal.Dev.StrongNameSigner
     /// Gets .NET assembly information.
     /// </summary>
     /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath parameter was not provided.
     /// </exception>
     /// <exception cref="System.IO.FileNotFoundException">
     /// Could not find provided assembly file.
-    /// </exception>
-    /// <exception cref="System.InvalidOperationException">
-    /// An error was detected when using an external tool, check the output log information for details on the error.
     /// </exception>
     public static AssemblyInfo GetAssemblyInfo(string assemblyPath)
     {
@@ -167,19 +163,6 @@ namespace Brutal.Dev.StrongNameSigner
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
     /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
-    /// <returns>The assembly information of the fixed assembly.</returns>
-    public static AssemblyInfo FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
-    {
-      return FixAssemblyReference(assemblyPath, referenceAssemblyPath, string.Empty);
-    }
-
-    /// <summary>
-    /// Fixes an assembly reference.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
-    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
-    /// <returns>The assembly information of the fixed assembly.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath was not provided.
     /// or
@@ -190,7 +173,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided reference assembly file.
     /// </exception>
-    public static AssemblyInfo FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath)
+    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -216,7 +199,6 @@ namespace Brutal.Dev.StrongNameSigner
 
       var a = AssemblyDefinition.ReadAssembly(assemblyPath);
       var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath);
-      bool signAfterFix = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned);
 
       var reference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
 
@@ -228,10 +210,12 @@ namespace Brutal.Dev.StrongNameSigner
           reference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
 
           a.Write(assemblyPath);
+
+          return true;
         }
       }
 
-      return GetAssemblyInfo(assemblyPath);
+      return false;
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
