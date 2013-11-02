@@ -1,11 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using PowerArgs;
 using C = System.Console;
-using System.Collections.Generic;
 
 namespace Brutal.Dev.StrongNameSigner.Console
 {
@@ -30,20 +30,11 @@ namespace Brutal.Dev.StrongNameSigner.Console
         else
         {
           parsed.Validate();
-          int count = SignAssemblies(parsed);
+          var stats = SignAssemblies(parsed);
 
           C.WriteLine();
-
-          if (count == 0)
-          {
-            C.ForegroundColor = ConsoleColor.Red;
-            C.WriteLine("No assemblies were strong-name signed...");
-            C.ResetColor();
-          }
-          else
-          {
-            C.WriteLine("Successfully strong-name signed {0} assemblies.", count);
-          }
+          C.WriteLine("{0} file(s) were strong-name signed.", stats.NumberOfSignedFiles);
+          C.WriteLine("{0} references(s) were corrected.", stats.NumberOfFixedReferences);
         }
       }
       catch (ArgException ex)
@@ -53,13 +44,15 @@ namespace Brutal.Dev.StrongNameSigner.Console
         C.ResetColor();
 
         ArgUsage.GetStyledUsage<Options>().Write();
+
+        return 2;
       }
       catch (Exception ex)
       {
         C.ForegroundColor = ConsoleColor.Red;
         C.WriteLine(ex.ToString());
         C.ResetColor();
-        
+
         return 1;
       }
 
@@ -71,59 +64,51 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return 0;
     }
 
-    private static int SignAssemblies(Options options)
+    private static Stats SignAssemblies(Options options)
     {
       int signedFiles = 0;
+      int referenceFixes = 0;
+
       IEnumerable<string> filesToSign = null;
-      string keyFile = options.KeyFile;
 
-      if (string.IsNullOrEmpty(keyFile))
+      if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {
-        keyFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".snk");
-        File.WriteAllBytes(keyFile, SigningHelper.GenerateStrongNameKeyPair());
+        filesToSign = Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
+          .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                      Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase));
+      }
+      else
+      {
+        // We can assume from validation that there will be a single file.
+        filesToSign = new string[] { options.AssemblyFile };
       }
 
-      try
+      foreach (var filePath in filesToSign)
       {
-        if (!string.IsNullOrWhiteSpace(options.InputDirectory))
+        if (SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory))
         {
-          filesToSign = Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
-            .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                        Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase));
+          signedFiles++;
         }
-        else
-        {
-          // We can assume from validation that there will be a single file.
-          filesToSign = new string[] { options.AssemblyFile };
-        }
+      }
 
-        foreach (var filePath in filesToSign)
+      var referencesToFix = new List<string>(filesToSign);
+      foreach (var filePath in filesToSign)
+      {
+        // Go through all the references excluding the file we are working on.
+        foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
         {
-          if (SignSingleAssembly(filePath, keyFile, options.OutputDirectory))
+          if (FixSingleAssemblyReference(filePath, referencePath))
           {
-            signedFiles++;
-          }
-        }
-
-        var referencesToFix = new List<string>(filesToSign);
-        foreach (var filePath in filesToSign)
-        {
-          // Go through all the references excluding the file we are working on.
-          foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
-          {
-            SigningHelper.FixAssemblyReference(filePath, referencePath, keyFile);
+            referenceFixes++;
           }
         }
       }
-      finally
+
+      return new Stats()
       {
-        if (string.IsNullOrEmpty(options.KeyFile) && File.Exists(keyFile))
-        {
-          File.Delete(keyFile);
-        }
-      }
-      
-      return signedFiles;
+        NumberOfSignedFiles = signedFiles,
+        NumberOfFixedReferences = referenceFixes
+      };
     }
 
     private static bool SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory)
@@ -139,17 +124,15 @@ namespace Brutal.Dev.StrongNameSigner.Console
           info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory);
 
           C.ForegroundColor = ConsoleColor.Green;
-          C.WriteLine("{0} was strong-name signed successfully.", info.FilePath);
+          C.WriteLine("{0} was strong-name signed successfully!", info.FilePath);
           C.ResetColor();
 
           return true;
-        }        
-      }
-      catch (InvalidOperationException ioe)
-      {
-        C.ForegroundColor = ConsoleColor.Yellow;
-        C.WriteLine("Warning: {0}", ioe.Message);
-        C.ResetColor();
+        }
+        else
+        {
+          C.WriteLine("Already strong-name signed...");
+        }
       }
       catch (BadImageFormatException bife)
       {
@@ -165,6 +148,50 @@ namespace Brutal.Dev.StrongNameSigner.Console
       }
 
       return false;
+    }
+
+    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath)
+    {
+      try
+      {
+        C.WriteLine();
+        C.WriteLine("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath);
+
+        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath))
+        {
+          C.ForegroundColor = ConsoleColor.Green;
+          C.WriteLine("References were fixed successfully!");
+          C.ResetColor();
+
+          return true;
+        }
+        else
+        {
+          C.WriteLine("Nothing to fix...");
+        }
+      }
+      catch (BadImageFormatException bife)
+      {
+        C.ForegroundColor = ConsoleColor.Yellow;
+        C.WriteLine("Warning: {0}", bife.Message);
+        C.ResetColor();
+      }
+      catch (Exception ex)
+      {
+        C.ForegroundColor = ConsoleColor.Red;
+        C.WriteLine("Error: {0}", ex.Message);
+        C.ResetColor();
+      }
+
+      return false;
+    }
+    
+    private struct Stats
+    {
+      public int NumberOfSignedFiles { get; set; }
+
+      public int NumberOfFixedReferences { get; set; }
     }
   }
 }
