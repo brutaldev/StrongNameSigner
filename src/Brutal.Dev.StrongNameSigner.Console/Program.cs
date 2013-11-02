@@ -34,7 +34,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
           C.WriteLine();
           C.WriteLine("{0} file(s) were strong-name signed.", stats.NumberOfSignedFiles);
-          C.WriteLine("{0} references(s) were corrected.", stats.NumberOfFixedReferences);
+          C.WriteLine("{0} references(s) were fixed.", stats.NumberOfFixedReferences);
         }
       }
       catch (ArgException ex)

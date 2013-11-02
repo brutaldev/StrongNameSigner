@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Brutal.Dev.StrongNameSigner.UI")]
-[assembly: AssemblyDescription("User interface to sign .NET assemblies with a strong-name key.")]
+[assembly: AssemblyDescription("User interface to sign .NET assemblies with a strong-name key and fix assembly references.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("http://brutaldev.com")]
 [assembly: AssemblyProduct("Brutal.Dev.StrongNameSigner.UI")]

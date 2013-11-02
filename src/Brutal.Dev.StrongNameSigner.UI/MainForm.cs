@@ -53,7 +53,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
       return item;
     }
 
-    private void MainForm_Load(object sender, EventArgs e)
+    private void MainFormLoad(object sender, EventArgs e)
     {
       Text = Text + " (" + Application.ProductVersion + ")";
 
@@ -162,8 +162,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
       if (data != null)
       {
         var assemblies = data.Where(d => (Path.GetExtension(d).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                                     Path.GetExtension(d).Equals(".dll", StringComparison.OrdinalIgnoreCase)) &&
-                                     File.Exists(d)).ToList();
+                                          Path.GetExtension(d).Equals(".dll", StringComparison.OrdinalIgnoreCase)) &&
+                                          File.Exists(d)).ToList();
 
         // Add all files in directories.
         var directories = data.Where(d => Directory.Exists(d) && File.GetAttributes(d).HasFlag(FileAttributes.Directory)).ToList();
@@ -175,10 +175,6 @@ namespace Brutal.Dev.StrongNameSigner.UI
           try
           {
             AddAssemblyToList(SigningHelper.GetAssemblyInfo(assembly));
-          }
-          catch (InvalidOperationException)
-          {
-            MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", assembly), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
           }
           catch (BadImageFormatException)
           {
@@ -237,10 +233,6 @@ namespace Brutal.Dev.StrongNameSigner.UI
               {
                 AddAssemblyToList(SigningHelper.GetAssemblyInfo(file));
               }
-              catch (InvalidOperationException)
-              {
-                MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-              }
               catch (BadImageFormatException)
               {
                 MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -258,10 +250,6 @@ namespace Brutal.Dev.StrongNameSigner.UI
             try
             {
               AddAssemblyToList(SigningHelper.GetAssemblyInfo(file));
-            }
-            catch (InvalidOperationException)
-            {
-              MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (BadImageFormatException)
             {
@@ -346,29 +334,41 @@ namespace Brutal.Dev.StrongNameSigner.UI
       e.Result = string.Empty;
 
       int progress = 0;
-      int count = 0;
+      int signedFiles = 0;
+      int referenceFixes = 0;
       var assemblies = e.Argument as IEnumerable<string>;
 
       if (assemblies != null)
       {
+        // We go through assemblies twice and every assembly -1 for reference fixes.
+        double progressMax = assemblies.Count() + (assemblies.Count() * (assemblies.Count() - 1));
+
         foreach (var assembly in assemblies)
         {
           AssemblyInfo info = null;
 
           try
           {
-#if DEBUG
-            System.Threading.Thread.Sleep(2000);
-#endif
-            info = SigningHelper.SignAssembly(assembly, keyFile, outputPath);
-            count++;
+            log.AppendFormat("Strong-name signing {0}...", assembly).AppendLine();
+
+            info = SigningHelper.GetAssemblyInfo(assembly);
+            if (!info.IsSigned)
+            {              
+              info = SigningHelper.SignAssembly(assembly, keyFile, outputPath);
+              log.Append("String-name signed successfully.").AppendLine();
+              signedFiles++;
+            }
+            else
+            {
+              log.Append("Already strong-name signed...").AppendLine();
+            }
           }
           catch (Exception ex)
           {
             log.AppendFormat("Error strong-name signing {0}: {1}", assembly, ex.Message).AppendLine();
           }
 
-          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / (double)assemblies.Count()) * 100), info);
+          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100), info);
 
           if (backgroundWorker.CancellationPending)
           {
@@ -377,7 +377,34 @@ namespace Brutal.Dev.StrongNameSigner.UI
           }
         }
 
-        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed successfully.", count, assemblies.Count());
+        var referencesToFix = new List<string>(assemblies);
+        foreach (var assembly in assemblies)
+        {
+          // Go through all the references excluding the file we are working on.
+          foreach (var reference in referencesToFix.Where(r => !r.Equals(assembly)))
+          {
+            backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
+
+            if (backgroundWorker.CancellationPending)
+            {
+              e.Cancel = true;
+              break;
+            }
+
+            log.AppendFormat("Fixing references to {1} in {0}...", assembly, reference).AppendLine();
+            if (SigningHelper.FixAssemblyReference(assembly, reference))
+            {
+              log.Append("Reference was found and fixed.").AppendLine();
+              referenceFixes++;
+            }
+            else
+            {
+              log.Append("Nothing to fix.").AppendLine();
+            }
+          }
+        }
+
+        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.", signedFiles, assemblies.Count(), referenceFixes);
       }
     }
 
