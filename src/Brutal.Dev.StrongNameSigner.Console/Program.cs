@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using PowerArgs;
 using C = System.Console;
+using System.Collections.Generic;
 
 namespace Brutal.Dev.StrongNameSigner.Console
 {
@@ -73,29 +74,55 @@ namespace Brutal.Dev.StrongNameSigner.Console
     private static int SignAssemblies(Options options)
     {
       int signedFiles = 0;
-      Action<string> verboseOutput = s => C.Write(s);
+      IEnumerable<string> filesToSign = null;
+      string keyFile = options.KeyFile;
 
-      if (!string.IsNullOrWhiteSpace(options.InputDirectory))
+      if (string.IsNullOrEmpty(keyFile))
       {
-        foreach (var filePath in Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
-          .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                      Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
+        keyFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".snk");
+        File.WriteAllBytes(keyFile, SigningHelper.GenerateStrongNameKeyPair());
+      }
+
+      try
+      {
+        if (!string.IsNullOrWhiteSpace(options.InputDirectory))
         {
-          if (SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory))
+          filesToSign = Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
+            .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                        Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase));
+        }
+        else
+        {
+          // We can assume from validation that there will be a single file.
+          filesToSign = new string[] { options.AssemblyFile };
+        }
+
+        foreach (var filePath in filesToSign)
+        {
+          if (SignSingleAssembly(filePath, keyFile, options.OutputDirectory))
           {
             signedFiles++;
           }
         }
-      }
-      else
-      {
-        // We can assume from validation that there will be a single file.
-        if (SignSingleAssembly(options.AssemblyFile, options.KeyFile, options.OutputDirectory))
+
+        var referencesToFix = new List<string>(filesToSign);
+        foreach (var filePath in filesToSign)
         {
-          signedFiles++;
+          // Go through all the references excluding the file we are working on.
+          foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
+          {
+            SigningHelper.FixAssemblyReference(filePath, referencePath, keyFile);
+          }
         }
       }
-
+      finally
+      {
+        if (string.IsNullOrEmpty(options.KeyFile) && File.Exists(keyFile))
+        {
+          File.Delete(keyFile);
+        }
+      }
+      
       return signedFiles;
     }
 
