@@ -34,8 +34,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.1.0.0")]
-[assembly: AssemblyFileVersion("1.1.0.0")]
+[assembly: AssemblyVersion("1.2.0.0")]
+[assembly: AssemblyFileVersion("1.2.0.0")]
 
 #if DEBUG
 [assembly: InternalsVisibleTo("Brutal.Dev.StrongNameSigner.Tests, PublicKey=0024000004800000940000000602000000240000525341310004000001000100f15e678b78ea018504a4e5bad264e967de9a660b7d1f87be35d75a27862fdb494b55df02a1879b36e427a6ae1de941d0145fd36cd890b6d21d4133992392fb5fbb91bcdeae2dcc2535c2d04fbaed6d5cef45330dab2dd2185763694d6f9a538c83e0c4eeaadcd6673c50c93ee9f00d77a5bd61f96f0c2416d56be098e914b0b0")]
