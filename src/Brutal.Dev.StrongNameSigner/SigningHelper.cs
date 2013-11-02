@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using Brutal.Dev.StrongNameSigner.External;
 using Mono.Cecil;
 
@@ -118,7 +119,7 @@ namespace Brutal.Dev.StrongNameSigner
         throw new AlreadySignedException(string.Format(CultureInfo.CurrentCulture, "The assembly '{0}' is already strong-name signed.", assemblyPath));
       }
 
-      // Disassemble
+      // Disassemble.
       using (var ildasm = new ILDasm(info))
       {
         if (!ildasm.Run(outputHandler))
@@ -126,32 +127,31 @@ namespace Brutal.Dev.StrongNameSigner
           throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILDASM failed to execute for assembly '{0}'.", assemblyPath));
         }
 
-        // Check if we have a key
-        using (var signtool = new SignTool())
+        // Check if we have a key.
+        bool deleteKeyFile = false;
+        if (string.IsNullOrEmpty(keyPath))
         {
-          if (string.IsNullOrEmpty(keyPath))
-          {
-            if (!signtool.Run(outputHandler))
-            {
-              throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "SIGNTOOL failed to create a strong-name key file for '{0}'.", assemblyPath));
-            }
+          deleteKeyFile = true;
+          keyPath = CreateStrongNameKeyFile();
+        }
+        else if (!File.Exists(keyPath))
+        {
+          throw new FileNotFoundException("Could not find provided strong-name key file file.", keyPath);
+        }
 
-            keyPath = signtool.KeyFilePath;
-          }
-          else if (!File.Exists(keyPath))
+        using (var ilasm = new ILAsm(info, ildasm.BinaryILFilePath, keyPath, outputPath))
+        {
+          if (!ilasm.Run(outputHandler))
           {
-            throw new FileNotFoundException("Could not find provided strong-name key file file.", keyPath);
+            throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILASM failed to execute for assembly '{0}'.", assemblyPath));
           }
 
-          using (var ilasm = new ILAsm(info, ildasm.BinaryILFilePath, keyPath, outputPath))
+          if (deleteKeyFile && File.Exists(keyPath))
           {
-            if (!ilasm.Run(outputHandler))
-            {
-              throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILASM failed to execute for assembly '{0}'.", assemblyPath));
-            }
-
-            return GetAssemblyInfo(ilasm.SignedAssemblyPath);
+            File.Delete(keyPath);
           }
+
+          return GetAssemblyInfo(ilasm.SignedAssemblyPath);
         }
       }
     }
@@ -232,14 +232,6 @@ namespace Brutal.Dev.StrongNameSigner
           throw new FileNotFoundException("Could not find required executable 'ILDASM.exe'.", ildasm.Executable);
         }
       }
-
-      using (var sn = new SignTool())
-      {
-        if (!File.Exists(sn.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'SN.exe'.", sn.Executable);
-        }
-      }
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
@@ -257,6 +249,18 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return "UNKNOWN";
+    }
+
+    private static string CreateStrongNameKeyFile()
+    {
+      string fileName = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".snk");
+
+      using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
+      {
+        File.WriteAllBytes(fileName, provider.ExportCspBlob(!provider.PublicOnly));
+      }
+
+      return fileName;
     }
   }
 }
