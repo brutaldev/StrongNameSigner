@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using Mono.Cecil;
@@ -82,12 +83,18 @@ namespace Brutal.Dev.StrongNameSigner
         outputPath = Path.GetDirectoryName(assemblyPath);
       }
 
+      string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
+
       // Get the assembly info and go from there.
       AssemblyInfo info = GetAssemblyInfo(assemblyPath);
 
       // Don't sign assemblies with a strong-name signature.
       if (info.IsSigned)
       {
+        if (!outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
+        {
+          File.Copy(assemblyPath, outputFile, true);
+        }
         return info;
       }
 
@@ -100,10 +107,7 @@ namespace Brutal.Dev.StrongNameSigner
       {
         keyPairArray = GenerateStrongNameKeyPair();
       }
-
-      // Disassemble.
-      string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
-
+      
       if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
       {
         // Make a backup before overwriting.
@@ -113,16 +117,6 @@ namespace Brutal.Dev.StrongNameSigner
       AssemblyDefinition.ReadAssembly(assemblyPath).Write(outputFile, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
 
       return GetAssemblyInfo(outputFile);
-    }
-
-    /// <summary>
-    /// Gets .NET assembly information.
-    /// </summary>
-    /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
-    /// <returns>The assembly information.</returns>
-    public static AssemblyInfo GetAssemblyInfo(string assemblyPath)
-    {
-      return GetAssemblyInfo(assemblyPath, null);
     }
 
     /// <summary>
@@ -140,7 +134,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <exception cref="System.InvalidOperationException">
     /// An error was detected when using an external tool, check the output log information for details on the error.
     /// </exception>
-    public static AssemblyInfo GetAssemblyInfo(string assemblyPath, Action<string> outputHandler)
+    public static AssemblyInfo GetAssemblyInfo(string assemblyPath)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -166,6 +160,78 @@ namespace Brutal.Dev.StrongNameSigner
         Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
         Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
       };
+    }
+
+    /// <summary>
+    /// Fixes an assembly reference.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
+    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
+    /// <returns>The assembly information of the fixed assembly.</returns>
+    public static AssemblyInfo FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
+    {
+      return FixAssemblyReference(assemblyPath, referenceAssemblyPath, string.Empty);
+    }
+
+    public static AssemblyInfo FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath)
+    {
+      // Verify assembly path was passed in.
+      if (string.IsNullOrWhiteSpace(assemblyPath))
+      {
+        throw new ArgumentNullException("assemblyPath");
+      }
+
+       if (string.IsNullOrWhiteSpace(referenceAssemblyPath))
+      {
+        throw new ArgumentNullException("referenceAssemblyPath");
+      }
+
+      // Make sure the file actually exists.
+      if (!File.Exists(assemblyPath))
+      {
+        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+      }
+
+      if (!File.Exists(referenceAssemblyPath))
+      {
+        throw new FileNotFoundException("Could not find provided reference assembly file.", referenceAssemblyPath);
+      }
+
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath);
+      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath);
+      bool signAfterFix = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned);
+
+      var reference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
+
+      if (reference != null)
+      {
+        // Found a matching reference, let's set the public key token.
+        if (BitConverter.ToString(reference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+        {
+          reference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+
+          if (signAfterFix)
+          {
+            byte[] keyPairArray = null;
+            if (!string.IsNullOrEmpty(keyPath))
+            {
+              keyPairArray = File.ReadAllBytes(keyPath);
+            }
+            else
+            {
+              keyPairArray = GenerateStrongNameKeyPair();
+            }
+
+            a.Write(assemblyPath, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
+          }
+          else
+          {
+            a.Write(assemblyPath);
+          }          
+        }
+      }
+
+      return GetAssemblyInfo(assemblyPath);
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
