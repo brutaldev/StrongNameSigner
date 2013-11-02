@@ -370,7 +370,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 #if DEBUG
             System.Threading.Thread.Sleep(2000);
 #endif
-            info = SigningHelper.SignAssembly(assembly, keyFile, outputPath, s => log.AppendLine(s));
+            info = SigningHelper.SignAssembly(assembly, keyFile, outputPath);
             count++;
           }
           catch (Exception ex)

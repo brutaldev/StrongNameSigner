@@ -84,7 +84,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
           .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
                       Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
         {
-          if (SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Verbose ? verboseOutput : null))
+          if (SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory))
           {
             signedFiles++;
           }
@@ -93,7 +93,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       else
       {
         // We can assume from validation that there will be a single file.
-        if (SignSingleAssembly(options.AssemblyFile, options.KeyFile, options.OutputDirectory, options.Verbose ? verboseOutput : null))
+        if (SignSingleAssembly(options.AssemblyFile, options.KeyFile, options.OutputDirectory))
         {
           signedFiles++;
         }
@@ -102,27 +102,18 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return signedFiles;
     }
 
-    private static bool SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, Action<string> verboseOutput)
+    private static bool SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory)
     {
       try
       {
         C.WriteLine();
         C.WriteLine("Strong-name signing {0}...", assemblyPath);
 
-        var info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, verboseOutput);
+        var info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory);
 
         C.ForegroundColor = ConsoleColor.Green;
         C.WriteLine("{0} was strong-name signed successfully.", info.FilePath);
         C.ResetColor();
-
-        if (verboseOutput != null)
-        {
-          C.WriteLine("New Assembly Information");
-          C.WriteLine("------------------------");
-          C.WriteLine(".NET Version: {0}", info.DotNetVersion);
-          C.WriteLine("Build Type  : {0}", info.IsAnyCpu ? "Any CPU" : info.Is32BitOnly ? "x86" : info.Is64BitOnly ? "x64" : "UNKNOWN");
-          C.WriteLine("Signed      : {0}", info.IsSigned);
-        }
 
         return true;
       }

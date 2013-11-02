@@ -36,10 +36,6 @@ namespace Brutal.Dev.StrongNameSigner.Console
     [ArgDescription("Displays options and usage information.")]
     public bool Help { get; set; }
 
-    [ArgShortcut("v")]
-    [ArgDescription("Displays verbose output information from internal tools being used.")]
-    public bool Verbose { get; set; }
-
     public void Validate()
     {
       if (string.IsNullOrWhiteSpace(AssemblyFile) && string.IsNullOrWhiteSpace(InputDirectory))

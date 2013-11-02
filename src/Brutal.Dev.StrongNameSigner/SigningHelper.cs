@@ -19,41 +19,17 @@ namespace Brutal.Dev.StrongNameSigner
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath)
     {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, null);
+      return SignAssembly(assemblyPath, string.Empty, string.Empty);
     }
-
-    /// <summary>
-    /// Signs the assembly at the specified path.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, Action<string> outputHandler)
-    {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, outputHandler);
-    }
-
-    /// <summary>
-    /// Signs the assembly at the specified path with your own strong-name key file.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath)
-    {
-      return SignAssembly(assemblyPath, keyPath, string.Empty, null);
-    }
-
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or.pfx).</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, Action<string> outputHandler)
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath)
     {
-      return SignAssembly(assemblyPath, keyPath, string.Empty, outputHandler);
+      return SignAssembly(assemblyPath, keyPath, string.Empty);
     }
 
     /// <summary>
@@ -62,19 +38,6 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
-    {
-      return SignAssembly(assemblyPath, keyPath, outputPath, null);
-    }
-
-    /// <summary>
-    /// Signs the assembly at the specified path with your own strong-name key file.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
-    /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath parameter was not provided.
@@ -90,7 +53,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <exception cref="Brutal.Dev.StrongNameSigner.AlreadySignedException">
     /// The assembly is already strong-name signed.
     /// </exception>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath, Action<string> outputHandler)
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -122,7 +85,7 @@ namespace Brutal.Dev.StrongNameSigner
       // Disassemble.
       using (var ildasm = new ILDasm(info))
       {
-        if (!ildasm.Run(outputHandler))
+        if (!ildasm.Run())
         {
           throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILDASM failed to execute for assembly '{0}'.", assemblyPath));
         }
@@ -141,7 +104,7 @@ namespace Brutal.Dev.StrongNameSigner
 
         using (var ilasm = new ILAsm(info, ildasm.BinaryILFilePath, keyPath, outputPath))
         {
-          if (!ilasm.Run(outputHandler))
+          if (!ilasm.Run())
           {
             throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILASM failed to execute for assembly '{0}'.", assemblyPath));
           }

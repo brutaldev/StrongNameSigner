@@ -77,6 +77,11 @@ namespace Brutal.Dev.StrongNameSigner.External
       }
     }
 
+    public bool Run()
+    {
+      return Run(null);
+    }
+
     public void Dispose()
     {
       Dispose(true);
