@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO;
 using Brutal.Dev.StrongNameSigner.External;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -194,15 +195,18 @@ namespace Brutal.Dev.StrongNameSigner
         throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
       }
 
-      using (var corflags = new CorFlags(assemblyPath))
-      {
-        if (!corflags.Run(outputHandler))
-        {
-          throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "CORFLAGS failed to execute for assembly '{0}'.", assemblyPath));
-        }
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath);
 
-        return corflags.AssemblyInfo;
-      }
+      return new AssemblyInfo()
+      {
+        FilePath = Path.GetFullPath(assemblyPath),
+        DotNetVersion = GetDotNetVersion(a.MainModule.Runtime),
+        IsSigned = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
+        IsManagedAssembly = a.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
+        Is64BitOnly = a.MainModule.Architecture == TargetArchitecture.AMD64 || a.MainModule.Architecture == TargetArchitecture.IA64,
+        Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit),
+        Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
+      };
     }
 
     /// <summary>
@@ -229,14 +233,6 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      using (var corflags = new CorFlags())
-      {
-        if (!File.Exists(corflags.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'CORFLAGS.exe'.", corflags.Executable);
-        }
-      }
-
       using (var sn = new SignTool())
       {
         if (!File.Exists(sn.Executable))
@@ -244,6 +240,23 @@ namespace Brutal.Dev.StrongNameSigner
           throw new FileNotFoundException("Could not find required executable 'SN.exe'.", sn.Executable);
         }
       }
+    }
+
+    private static string GetDotNetVersion(TargetRuntime runtime)
+    {
+      switch (runtime)
+      {
+        case TargetRuntime.Net_1_0:
+          return "1.0.3705";
+        case TargetRuntime.Net_1_1:
+          return "1.1.4322";
+        case TargetRuntime.Net_2_0:
+          return "2.0.50727";
+        case TargetRuntime.Net_4_0:
+          return "4.0.30319";
+      }
+
+      return "UNKNOWN";
     }
   }
 }

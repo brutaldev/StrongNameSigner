@@ -190,6 +190,10 @@ namespace Brutal.Dev.StrongNameSigner.UI
           {
             MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", assembly), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
           }
+          catch (BadImageFormatException)
+          {
+            MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", assembly), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+          }
         }
 
         ResizeColumnWidths();
@@ -247,6 +251,10 @@ namespace Brutal.Dev.StrongNameSigner.UI
               {
                 MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
               }
+              catch (BadImageFormatException)
+              {
+                MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+              }
             }
           }
         }
@@ -262,6 +270,10 @@ namespace Brutal.Dev.StrongNameSigner.UI
               AddAssemblyToList(SigningHelper.GetAssemblyInfo(file));
             }
             catch (InvalidOperationException)
+            {
+              MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (BadImageFormatException)
             {
               MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }

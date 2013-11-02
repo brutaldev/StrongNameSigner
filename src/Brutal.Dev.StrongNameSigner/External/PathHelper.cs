@@ -12,7 +12,7 @@ namespace Brutal.Dev.StrongNameSigner.External
     {
       string[] frameworkPaths = new[]
       {
-        @"Microsoft.NET\Framework\v" + version.TrimStart('v'),
+        @"Microsoft.NET\Framework\v" + version,
         @"Microsoft.NET\Framework\v4.0.30319",
         @"Microsoft.NET\Framework\v2.0.50727",
         @"Microsoft.NET\Framework\v1.1.4322"

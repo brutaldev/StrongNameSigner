@@ -136,6 +136,12 @@ namespace Brutal.Dev.StrongNameSigner.Console
         C.WriteLine("Warning: {0}", ioe.Message);
         C.ResetColor();
       }
+      catch (BadImageFormatException bife)
+      {
+        C.ForegroundColor = ConsoleColor.Yellow;
+        C.WriteLine("Warning: {0}", bife.Message);
+        C.ResetColor();
+      }
       catch (Exception ex)
       {
         C.ForegroundColor = ConsoleColor.Red;

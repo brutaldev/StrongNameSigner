@@ -45,19 +45,15 @@ namespace Brutal.Dev.StrongNameSigner.Tests.External
     {
       string outputPath = string.Empty;
 
-      using (var corFlags = new CorFlags(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe")))
+      using (var ildasm = new ILDasm(SigningHelper.GetAssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"))))
       {
-        corFlags.Run(s => output.Append(s)).ShouldBe(true);
-        using (var ildasm = new ILDasm(corFlags.AssemblyInfo))
-        {
-          outputPath = ildasm.WorkingPath;
-          ildasm.Run(s => output.Append(s)).ShouldBe(true);
+        outputPath = ildasm.WorkingPath;
+        ildasm.Run(s => output.Append(s)).ShouldBe(true);
 
-          Directory.Exists(outputPath).ShouldBe(true);
-        }
-
-        Directory.Exists(outputPath).ShouldBe(false);
+        Directory.Exists(outputPath).ShouldBe(true);
       }
+
+      Directory.Exists(outputPath).ShouldBe(false);
     }
 
     [Test]
@@ -65,18 +61,13 @@ namespace Brutal.Dev.StrongNameSigner.Tests.External
     {
       foreach (var assembly in Directory.GetFiles(TestAssemblyDirectory, "*.exe", SearchOption.TopDirectoryOnly).Where(a => !a.Contains("Obfuscated")))
       {
-        using (var corFlags = new CorFlags(assembly))
+        using (var ildasm = new ILDasm(SigningHelper.GetAssemblyInfo(assembly)))
         {
-          corFlags.Run(s => output.Append(s)).ShouldBe(true);
+          ildasm.Run(s => output.Append(s)).ShouldBe(true);
 
-          using (var ildasm = new ILDasm(corFlags.AssemblyInfo))
-          {
-            ildasm.Run(s => output.Append(s)).ShouldBe(true);
-
-            Directory.Exists(ildasm.WorkingPath).ShouldBe(true);
-            Directory.GetFiles(ildasm.WorkingPath).ShouldContain(f => f.EndsWith(".il"));
-            Directory.GetFiles(ildasm.WorkingPath).ShouldContain(f => f.EndsWith(".binary.il"));
-          }
+          Directory.Exists(ildasm.WorkingPath).ShouldBe(true);
+          Directory.GetFiles(ildasm.WorkingPath).ShouldContain(f => f.EndsWith(".il"));
+          Directory.GetFiles(ildasm.WorkingPath).ShouldContain(f => f.EndsWith(".binary.il"));
         }
       }
     }
@@ -84,15 +75,10 @@ namespace Brutal.Dev.StrongNameSigner.Tests.External
     [Test]
     public void ILDasm_Should_Fail_To_Disassemble_Obfuscated_Assemblies()
     {
-      using (var corFlags = new CorFlags(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Obfuscated.exe")))
+      using (var ildasm = new ILDasm(SigningHelper.GetAssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Obfuscated.exe"))))
       {
-        corFlags.Run(s => output.Append(s)).ShouldBe(true);
-
-        using (var ildasm = new ILDasm(corFlags.AssemblyInfo))
-        {
-          ildasm.Run(s => output.Append(s)).ShouldBe(false);
-          ildasm.Output.ShouldContain("cannot disassemble");
-        }
+        ildasm.Run(s => output.Append(s)).ShouldBe(false);
+        ildasm.Output.ShouldContain("cannot disassemble");
       }
     }
   }

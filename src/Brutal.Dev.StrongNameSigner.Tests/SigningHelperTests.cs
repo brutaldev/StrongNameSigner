@@ -90,7 +90,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
-    [ExpectedException(typeof(InvalidOperationException))]
+    [ExpectedException(typeof(BadImageFormatException))]
     public void GetAssemblyInfo_Public_API_Invalid_File_Should_Throw_Exception()
     {
       SigningHelper.GetAssemblyInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "calc.exe"), s => output.Append(s));

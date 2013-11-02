@@ -139,25 +139,16 @@ namespace Brutal.Dev.StrongNameSigner.Tests.External
     private AssemblyInfo RoundTrip(string fileName, bool signFile)
     {
       // Disassemble first
-      using (var corFlagsFirst = new CorFlags(Path.Combine(TestAssemblyDirectory, fileName)))
+      var info = SigningHelper.GetAssemblyInfo(Path.Combine(TestAssemblyDirectory, fileName));
+      using (var ildasm = new ILDasm(info))
       {
-        corFlagsFirst.Run(s => output.Append(s)).ShouldBe(true);
+        ildasm.Run(s => output.Append(s)).ShouldBe(true);
 
-        using (var ildasm = new ILDasm(corFlagsFirst.AssemblyInfo))
+        using (var ilasm = new ILAsm(info, ildasm.BinaryILFilePath, signFile ? signTool.KeyFilePath : string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
         {
-          ildasm.Run(s => output.Append(s)).ShouldBe(true);
+          ilasm.Run(s => output.Append(s)).ShouldBe(true);
 
-          using (var ilasm = new ILAsm(corFlagsFirst.AssemblyInfo, ildasm.BinaryILFilePath, signFile ? signTool.KeyFilePath : string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
-          {
-            ilasm.Run(s => output.Append(s)).ShouldBe(true);
-
-            using (var corFlagsSecond = new CorFlags(ilasm.SignedAssemblyPath))
-            {
-              corFlagsSecond.Run(s => output.Append(s)).ShouldBe(true);
-
-              return corFlagsSecond.AssemblyInfo;
-            }
-          }
+          return SigningHelper.GetAssemblyInfo(ilasm.SignedAssemblyPath);
         }
       }
     }
