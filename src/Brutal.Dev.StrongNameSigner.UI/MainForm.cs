@@ -80,7 +80,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
         {
           dialog.Title = openFileDialogKey.Title;
           dialog.DefaultExtension = openFileDialogKey.DefaultExt;
-          dialog.Filters.Add(new CommonFileDialogFilter("Key files", "*.snk"));
+          dialog.Filters.Add(new CommonFileDialogFilter("Key files", "*.snk;*.pfx"));
           dialog.EnsurePathExists = true;
           dialog.EnsureValidNames = true;
           dialog.IsFolderPicker = false;

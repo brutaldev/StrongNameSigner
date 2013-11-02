@@ -35,7 +35,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath)
     {
@@ -46,7 +46,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or.pfx).</param>
     /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, Action<string> outputHandler)
@@ -58,7 +58,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
@@ -70,7 +70,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
     /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>

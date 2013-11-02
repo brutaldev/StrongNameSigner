@@ -103,7 +103,7 @@
       this.labelKeyInstruction.Name = "labelKeyInstruction";
       this.labelKeyInstruction.Size = new System.Drawing.Size(670, 13);
       this.labelKeyInstruction.TabIndex = 0;
-      this.labelKeyInstruction.Text = "Select your own SNK file to strong-name sign the assemblies with. If you do not p" +
+      this.labelKeyInstruction.Text = "Select your own key file to strong-name sign the assemblies with. If you do not p" +
     "rovide one, a key file will be automatically generated for you.";
       // 
       // labelOutputInstruction
@@ -119,7 +119,7 @@
       // openFileDialogKey
       // 
       this.openFileDialogKey.DefaultExt = "snk";
-      this.openFileDialogKey.Filter = "Key files|*.snk";
+      this.openFileDialogKey.Filter = "Key files|*.snk;*.pfx";
       this.openFileDialogKey.Title = "Select key file...";
       // 
       // listViewAssemblies
