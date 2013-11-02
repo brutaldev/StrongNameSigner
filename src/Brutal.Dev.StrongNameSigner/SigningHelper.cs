@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
-using Brutal.Dev.StrongNameSigner.External;
-using Mono.Cecil;
 using System.Reflection;
+using System.Security.Cryptography;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -34,6 +32,7 @@ namespace Brutal.Dev.StrongNameSigner
     {
       return SignAssembly(assemblyPath, string.Empty, string.Empty);
     }
+
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
