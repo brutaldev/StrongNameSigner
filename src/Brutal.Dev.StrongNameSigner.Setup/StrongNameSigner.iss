@@ -38,6 +38,7 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 MinVersion=0,5.01sp3
 ArchitecturesInstallIn64BitMode=x64 ia64
 ShowLanguageDialog=auto
+PrivilegesRequired=admin
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -47,6 +48,10 @@ win_sp_title=Windows %1 Service Pack %2
 
 [Files]
 Source: "..\Brutal.Dev.StrongNameSigner.Docs\output\Help.chm"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Mdb.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Pdb.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Rocks.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.XML"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: Console
