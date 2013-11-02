@@ -64,7 +64,8 @@
   </Choose>
   <ItemGroup>
     <Compile Include="External\PublicKeyToolTests.cs" />
-    <Compile Include="SigningHelperTests.cs" />
+    <Compile Include="GetAssemblyInfoTests.cs" />
+    <Compile Include="SignAssemblyTests.cs" />
     <Compile Include="External\ILAsmTests.cs" />
     <Compile Include="External\ILDasmTests.cs" />
     <Compile Include="External\CorFlagsTests.cs" />
