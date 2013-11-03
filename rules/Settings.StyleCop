@@ -2,6 +2,7 @@
   <GlobalSettings>
     <CollectionProperty Name="RecognizedWords">
       <Value>snk</Value>
+      <Value>pfx</Value>
     </CollectionProperty>
   </GlobalSettings>
   <Parsers>

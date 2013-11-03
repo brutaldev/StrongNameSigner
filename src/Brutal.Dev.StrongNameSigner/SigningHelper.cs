@@ -1,7 +1,9 @@
 ﻿using System;
-using System.Globalization;
 using System.IO;
-using Brutal.Dev.StrongNameSigner.External;
+using System.Linq;
+using System.Reflection;
+using System.Security.Cryptography;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -11,68 +13,44 @@ namespace Brutal.Dev.StrongNameSigner
   public static class SigningHelper
   {
     /// <summary>
+    /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
+    /// </summary>
+    /// <returns>A strong-name key pair array.</returns>
+    public static byte[] GenerateStrongNameKeyPair()
+    {
+      using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
+      {
+        return provider.ExportCspBlob(!provider.PublicOnly);
+      }
+    }
+
+    /// <summary>
     /// Signs the assembly at the specified path.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath)
     {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, null);
-    }
-
-    /// <summary>
-    /// Signs the assembly at the specified path.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, Action<string> outputHandler)
-    {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, outputHandler);
+      return SignAssembly(assemblyPath, string.Empty, string.Empty);
     }
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or.pfx).</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath)
     {
-      return SignAssembly(assemblyPath, keyPath, string.Empty, null);
+      return SignAssembly(assemblyPath, keyPath, string.Empty);
     }
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, Action<string> outputHandler)
-    {
-      return SignAssembly(assemblyPath, keyPath, string.Empty, outputHandler);
-    }
-
-    /// <summary>
-    /// Signs the assembly at the specified path with your own strong-name key file.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
-    {
-      return SignAssembly(assemblyPath, keyPath, outputPath, null);
-    }
-
-    /// <summary>
-    /// Signs the assembly at the specified path with your own strong-name key file.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk).</param>
-    /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath parameter was not provided.
@@ -82,13 +60,10 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file file.
     /// </exception>
-    /// <exception cref="System.InvalidOperationException">
-    /// An error was detected when using an external tool, check the output log information for details on the error.
+    /// <exception cref="System.BadImageFormatException">
+    /// The file is not a .NET managed assembly.
     /// </exception>
-    /// <exception cref="Brutal.Dev.StrongNameSigner.AlreadySignedException">
-    /// The assembly is already strong-name signed.
-    /// </exception>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath, Action<string> outputHandler)
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -108,68 +83,46 @@ namespace Brutal.Dev.StrongNameSigner
         outputPath = Path.GetDirectoryName(assemblyPath);
       }
 
+      string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
+
       // Get the assembly info and go from there.
       AssemblyInfo info = GetAssemblyInfo(assemblyPath);
 
       // Don't sign assemblies with a strong-name signature.
       if (info.IsSigned)
       {
-        throw new AlreadySignedException(string.Format(CultureInfo.CurrentCulture, "The assembly '{0}' is already strong-name signed.", assemblyPath));
+        if (!outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
+        {
+          File.Copy(assemblyPath, outputFile, true);
+        }
+        return info;
       }
 
-      // Disassemble
-      using (var ildasm = new ILDasm(info))
+      byte[] keyPairArray = null;
+      if (!string.IsNullOrEmpty(keyPath))
       {
-        if (!ildasm.Run(outputHandler))
-        {
-          throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILDASM failed to execute for assembly '{0}'.", assemblyPath));
-        }
-
-        // Check if we have a key
-        using (var signtool = new SignTool())
-        {
-          if (string.IsNullOrEmpty(keyPath))
-          {
-            if (!signtool.Run(outputHandler))
-            {
-              throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "SIGNTOOL failed to create a strong-name key file for '{0}'.", assemblyPath));
-            }
-
-            keyPath = signtool.KeyFilePath;
-          }
-          else if (!File.Exists(keyPath))
-          {
-            throw new FileNotFoundException("Could not find provided strong-name key file file.", keyPath);
-          }
-
-          using (var ilasm = new ILAsm(info, ildasm.BinaryILFilePath, keyPath, outputPath))
-          {
-            if (!ilasm.Run(outputHandler))
-            {
-              throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "ILASM failed to execute for assembly '{0}'.", assemblyPath));
-            }
-
-            return GetAssemblyInfo(ilasm.SignedAssemblyPath);
-          }
-        }
+        keyPairArray = File.ReadAllBytes(keyPath);
       }
+      else
+      {
+        keyPairArray = GenerateStrongNameKeyPair();
+      }
+
+      if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
+      {
+        // Make a backup before overwriting.
+        File.Copy(outputFile, outputFile + ".unsigned", true);
+      }
+
+      AssemblyDefinition.ReadAssembly(assemblyPath).Write(outputFile, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
+
+      return GetAssemblyInfo(outputFile);
     }
 
     /// <summary>
     /// Gets .NET assembly information.
     /// </summary>
     /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
-    /// <returns>The assembly information.</returns>
-    public static AssemblyInfo GetAssemblyInfo(string assemblyPath)
-    {
-      return GetAssemblyInfo(assemblyPath, null);
-    }
-
-    /// <summary>
-    /// Gets .NET assembly information.
-    /// </summary>
-    /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
-    /// <param name="outputHandler">A method to handle external application output.</param>
     /// <returns>The assembly information.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath parameter was not provided.
@@ -177,10 +130,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <exception cref="System.IO.FileNotFoundException">
     /// Could not find provided assembly file.
     /// </exception>
-    /// <exception cref="System.InvalidOperationException">
-    /// An error was detected when using an external tool, check the output log information for details on the error.
-    /// </exception>
-    public static AssemblyInfo GetAssemblyInfo(string assemblyPath, Action<string> outputHandler)
+    public static AssemblyInfo GetAssemblyInfo(string assemblyPath)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -194,56 +144,95 @@ namespace Brutal.Dev.StrongNameSigner
         throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
       }
 
-      using (var corflags = new CorFlags(assemblyPath))
-      {
-        if (!corflags.Run(outputHandler))
-        {
-          throw new InvalidOperationException(string.Format(CultureInfo.CurrentCulture, "CORFLAGS failed to execute for assembly '{0}'.", assemblyPath));
-        }
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath);
 
-        return corflags.AssemblyInfo;
-      }
+      return new AssemblyInfo()
+      {
+        FilePath = Path.GetFullPath(assemblyPath),
+        DotNetVersion = GetDotNetVersion(a.MainModule.Runtime),
+        IsSigned = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
+        IsManagedAssembly = a.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
+        Is64BitOnly = a.MainModule.Architecture == TargetArchitecture.AMD64 || a.MainModule.Architecture == TargetArchitecture.IA64,
+        Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
+        Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
+      };
     }
 
     /// <summary>
-    /// Checks that all the required software is available on the client machine.
+    /// Fixes an assembly reference.
     /// </summary>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find a required external application file.
+    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
+    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
+    /// <exception cref="System.ArgumentNullException">
+    /// assemblyPath was not provided.
+    /// or
+    /// referenceAssemblyPath was not provided.
     /// </exception>
-    public static void CheckForRequiredSoftware()
+    /// <exception cref="System.IO.FileNotFoundException">
+    /// Could not find provided assembly file.
+    /// or
+    /// Could not find provided reference assembly file.
+    /// </exception>
+    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
     {
-      using (var ilasm = new ILAsm())
+      // Verify assembly path was passed in.
+      if (string.IsNullOrWhiteSpace(assemblyPath))
       {
-        if (!File.Exists(ilasm.Executable))
+        throw new ArgumentNullException("assemblyPath");
+      }
+
+      if (string.IsNullOrWhiteSpace(referenceAssemblyPath))
+      {
+        throw new ArgumentNullException("referenceAssemblyPath");
+      }
+
+      // Make sure the file actually exists.
+      if (!File.Exists(assemblyPath))
+      {
+        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+      }
+
+      if (!File.Exists(referenceAssemblyPath))
+      {
+        throw new FileNotFoundException("Could not find provided reference assembly file.", referenceAssemblyPath);
+      }
+
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath);
+      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath);
+
+      var reference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
+
+      if (reference != null)
+      {
+        // Found a matching reference, let's set the public key token.
+        if (BitConverter.ToString(reference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
         {
-          throw new FileNotFoundException("Could not find required executable 'ILASM.exe'.", ilasm.Executable);
+          reference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+
+          a.Write(assemblyPath);
+
+          return true;
         }
       }
 
-      using (var ildasm = new ILDasm())
+      return false;
+    }
+
+    private static string GetDotNetVersion(TargetRuntime runtime)
+    {
+      switch (runtime)
       {
-        if (!File.Exists(ildasm.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'ILDASM.exe'.", ildasm.Executable);
-        }
+        case TargetRuntime.Net_1_0:
+          return "1.0.3705";
+        case TargetRuntime.Net_1_1:
+          return "1.1.4322";
+        case TargetRuntime.Net_2_0:
+          return "2.0.50727";
+        case TargetRuntime.Net_4_0:
+          return "4.0.30319";
       }
 
-      using (var corflags = new CorFlags())
-      {
-        if (!File.Exists(corflags.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'CORFLAGS.exe'.", corflags.Executable);
-        }
-      }
-
-      using (var sn = new SignTool())
-      {
-        if (!File.Exists(sn.Executable))
-        {
-          throw new FileNotFoundException("Could not find required executable 'SN.exe'.", sn.Executable);
-        }
-      }
+      return "UNKNOWN";
     }
   }
 }

@@ -101,9 +101,9 @@
       this.labelKeyInstruction.AutoSize = true;
       this.labelKeyInstruction.Location = new System.Drawing.Point(11, 18);
       this.labelKeyInstruction.Name = "labelKeyInstruction";
-      this.labelKeyInstruction.Size = new System.Drawing.Size(670, 13);
+      this.labelKeyInstruction.Size = new System.Drawing.Size(665, 13);
       this.labelKeyInstruction.TabIndex = 0;
-      this.labelKeyInstruction.Text = "Select your own SNK file to strong-name sign the assemblies with. If you do not p" +
+      this.labelKeyInstruction.Text = "Select your own key file to strong-name sign the assemblies with. If you do not p" +
     "rovide one, a key file will be automatically generated for you.";
       // 
       // labelOutputInstruction
@@ -119,7 +119,7 @@
       // openFileDialogKey
       // 
       this.openFileDialogKey.DefaultExt = "snk";
-      this.openFileDialogKey.Filter = "Key files|*.snk";
+      this.openFileDialogKey.Filter = "Key files|*.snk;*.pfx";
       this.openFileDialogKey.Title = "Select key file...";
       // 
       // listViewAssemblies
@@ -259,7 +259,7 @@
       // 
       this.labelInfo.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.labelInfo.AutoSize = true;
-      this.labelInfo.Location = new System.Drawing.Point(217, 520);
+      this.labelInfo.Location = new System.Drawing.Point(205, 520);
       this.labelInfo.Name = "labelInfo";
       this.labelInfo.Size = new System.Drawing.Size(0, 13);
       this.labelInfo.TabIndex = 14;
@@ -324,10 +324,10 @@
       this.Controls.Add(this.textBoxOutput);
       this.Controls.Add(this.progressBar);
       this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-      this.MinimumSize = new System.Drawing.Size(710, 415);
+      this.MinimumSize = new System.Drawing.Size(780, 415);
       this.Name = "MainForm";
       this.Text = "Brutal Developer .NET Assembly Strong-Name Signer";
-      this.Load += new System.EventHandler(this.MainForm_Load);
+      this.Load += new System.EventHandler(this.MainFormLoad);
       this.ResumeLayout(false);
       this.PerformLayout();
 

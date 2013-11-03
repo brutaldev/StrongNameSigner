@@ -4,7 +4,7 @@
 #define MyAppID "{A89C23E7-A764-4F59-8EF3-5AB0A33E5849}"
 #define MyAppName ".NET Assembly Strong-Name Signer"
 #define MyAppNameNoSpaces "StrongNameSigner"
-#define MyAppVersion "1.1.0.0"
+#define MyAppVersion "1.2.0.0"
 #define MyAppPublisher "BrutalDev"
 #define MyAppURL "http://brutaldev.com"
 #define MyAppExeName "StrongNameSigner.exe"
@@ -48,6 +48,7 @@ win_sp_title=Windows %1 Service Pack %2
 
 [Files]
 Source: "..\Brutal.Dev.StrongNameSigner.Docs\output\Help.chm"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.XML"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: Console

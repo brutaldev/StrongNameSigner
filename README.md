@@ -1,7 +1,7 @@
 .NET Assembly Strong-Name Signer
 =================
 
-Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for. If you strong-name sign your own projects you may have noticed that if you reference an unsigned third party assembly you get an error similar to "*Referenced assembly 'A.B.C' does not have a strong name*". If you did not create this assembly, you can use this tool to sign the assembly with your own (or temporarily generated) strong-name key.
+Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for. If you strong-name sign your own projects you may have noticed that if you reference an unsigned third party assembly you get an error similar to "*Referenced assembly 'A.B.C' does not have a strong name*". If you did not create this assembly, you can use this tool to sign the assembly with your own (or temporarily generated) strong-name key. The tool will also re-write the assembly references to match the new signed versions of the assemblies you create.
 
 * [Download Installer](http://www.brutaldev.com/file.axd?file=StrongNameSigner_Setup.exe)
 * [More Information](http://brutaldev.com/post/2013/10/18/NET-Assembly-Strong-Name-Signer)
@@ -11,6 +11,21 @@ Screenshots
 ![User Interface](http://brutaldev.com/image.axd?picture=StrongNameSigner_UI_1.png)
 
 ![Console](http://brutaldev.com/image.axd?picture=StrongNameSigner_Console_1.png)
+
+Build Process
+-------------
+You can call the console version in your Visual Studio project files to sign assemblies before it gets built. This will change the references to your assemblies to strong-name signed ones allowing to sign your own projects and reference unsigned assemblies. All assemblies that are found (including signed ones) will have their references corrected if they were using any files that now have public key tokens.
+
+For example, if you want to strong-name sign and fix references to all the NuGet packages that your project uses, you can add this to you Visual Studio project file:
+
+```
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;C:\Program Files\BrutalDev\.NET Assembly Strong-Name Signer\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+</Target>
+```
+
+Note that any files that are already strong-name signed will not be modified. If you are using NuGet package restore then this works on build servers as well.
 
 API Usage
 ---------
