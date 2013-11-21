@@ -355,7 +355,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             if (!info.IsSigned)
             {              
               info = SigningHelper.SignAssembly(assembly, keyFile, outputPath);
-              log.Append("String-name signed successfully.").AppendLine();
+              log.Append("Strong-name signed successfully.").AppendLine();
               signedFiles++;
             }
             else
