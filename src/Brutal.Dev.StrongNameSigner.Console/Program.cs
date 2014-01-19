@@ -70,7 +70,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       int referenceFixes = 0;
 
       IEnumerable<string> filesToSign = null;
-
+      
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {
         filesToSign = Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
@@ -83,16 +83,23 @@ namespace Brutal.Dev.StrongNameSigner.Console
         filesToSign = new string[] { options.AssemblyFile };
       }
 
+      var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       foreach (var filePath in filesToSign)
       {
-        if (SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory))
+        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory);
+        if (signedAssembly != null)
         {
+          processedAssemblyPaths.Add(signedAssembly.FilePath);
           signedFiles++;
+        }
+        else
+        {
+          processedAssemblyPaths.Add(filePath);
         }
       }
 
-      var referencesToFix = new List<string>(filesToSign);
-      foreach (var filePath in filesToSign)
+      var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
+      foreach (var filePath in processedAssemblyPaths)
       {
         // Go through all the references excluding the file we are working on.
         foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
@@ -111,7 +118,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       };
     }
 
-    private static bool SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory)
+    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory)
     {
       try
       {
@@ -127,7 +134,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
           C.WriteLine("{0} was strong-name signed successfully!", info.FilePath);
           C.ResetColor();
 
-          return true;
+          return info;
         }
         else
         {
@@ -147,7 +154,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         C.ResetColor();
       }
 
-      return false;
+      return null;
     }
 
     private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath)

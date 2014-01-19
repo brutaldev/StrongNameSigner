@@ -82,7 +82,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             while (!Directory.Exists(selectedFolder))
             {
               // Work around dialog bug in Vista.
-              selectedFolder = Directory.GetParent(selectedFolder).FullName; 
+              selectedFolder = Directory.GetParent(selectedFolder).FullName;
             }
 
             textBoxKey.Text = dialog.FileName;
@@ -308,7 +308,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
         outputPath = textBoxOutput.Text.Trim();
       }
 
-      var assemblies = new List<string>();
+      var assemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       foreach (ListViewItem item in listViewAssemblies.Items)
       {
         assemblies.Add(item.Tag.ToString());
@@ -336,39 +336,43 @@ namespace Brutal.Dev.StrongNameSigner.UI
       int progress = 0;
       int signedFiles = 0;
       int referenceFixes = 0;
-      var assemblies = e.Argument as IEnumerable<string>;
+      var assemblyPaths = e.Argument as IEnumerable<string>;
+      var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-      if (assemblies != null)
+      if (assemblyPaths != null)
       {
         // We go through assemblies twice and every assembly -1 for reference fixes.
-        double progressMax = assemblies.Count() + (assemblies.Count() * (assemblies.Count() - 1));
-
-        foreach (var assembly in assemblies)
+        double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 2;
+        
+        foreach (var filePath in assemblyPaths)
         {
-          AssemblyInfo info = null;
+          var assemblyPair = new AssemblyPair();
 
           try
           {
-            log.AppendFormat("Strong-name signing {0}...", assembly).AppendLine();
+            log.AppendFormat("Strong-name signing {0}...", filePath).AppendLine();
 
-            info = SigningHelper.GetAssemblyInfo(assembly);
-            if (!info.IsSigned)
-            {              
-              info = SigningHelper.SignAssembly(assembly, keyFile, outputPath);
+            assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
+            if (!assemblyPair.OldInfo.IsSigned)
+            {
+              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath);
               log.Append("Strong-name signed successfully.").AppendLine();
               signedFiles++;
             }
             else
             {
+              assemblyPair.NewInfo = assemblyPair.OldInfo;
               log.Append("Already strong-name signed...").AppendLine();
             }
+
+            processedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
           }
           catch (Exception ex)
           {
-            log.AppendFormat("Error strong-name signing {0}: {1}", assembly, ex.Message).AppendLine();
+            log.AppendFormat("Error strong-name signing {0}: {1}", filePath, ex.Message).AppendLine();
           }
 
-          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100), info);
+          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100), assemblyPair);
 
           if (backgroundWorker.CancellationPending)
           {
@@ -377,11 +381,11 @@ namespace Brutal.Dev.StrongNameSigner.UI
           }
         }
 
-        var referencesToFix = new List<string>(assemblies);
-        foreach (var assembly in assemblies)
+        var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
+        foreach (var filePath in processedAssemblyPaths)
         {
           // Go through all the references excluding the file we are working on.
-          foreach (var reference in referencesToFix.Where(r => !r.Equals(assembly)))
+          foreach (var reference in referencesToFix.Where(r => !r.Equals(filePath)))
           {
             backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
 
@@ -391,8 +395,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
               break;
             }
 
-            log.AppendFormat("Fixing references to {1} in {0}...", assembly, reference).AppendLine();
-            if (SigningHelper.FixAssemblyReference(assembly, reference))
+            log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
+            if (SigningHelper.FixAssemblyReference(filePath, reference))
             {
               log.Append("Reference was found and fixed.").AppendLine();
               referenceFixes++;
@@ -404,7 +408,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
           }
         }
 
-        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.", signedFiles, assemblies.Count(), referenceFixes);
+        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.", signedFiles, assemblyPaths.Count(), referenceFixes);
       }
     }
 
@@ -413,7 +417,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
       progressBar.Value = e.ProgressPercentage;
 
       // Update the item in the list with it's new values.
-      UpdateAssemblyInList(e.UserState as AssemblyInfo);
+      UpdateAssemblyInList(e.UserState as AssemblyPair);
     }
 
     private void BackgroundWorkerRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
@@ -473,15 +477,16 @@ namespace Brutal.Dev.StrongNameSigner.UI
       buttonSign.Enabled = enabled;
     }
 
-    private void UpdateAssemblyInList(AssemblyInfo info)
+    private void UpdateAssemblyInList(AssemblyPair pair)
     {
-      if (info != null)
+      if (pair != null && pair.OldInfo != null && pair.NewInfo != null)
       {
         for (int i = 0; i < listViewAssemblies.Items.Count; i++)
         {
-          if (listViewAssemblies.Items[i].Tag.ToString().Equals(info.FilePath, StringComparison.OrdinalIgnoreCase))
+          if (listViewAssemblies.Items[i].Tag.ToString().Equals(pair.OldInfo.FilePath, StringComparison.OrdinalIgnoreCase))
           {
-            listViewAssemblies.Items[i] = CreateListViewItem(info);
+            // Replace with new information.
+            listViewAssemblies.Items[i] = CreateListViewItem(pair.NewInfo);
             break;
           }
         }
@@ -492,7 +497,20 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       if (info != null && info.IsManagedAssembly)
       {
-        listViewAssemblies.Items.Add(CreateListViewItem(info));
+        bool foundDuplicate = false;
+        for (int i = 0; i < listViewAssemblies.Items.Count; i++)
+        {
+          if (listViewAssemblies.Items[i].Tag.ToString().Equals(info.FilePath, StringComparison.OrdinalIgnoreCase))
+          {
+            foundDuplicate = true;
+            break;
+          }
+        }
+
+        if (!foundDuplicate)
+        {
+          listViewAssemblies.Items.Add(CreateListViewItem(info));
+        }
       }
     }
   }
