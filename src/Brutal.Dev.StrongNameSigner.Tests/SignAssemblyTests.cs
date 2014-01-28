@@ -2,6 +2,7 @@
 using Shouldly;
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
@@ -32,10 +33,30 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
+    [ExpectedException(typeof(ArgumentException))]
+    public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Password_Not_Provided()
+    {
+      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"));
+    }
+
+    [Test]
+    [ExpectedException(typeof(CryptographicException))]
+    public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Wrong_Password_Provided()
+    {
+      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops");
+    }
+
+    [Test]
+    public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Work_With_Correct_Password()
+    {
+      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123");
+    }
+
+    [Test]
     [ExpectedException(typeof(DirectoryNotFoundException))]
     public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_Directory()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\DoesNotExist\\KeyFile.snk");
+      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), "C:\\DoesNotExist\\KeyFile.snk");
     }
 
     [Test]
