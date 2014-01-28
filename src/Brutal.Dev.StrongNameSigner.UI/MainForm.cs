@@ -16,6 +16,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
   {
     private string keyFile = string.Empty;
     private string outputPath = string.Empty;
+    private string password = string.Empty;
     private StringBuilder log = new StringBuilder();
 
     public MainForm()
@@ -130,6 +131,11 @@ namespace Brutal.Dev.StrongNameSigner.UI
           textBoxOutput.Text = folderBrowserDialogOutput.SelectedPath;
         }
       }
+    }
+
+    private void TextBoxKeyTextChanged(object sender, EventArgs e)
+    {
+      textBoxPassword.Enabled = textBoxKey.Text.Length > 0;
     }
 
     private void ButtonCancelClick(object sender, EventArgs e)
@@ -280,6 +286,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       keyFile = string.Empty;
       outputPath = string.Empty;
+      password = string.Empty;
       log.Clear();
 
       labelInfo.Text = string.Empty;
@@ -321,6 +328,15 @@ namespace Brutal.Dev.StrongNameSigner.UI
       if (assemblies.Count > 0)
       {
         EnableControls(false);
+
+        // Clear the password if no key file was provided.
+        if (string.IsNullOrWhiteSpace(keyFile))
+        {
+          textBoxPassword.Text = string.Empty;
+        }
+
+        password = textBoxPassword.Text;
+
         backgroundWorker.RunWorkerAsync(assemblies);
       }
     }
@@ -359,7 +375,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
             if (!assemblyPair.OldInfo.IsSigned)
             {
-              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath);
+              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password);
               log.Append("Strong-name signed successfully.").AppendLine();
               signedFiles++;
             }

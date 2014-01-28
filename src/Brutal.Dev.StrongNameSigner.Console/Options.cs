@@ -22,6 +22,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
     [ArgDescription("A strong-name key file (.snk or .pfx) to use. If not specified, one will be generated.")]
     public string KeyFile { get; set; }
 
+    [ArgShortcut("p")]
+    [ArgDescription("The password (if any) for the provided strong-name key file.")]
+    public string Password { get; set; }
+
     [ArgExistingDirectory]
     [ArgDescription("A directory of assemblies to strong-name sign.")]
     [ArgShortcut("in")]

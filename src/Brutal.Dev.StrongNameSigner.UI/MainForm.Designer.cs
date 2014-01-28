@@ -55,6 +55,9 @@
       this.openFileDialogAssembly = new System.Windows.Forms.OpenFileDialog();
       this.buttonCancel = new System.Windows.Forms.Button();
       this.linkLabelLog = new System.Windows.Forms.LinkLabel();
+      this.labelPassword = new System.Windows.Forms.Label();
+      this.textBoxPassword = new System.Windows.Forms.TextBox();
+      this.labelPasswordInstruction = new System.Windows.Forms.Label();
       this.SuspendLayout();
       // 
       // progressBar
@@ -80,10 +83,10 @@
             | System.Windows.Forms.AnchorStyles.Right)));
       this.textBoxOutput.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Suggest;
       this.textBoxOutput.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.FileSystemDirectories;
-      this.textBoxOutput.Location = new System.Drawing.Point(64, 93);
+      this.textBoxOutput.Location = new System.Drawing.Point(83, 147);
       this.textBoxOutput.Name = "textBoxOutput";
-      this.textBoxOutput.Size = new System.Drawing.Size(660, 20);
-      this.textBoxOutput.TabIndex = 6;
+      this.textBoxOutput.Size = new System.Drawing.Size(641, 20);
+      this.textBoxOutput.TabIndex = 9;
       // 
       // textBoxKey
       // 
@@ -91,10 +94,11 @@
             | System.Windows.Forms.AnchorStyles.Right)));
       this.textBoxKey.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Suggest;
       this.textBoxKey.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.FileSystem;
-      this.textBoxKey.Location = new System.Drawing.Point(64, 38);
+      this.textBoxKey.Location = new System.Drawing.Point(83, 38);
       this.textBoxKey.Name = "textBoxKey";
-      this.textBoxKey.Size = new System.Drawing.Size(660, 20);
+      this.textBoxKey.Size = new System.Drawing.Size(641, 20);
       this.textBoxKey.TabIndex = 2;
+      this.textBoxKey.TextChanged += new System.EventHandler(this.TextBoxKeyTextChanged);
       // 
       // labelKeyInstruction
       // 
@@ -109,10 +113,10 @@
       // labelOutputInstruction
       // 
       this.labelOutputInstruction.AutoSize = true;
-      this.labelOutputInstruction.Location = new System.Drawing.Point(12, 73);
+      this.labelOutputInstruction.Location = new System.Drawing.Point(12, 127);
       this.labelOutputInstruction.Name = "labelOutputInstruction";
       this.labelOutputInstruction.Size = new System.Drawing.Size(663, 13);
-      this.labelOutputInstruction.TabIndex = 4;
+      this.labelOutputInstruction.TabIndex = 7;
       this.labelOutputInstruction.Text = "Select the output directory for all your strong-name signed assemblies. If you do" +
     " not provide one, the files will be overwritten (with a backup).";
       // 
@@ -137,10 +141,10 @@
       this.listViewAssemblies.GridLines = true;
       this.listViewAssemblies.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
       this.listViewAssemblies.HideSelection = false;
-      this.listViewAssemblies.Location = new System.Drawing.Point(12, 145);
+      this.listViewAssemblies.Location = new System.Drawing.Point(12, 200);
       this.listViewAssemblies.Name = "listViewAssemblies";
-      this.listViewAssemblies.Size = new System.Drawing.Size(712, 353);
-      this.listViewAssemblies.TabIndex = 9;
+      this.listViewAssemblies.Size = new System.Drawing.Size(712, 300);
+      this.listViewAssemblies.TabIndex = 12;
       this.listViewAssemblies.UseCompatibleStateImageBehavior = false;
       this.listViewAssemblies.View = System.Windows.Forms.View.Details;
       this.listViewAssemblies.SelectedIndexChanged += new System.EventHandler(this.ListViewAssembliesSelectedIndexChanged);
@@ -172,10 +176,10 @@
       // 
       this.buttonAdd.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
       this.buttonAdd.Image = global::Brutal.Dev.StrongNameSigner.UI.Properties.Resources.Add;
-      this.buttonAdd.Location = new System.Drawing.Point(730, 145);
+      this.buttonAdd.Location = new System.Drawing.Point(730, 200);
       this.buttonAdd.Name = "buttonAdd";
       this.buttonAdd.Size = new System.Drawing.Size(40, 40);
-      this.buttonAdd.TabIndex = 10;
+      this.buttonAdd.TabIndex = 13;
       this.buttonAdd.UseVisualStyleBackColor = true;
       this.buttonAdd.Click += new System.EventHandler(this.ButtonAddClick);
       // 
@@ -184,10 +188,10 @@
       this.buttonRemove.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
       this.buttonRemove.Enabled = false;
       this.buttonRemove.Image = global::Brutal.Dev.StrongNameSigner.UI.Properties.Resources.Remove;
-      this.buttonRemove.Location = new System.Drawing.Point(730, 191);
+      this.buttonRemove.Location = new System.Drawing.Point(730, 246);
       this.buttonRemove.Name = "buttonRemove";
       this.buttonRemove.Size = new System.Drawing.Size(40, 40);
-      this.buttonRemove.TabIndex = 11;
+      this.buttonRemove.TabIndex = 14;
       this.buttonRemove.UseVisualStyleBackColor = true;
       this.buttonRemove.Click += new System.EventHandler(this.ButtonRemoveClick);
       // 
@@ -207,18 +211,20 @@
       // labelOutput
       // 
       this.labelOutput.AutoSize = true;
-      this.labelOutput.Location = new System.Drawing.Point(12, 96);
+      this.labelOutput.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.labelOutput.Location = new System.Drawing.Point(12, 150);
       this.labelOutput.Name = "labelOutput";
-      this.labelOutput.Size = new System.Drawing.Size(42, 13);
-      this.labelOutput.TabIndex = 5;
+      this.labelOutput.Size = new System.Drawing.Size(49, 13);
+      this.labelOutput.TabIndex = 8;
       this.labelOutput.Text = "Output:";
       // 
       // labelKey
       // 
       this.labelKey.AutoSize = true;
+      this.labelKey.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.labelKey.Location = new System.Drawing.Point(12, 41);
       this.labelKey.Name = "labelKey";
-      this.labelKey.Size = new System.Drawing.Size(47, 13);
+      this.labelKey.Size = new System.Drawing.Size(56, 13);
       this.labelKey.TabIndex = 1;
       this.labelKey.Text = "Key File:";
       // 
@@ -236,10 +242,10 @@
       // buttonOutput
       // 
       this.buttonOutput.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-      this.buttonOutput.Location = new System.Drawing.Point(730, 91);
+      this.buttonOutput.Location = new System.Drawing.Point(730, 145);
       this.buttonOutput.Name = "buttonOutput";
       this.buttonOutput.Size = new System.Drawing.Size(40, 23);
-      this.buttonOutput.TabIndex = 7;
+      this.buttonOutput.TabIndex = 10;
       this.buttonOutput.Text = "...";
       this.buttonOutput.UseVisualStyleBackColor = true;
       this.buttonOutput.Click += new System.EventHandler(this.ButtonOutputClick);
@@ -247,10 +253,10 @@
       // labelAssembliesInstruction
       // 
       this.labelAssembliesInstruction.AutoSize = true;
-      this.labelAssembliesInstruction.Location = new System.Drawing.Point(12, 127);
+      this.labelAssembliesInstruction.Location = new System.Drawing.Point(12, 180);
       this.labelAssembliesInstruction.Name = "labelAssembliesInstruction";
       this.labelAssembliesInstruction.Size = new System.Drawing.Size(571, 13);
-      this.labelAssembliesInstruction.TabIndex = 8;
+      this.labelAssembliesInstruction.TabIndex = 11;
       this.labelAssembliesInstruction.Text = "Drag-and-drop files/directories or use the buttons provided to add and remove ass" +
     "emblies you want to strong-name sign.";
       // 
@@ -261,7 +267,7 @@
       this.labelInfo.Location = new System.Drawing.Point(205, 520);
       this.labelInfo.Name = "labelInfo";
       this.labelInfo.Size = new System.Drawing.Size(0, 13);
-      this.labelInfo.TabIndex = 14;
+      this.labelInfo.TabIndex = 16;
       // 
       // folderBrowserDialogOutput
       // 
@@ -281,7 +287,7 @@
       this.buttonCancel.Location = new System.Drawing.Point(12, 506);
       this.buttonCancel.Name = "buttonCancel";
       this.buttonCancel.Size = new System.Drawing.Size(179, 38);
-      this.buttonCancel.TabIndex = 13;
+      this.buttonCancel.TabIndex = 15;
       this.buttonCancel.Text = "Cancel";
       this.buttonCancel.UseVisualStyleBackColor = true;
       this.buttonCancel.Visible = false;
@@ -294,17 +300,51 @@
       this.linkLabelLog.Location = new System.Drawing.Point(634, 520);
       this.linkLabelLog.Name = "linkLabelLog";
       this.linkLabelLog.Size = new System.Drawing.Size(90, 13);
-      this.linkLabelLog.TabIndex = 15;
+      this.linkLabelLog.TabIndex = 17;
       this.linkLabelLog.TabStop = true;
       this.linkLabelLog.Text = "Show Output Log";
       this.linkLabelLog.Visible = false;
       this.linkLabelLog.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.LinkLabelLogLinkClicked);
+      // 
+      // labelPassword
+      // 
+      this.labelPassword.AutoSize = true;
+      this.labelPassword.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+      this.labelPassword.Location = new System.Drawing.Point(12, 96);
+      this.labelPassword.Name = "labelPassword";
+      this.labelPassword.Size = new System.Drawing.Size(65, 13);
+      this.labelPassword.TabIndex = 5;
+      this.labelPassword.Text = "Password:";
+      // 
+      // textBoxPassword
+      // 
+      this.textBoxPassword.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+      this.textBoxPassword.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Suggest;
+      this.textBoxPassword.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.FileSystem;
+      this.textBoxPassword.Location = new System.Drawing.Point(83, 93);
+      this.textBoxPassword.Name = "textBoxPassword";
+      this.textBoxPassword.Size = new System.Drawing.Size(641, 20);
+      this.textBoxPassword.TabIndex = 6;
+      this.textBoxPassword.UseSystemPasswordChar = true;
+      // 
+      // labelPasswordInstruction
+      // 
+      this.labelPasswordInstruction.AutoSize = true;
+      this.labelPasswordInstruction.Location = new System.Drawing.Point(11, 73);
+      this.labelPasswordInstruction.Name = "labelPasswordInstruction";
+      this.labelPasswordInstruction.Size = new System.Drawing.Size(482, 13);
+      this.labelPasswordInstruction.TabIndex = 4;
+      this.labelPasswordInstruction.Text = "Provide a password (if any) for the key file that you provide. PFX file are norma" +
+    "lly password protected.";
       // 
       // MainForm
       // 
       this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
       this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
       this.ClientSize = new System.Drawing.Size(784, 561);
+      this.Controls.Add(this.textBoxPassword);
+      this.Controls.Add(this.labelPasswordInstruction);
       this.Controls.Add(this.linkLabelLog);
       this.Controls.Add(this.buttonCancel);
       this.Controls.Add(this.labelInfo);
@@ -322,6 +362,7 @@
       this.Controls.Add(this.labelKeyInstruction);
       this.Controls.Add(this.textBoxOutput);
       this.Controls.Add(this.progressBar);
+      this.Controls.Add(this.labelPassword);
       this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
       this.MinimumSize = new System.Drawing.Size(780, 415);
       this.Name = "MainForm";
@@ -360,6 +401,9 @@
     private System.Windows.Forms.ColumnHeader columnHeaderVersion;
     private System.Windows.Forms.Button buttonCancel;
     private System.Windows.Forms.LinkLabel linkLabelLog;
+    private System.Windows.Forms.Label labelPassword;
+    private System.Windows.Forms.TextBox textBoxPassword;
+    private System.Windows.Forms.Label labelPasswordInstruction;
   }
 }
 

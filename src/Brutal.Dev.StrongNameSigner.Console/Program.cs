@@ -86,7 +86,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       foreach (var filePath in filesToSign)
       {
-        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory);
+        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password);
         if (signedAssembly != null)
         {
           processedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -118,7 +118,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       };
     }
 
-    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory)
+    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password)
     {
       try
       {
@@ -128,7 +128,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         var info = SigningHelper.GetAssemblyInfo(assemblyPath);
         if (!info.IsSigned)
         {
-          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory);
+          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password);
 
           C.ForegroundColor = ConsoleColor.Green;
           C.WriteLine("{0} was strong-name signed successfully!", info.FilePath);
