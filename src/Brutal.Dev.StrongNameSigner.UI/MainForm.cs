@@ -291,6 +291,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
         MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "The key file '{0}' does not exist. Leave the field blank to have a key generated for you.", textBoxKey.Text), "Missing Key File", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         textBoxKey.SelectAll();
         textBoxKey.Focus();
+
+        return;
       }
       else
       {
@@ -302,6 +304,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
         MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "The output directory '{0}' does not exist. Leave the field blank to overwrite the existing assemblies, a backup of each file will be made.", textBoxOutput.Text), "Missing Output Directory", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         textBoxOutput.SelectAll();
         textBoxOutput.Focus();
+
+        return;
       }
       else
       {

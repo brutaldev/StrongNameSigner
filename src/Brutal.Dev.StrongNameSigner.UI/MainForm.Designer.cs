@@ -118,7 +118,6 @@
       // 
       // openFileDialogKey
       // 
-      this.openFileDialogKey.DefaultExt = "snk";
       this.openFileDialogKey.Filter = "Key files|*.snk;*.pfx";
       this.openFileDialogKey.Title = "Select key file...";
       // 
