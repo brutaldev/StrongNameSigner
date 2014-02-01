@@ -19,7 +19,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
     [ArgExistingFile]
     [ArgShortcut("k")]
-    [ArgDescription("A strong-name key file (.snk or .pfx) to use. If not specified, one will be generated.")]
+    [ArgDescription("A strong-name key file to use. If not specified, one will be generated.")]
     public string KeyFile { get; set; }
 
     [ArgShortcut("p")]

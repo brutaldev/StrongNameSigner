@@ -8,9 +8,11 @@ Utility software to strong-name sign .NET assemblies, including assemblies you d
 
 Screenshots
 -----------
-![User Interface](http://brutaldev.com/image.axd?picture=StrongNameSigner_UI_1.png)
+![User Interface](http://brutaldev.com/image.axd?picture=StrongNameSigner_UI.png)
 
-![Console](http://brutaldev.com/image.axd?picture=StrongNameSigner_Console_1.png)
+![Console](http://brutaldev.com/image.axd?picture=StrongNameSigner_Console.png)
+
+![Help](http://brutaldev.com/image.axd?picture=StrongNameSigner_Help.png)
 
 Build Process
 -------------
@@ -25,7 +27,11 @@ For example, if you want to strong-name sign and fix references to all the NuGet
 </Target>
 ```
 
-Note that any files that are already strong-name signed will not be modified. If you are using NuGet package restore then this works on build servers as well.
+Note that any files that are already strong-name signed will not be modified unless they reference a previously unsigned assembly. If you are using NuGet package restore then this works on build servers as well.
+
+Another alternative is to simply call the `StrongNameSigner.Console.exe` with relevant argument as a pre-build step.
+
+`"C:\Program Files\BrutalDev\.NET Assembly Strong-Name Signer\StrongNameSigner.Console.exe" -in "..\packages"`
 
 API Usage
 ---------
