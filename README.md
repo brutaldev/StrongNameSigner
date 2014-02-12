@@ -8,11 +8,11 @@ Utility software to strong-name sign .NET assemblies, including assemblies you d
 
 Screenshots
 -----------
-![User Interface](http://brutaldev.com/image.axd?picture=StrongNameSigner_UI.png)
+![User Interface](https://raw.github.com/brutaldev/StrongNameSigner/master/screenshots/StrongNameSigner_UI.png)
 
-![Console](http://brutaldev.com/image.axd?picture=StrongNameSigner_Console.png)
+![Console](https://raw.github.com/brutaldev/StrongNameSigner/master/screenshots/StrongNameSigner_Console.png)
 
-![Help](http://brutaldev.com/image.axd?picture=StrongNameSigner_Help.png)
+![Help](https://raw.github.com/brutaldev/StrongNameSigner/master/screenshots/StrongNameSigner_Help.png)
 
 Build Process
 -------------
