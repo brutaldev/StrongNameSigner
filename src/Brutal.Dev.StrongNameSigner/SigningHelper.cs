@@ -107,6 +107,11 @@ namespace Brutal.Dev.StrongNameSigner
         // Overwrite the file if no output path is provided.
         outputPath = Path.GetDirectoryName(assemblyPath);
       }
+      else
+      {
+        // Create the directory structure.
+        Directory.CreateDirectory(outputPath);
+      }      
 
       string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
 
