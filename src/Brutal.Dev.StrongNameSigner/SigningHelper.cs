@@ -158,7 +158,8 @@ namespace Brutal.Dev.StrongNameSigner
 
       try
       {
-        AssemblyDefinition.ReadAssembly(assemblyPath).Write(outputFile, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
+        AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath))
+          .Write(outputFile, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
       }
       catch (Exception)
       {
@@ -199,7 +200,7 @@ namespace Brutal.Dev.StrongNameSigner
         throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
       }
 
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath);
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath));
 
       return new AssemblyInfo()
       {
@@ -252,8 +253,8 @@ namespace Brutal.Dev.StrongNameSigner
         throw new FileNotFoundException("Could not find provided reference assembly file.", referenceAssemblyPath);
       }
 
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath);
-      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath);
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath));
+      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(assemblyPath));
 
       var reference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
 
@@ -271,6 +272,18 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return false;
+    }
+
+    private static ReaderParameters GetReadParameters(string assemblyPath)
+    {
+      var resolver = new DefaultAssemblyResolver();
+
+      if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
+      {
+        resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
+      }
+
+      return new ReaderParameters() { AssemblyResolver = resolver };
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
