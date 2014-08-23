@@ -10,5 +10,10 @@ namespace Brutal.Dev.StrongNameSigner.TestAssembly.B
     public B()
     {
     }
+
+    internal string Secret()
+    {
+      return "Test call using InternalsVisibleToAttribute";
+    }
   }
 }

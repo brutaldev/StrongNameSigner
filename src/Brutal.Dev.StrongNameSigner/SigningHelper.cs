@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Mono.Cecil;
@@ -129,32 +130,6 @@ namespace Brutal.Dev.StrongNameSigner
         return info;
       }
 
-      byte[] keyPairArray = null;
-
-      if (!string.IsNullOrEmpty(keyPath))
-      {
-        if (!string.IsNullOrEmpty(keyFilePassword))
-        {
-          var cert = new X509Certificate2(keyPath, keyFilePassword, X509KeyStorageFlags.Exportable);
-
-          var provider = cert.PrivateKey as RSACryptoServiceProvider;
-          if (provider == null)
-          {
-            throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
-          }
-          
-          keyPairArray = provider.ExportCspBlob(true);
-        }
-        else
-        {
-          keyPairArray = File.ReadAllBytes(keyPath); 
-        }
-      }
-      else
-      {
-        keyPairArray = GenerateStrongNameKeyPair();
-      }
-
       if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
       {
         // Make a backup before overwriting.
@@ -164,7 +139,7 @@ namespace Brutal.Dev.StrongNameSigner
       try
       {
         AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath))
-          .Write(outputFile, new WriterParameters() { StrongNameKeyPair = new StrongNameKeyPair(keyPairArray) });
+          .Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
       }
       catch (Exception)
       {
@@ -258,25 +233,41 @@ namespace Brutal.Dev.StrongNameSigner
         throw new FileNotFoundException("Could not find provided reference assembly file.", referenceAssemblyPath);
       }
 
+      bool fixApplied = false;
       var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath));
-      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(assemblyPath));
+      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath));
+      
+      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
 
-      var reference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
-
-      if (reference != null)
+      if (assemblyReference != null)
       {
         // Found a matching reference, let's set the public key token.
-        if (BitConverter.ToString(reference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+        if (BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
         {
-          reference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+          assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
 
           a.Write(assemblyPath);
 
-          return true;
+          fixApplied = true;
         }
       }
 
-      return false;
+      var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
+        attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
+      
+      if (friendReference != null && a.Name.HasPublicKey)
+      {
+        // Add the public key to the attribute.
+        var typeRef = friendReference.ConstructorArguments[0].Type;
+        friendReference.ConstructorArguments.Clear();
+        friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
+
+        b.Write(referenceAssemblyPath);
+
+        fixApplied = true;
+      }
+
+      return fixApplied;
     }
 
     private static ReaderParameters GetReadParameters(string assemblyPath)
@@ -306,6 +297,37 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return "UNKNOWN";
+    }
+
+    private static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
+    {
+      byte[] keyPairArray = null;
+
+      if (!string.IsNullOrEmpty(keyPath))
+      {
+        if (!string.IsNullOrEmpty(keyFilePassword))
+        {
+          var cert = new X509Certificate2(keyPath, keyFilePassword, X509KeyStorageFlags.Exportable);
+
+          var provider = cert.PrivateKey as RSACryptoServiceProvider;
+          if (provider == null)
+          {
+            throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
+          }
+
+          keyPairArray = provider.ExportCspBlob(true);
+        }
+        else
+        {
+          keyPairArray = File.ReadAllBytes(keyPath);
+        }
+      }
+      else
+      {
+        keyPairArray = GenerateStrongNameKeyPair();
+      }
+
+      return new StrongNameKeyPair(keyPairArray);
     }
   }
 }

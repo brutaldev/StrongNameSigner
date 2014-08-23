@@ -10,6 +10,8 @@ namespace Brutal.Dev.StrongNameSigner.TestAssembly.A
     public A()
     {
       var b = new B.B();
+
+      b.Secret();
     }
   }
 }

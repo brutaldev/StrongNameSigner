@@ -24,6 +24,13 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     {
       SigningHelper.FixAssemblyReference(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.doesnotexist"));
     }
+
+    /*[Test]
+    public void FixAssemblyReference_Should_Fix_InternalsVisbileTo()
+    {
+      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), Path.Combine(TestAssemblyDirectory, "StrongNameSigner.snk"));
+      SigningHelper.FixAssemblyReference(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll")).ShouldBe(true);
+    }*/
   }
 }
 
