@@ -416,7 +416,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             }
 
             log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
-            if (SigningHelper.FixAssemblyReference(filePath, reference))
+            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password))
             {
               log.Append("Reference was found and fixed.").AppendLine();
               referenceFixes++;

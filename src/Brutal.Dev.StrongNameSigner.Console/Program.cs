@@ -104,7 +104,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         // Go through all the references excluding the file we are working on.
         foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
         {
-          if (FixSingleAssemblyReference(filePath, referencePath))
+          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password))
           {
             referenceFixes++;
           }
@@ -157,7 +157,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return null;
     }
 
-    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath)
+    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, string keyFilePassword)
     {
       try
       {
@@ -165,7 +165,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         C.WriteLine("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath);
 
         var info = SigningHelper.GetAssemblyInfo(assemblyPath);
-        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath))
+        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword))
         {
           C.ForegroundColor = ConsoleColor.Green;
           C.WriteLine("References were fixed successfully!");

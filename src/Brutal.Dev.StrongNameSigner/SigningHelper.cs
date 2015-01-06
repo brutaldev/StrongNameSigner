@@ -209,7 +209,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided reference assembly file.
     /// </exception>
-    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
+    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath = null, string keyFilePassword = null)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -246,8 +246,14 @@ namespace Brutal.Dev.StrongNameSigner
         {
           assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
 
-          a.Write(assemblyPath);
-
+          if (!String.IsNullOrEmpty(keyPath))
+          {
+            a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
+          }
+          else 
+          {
+            a.Write(assemblyPath);
+          }
           fixApplied = true;
         }
       }
