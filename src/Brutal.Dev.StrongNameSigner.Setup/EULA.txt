@@ -1,4 +1,4 @@
-Copyright (c) 2013-2014 Werner van Deventer (werner@brutaldev.com)
+Copyright (c) 2013-2015 Werner van Deventer (werner@brutaldev.com)
 All rights reserved.
 
 * Redistribution of source code is strictly prohibited by means of reverse engineering or otherwise.
