@@ -199,6 +199,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
     /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
+    /// <returns><c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath was not provided.
     /// or
@@ -221,6 +222,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
     /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
+    /// <returns><c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.</returns>
     /// <exception cref="System.ArgumentNullException">
     /// assemblyPath was not provided.
     /// or
