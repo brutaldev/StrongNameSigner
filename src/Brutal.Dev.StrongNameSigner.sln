@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner", "Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj", "{947EECC6-5EBC-4D2A-BAC4-8E88B5BAFE84}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner.Tests", "Brutal.Dev.StrongNameSigner.Tests\Brutal.Dev.StrongNameSigner.Tests.csproj", "{3EA13C51-9A22-4045-8993-12391408A300}"
@@ -26,6 +28,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner.TestAssembly.B", "Brutal.Dev.StrongNameSigner.TestAssembly.B\Brutal.Dev.StrongNameSigner.TestAssembly.B.csproj", "{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}"
 EndProject
 Global
+	GlobalSection(CodealikeProperties) = postSolution
+		SolutionGuid = b98c8034-a14d-47f1-b4f0-378f8a176e80
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU

@@ -193,7 +193,7 @@ namespace Brutal.Dev.StrongNameSigner
         Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
       };
     }
-
+    
     /// <summary>
     /// Fixes an assembly reference.
     /// </summary>
@@ -209,7 +209,29 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided reference assembly file.
     /// </exception>
-    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath = null, string keyFilePassword = null)
+    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
+    {
+      return FixAssemblyReference(assemblyPath, referenceAssemblyPath, string.Empty, string.Empty);
+    }
+
+    /// <summary>
+    /// Fixes an assembly reference.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
+    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
+    /// <exception cref="System.ArgumentNullException">
+    /// assemblyPath was not provided.
+    /// or
+    /// referenceAssemblyPath was not provided.
+    /// </exception>
+    /// <exception cref="System.IO.FileNotFoundException">
+    /// Could not find provided assembly file.
+    /// or
+    /// Could not find provided reference assembly file.
+    /// </exception>
+    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath, string keyFilePassword)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
@@ -246,7 +268,7 @@ namespace Brutal.Dev.StrongNameSigner
         {
           assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
 
-          if (!String.IsNullOrEmpty(keyPath))
+          if (!string.IsNullOrEmpty(keyPath))
           {
             a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
           }
@@ -254,6 +276,7 @@ namespace Brutal.Dev.StrongNameSigner
           {
             a.Write(assemblyPath);
           }
+
           fixApplied = true;
         }
       }
