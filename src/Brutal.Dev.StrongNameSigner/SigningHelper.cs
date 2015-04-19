@@ -314,6 +314,24 @@ namespace Brutal.Dev.StrongNameSigner
     /// </exception>
     public static bool RemoveInvalidFriendAssemblies(string assemblyPath)
     {
+      return RemoveInvalidFriendAssemblies(assemblyPath, string.Empty, string.Empty);
+    }
+
+    /// <summary>
+    /// Removes any friend assembly references (InternalsVisibleTo attributes) that do not have public keys.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the assembly you want to remove friend references from.</param>
+    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
+    /// <returns><c>true</c> if any invalid friend references were found and fixed, <c>false</c> if no invalid friend references was found.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// assemblyPath was not provided.
+    /// </exception>
+    /// <exception cref="System.IO.FileNotFoundException">
+    /// Could not find provided assembly file.
+    /// </exception>
+    public static bool RemoveInvalidFriendAssemblies(string assemblyPath, string keyPath, string keyFilePassword)
+    {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
       {
@@ -343,7 +361,14 @@ namespace Brutal.Dev.StrongNameSigner
 
       if (fixApplied)
       {
-        a.Write(assemblyPath);
+        if (!string.IsNullOrEmpty(keyPath))
+        {
+          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
+        }
+        else
+        {
+          a.Write(assemblyPath);
+        }
       }
 
       return fixApplied;

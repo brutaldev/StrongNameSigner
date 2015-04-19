@@ -84,12 +84,15 @@ namespace Brutal.Dev.StrongNameSigner.Console
       }
 
       var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
       foreach (var filePath in filesToSign)
       {
         var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password);
         if (signedAssembly != null)
         {
           processedAssemblyPaths.Add(signedAssembly.FilePath);
+          signedAssemblyPaths.Add(signedAssembly.FilePath);
           signedFiles++;
         }
         else
@@ -112,9 +115,9 @@ namespace Brutal.Dev.StrongNameSigner.Console
       }
 
       // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
-      foreach (var filePath in processedAssemblyPaths)
+      foreach (var filePath in signedAssemblyPaths)
       {
-        if (RemoveInvalidFriendAssemblyReferences(filePath))
+        if (RemoveInvalidFriendAssemblyReferences(filePath, options.KeyFile, options.Password))
         {
           referenceFixes++;
         }
@@ -203,7 +206,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return false;
     }
 
-    private static bool RemoveInvalidFriendAssemblyReferences(string assemblyPath)
+    private static bool RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, string keyFilePassword)
     {
       try
       {
@@ -211,7 +214,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         C.WriteLine("Removing invalid friend references from '{0}'...", assemblyPath);
 
         var info = SigningHelper.GetAssemblyInfo(assemblyPath);
-        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath))
+        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, keyFilePassword))
         {
           C.ForegroundColor = ConsoleColor.Green;
           C.WriteLine("Invalid friend assemblies removed successfully!");
