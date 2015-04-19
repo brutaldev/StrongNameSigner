@@ -334,7 +334,7 @@ namespace Brutal.Dev.StrongNameSigner
       foreach (var friendReference in ivtAttributes)
       {
         // Find any without a public key defined.
-        if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=") == -1 ))
+        if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
         {
           a.CustomAttributes.Remove(friendReference);
           fixApplied = true;
