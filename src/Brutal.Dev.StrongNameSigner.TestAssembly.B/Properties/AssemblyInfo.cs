@@ -35,5 +35,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
 
-
 [assembly: InternalsVisibleTo("Brutal.Dev.StrongNameSigner.TestAssembly.A")]
+[assembly: InternalsVisibleTo("ThisMustGetRemoved")]
+[assembly: InternalsVisibleTo("ThisMustGetRemovedAsWell")]

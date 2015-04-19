@@ -301,6 +301,54 @@ namespace Brutal.Dev.StrongNameSigner
       return fixApplied;
     }
 
+    /// <summary>
+    /// Removes any friend assembly references (InternalsVisibleTo attributes) that do not have public keys.
+    /// </summary>
+    /// <param name="assemblyPath">The path to the assembly you want to remove friend references from.</param>
+    /// <returns><c>true</c> if any invalid friend references were found and fixed, <c>false</c> if no invalid friend references was found.</returns>
+    /// <exception cref="System.ArgumentNullException">
+    /// assemblyPath was not provided.
+    /// </exception>
+    /// <exception cref="System.IO.FileNotFoundException">
+    /// Could not find provided assembly file.
+    /// </exception>
+    public static bool RemoveInvalidFriendAssemblies(string assemblyPath)
+    {
+      // Verify assembly path was passed in.
+      if (string.IsNullOrWhiteSpace(assemblyPath))
+      {
+        throw new ArgumentNullException("assemblyPath");
+      }
+
+      // Make sure the file actually exists.
+      if (!File.Exists(assemblyPath))
+      {
+        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+      }
+
+      bool fixApplied = false;
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath));
+
+      var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
+
+      foreach (var friendReference in ivtAttributes)
+      {
+        // Find any without a public key defined.
+        if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=") == -1 ))
+        {
+          a.CustomAttributes.Remove(friendReference);
+          fixApplied = true;
+        }
+      }
+
+      if (fixApplied)
+      {
+        a.Write(assemblyPath);
+      }
+
+      return fixApplied;
+    }
+
     private static ReaderParameters GetReadParameters(string assemblyPath)
     {
       var resolver = new DefaultAssemblyResolver();

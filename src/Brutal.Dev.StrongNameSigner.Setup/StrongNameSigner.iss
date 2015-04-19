@@ -4,7 +4,7 @@
 #define MyAppID "{A89C23E7-A764-4F59-8EF3-5AB0A33E5849}"
 #define MyAppName ".NET Assembly Strong-Name Signer"
 #define MyAppNameNoSpaces "StrongNameSigner"
-#define MyAppVersion "1.4.3.0"
+#define MyAppVersion "1.4.4.0"
 #define MyAppPublisher "BrutalDev"
 #define MyAppURL "http://brutaldev.com"
 #define MyAppExeName "StrongNameSigner.exe"

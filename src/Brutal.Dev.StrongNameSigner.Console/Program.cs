@@ -111,6 +111,15 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
       }
 
+      // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
+      foreach (var filePath in processedAssemblyPaths)
+      {
+        if (RemoveInvalidFriendAssemblyReferences(filePath))
+        {
+          referenceFixes++;
+        }
+      }
+
       return new Stats()
       {
         NumberOfSignedFiles = signedFiles,
@@ -169,6 +178,43 @@ namespace Brutal.Dev.StrongNameSigner.Console
         {
           C.ForegroundColor = ConsoleColor.Green;
           C.WriteLine("References were fixed successfully!");
+          C.ResetColor();
+
+          return true;
+        }
+        else
+        {
+          C.WriteLine("Nothing to fix...");
+        }
+      }
+      catch (BadImageFormatException bife)
+      {
+        C.ForegroundColor = ConsoleColor.Yellow;
+        C.WriteLine("Warning: {0}", bife.Message);
+        C.ResetColor();
+      }
+      catch (Exception ex)
+      {
+        C.ForegroundColor = ConsoleColor.Red;
+        C.WriteLine("Error: {0}", ex.Message);
+        C.ResetColor();
+      }
+
+      return false;
+    }
+
+    private static bool RemoveInvalidFriendAssemblyReferences(string assemblyPath)
+    {
+      try
+      {
+        C.WriteLine();
+        C.WriteLine("Removing invalid friend references from '{0}'...", assemblyPath);
+
+        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath))
+        {
+          C.ForegroundColor = ConsoleColor.Green;
+          C.WriteLine("Invalid friend assemblies removed successfully!");
           C.ResetColor();
 
           return true;

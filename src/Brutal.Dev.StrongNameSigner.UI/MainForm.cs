@@ -361,8 +361,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
       if (assemblyPaths != null)
       {
-        // We go through assemblies twice and every assembly -1 for reference fixes.
-        double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 2;
+        // We go through assemblies three times and every assembly -1 for reference fixes.
+        double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 3;
         
         foreach (var filePath in assemblyPaths)
         {
@@ -425,6 +425,29 @@ namespace Brutal.Dev.StrongNameSigner.UI
             {
               log.Append("Nothing to fix.").AppendLine();
             }
+          }
+        }
+
+        // Go through all processed assemblies and remove invalid friend references.
+        foreach (var filePath in processedAssemblyPaths)
+        {
+          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
+
+          if (backgroundWorker.CancellationPending)
+          {
+            e.Cancel = true;
+            break;
+          }
+
+          log.AppendFormat("Removing invalid friend references from '{0}'...", filePath).AppendLine();
+          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath))
+          {
+            log.Append("Invalid friend assemblies removed.").AppendLine();
+            referenceFixes++;
+          }
+          else
+          {
+            log.Append("Nothing to fix.").AppendLine();
           }
         }
 
