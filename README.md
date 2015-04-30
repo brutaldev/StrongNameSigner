@@ -4,7 +4,7 @@
 
 Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for. If you strong-name sign your own projects you may have noticed that if you reference an unsigned third party assembly you get an error similar to "*Referenced assembly 'A.B.C' does not have a strong name*". If you did not create this assembly, you can use this tool to sign the assembly with your own (or temporarily generated) strong-name key. The tool will also re-write the assembly references (as well as any InternalsVisibleTo references) to match the new signed versions of the assemblies you create.
 
-* [Download Installer](http://www.brutaldev.com/file.axd?file=StrongNameSigner_Setup.exe)
+* [Download Installer](http://brutaldev.com/download/StrongNameSigner_Setup.exe)
 * [More Information](http://brutaldev.com/post/2013/10/18/NET-Assembly-Strong-Name-Signer)
 
 Screenshots
