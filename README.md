@@ -5,6 +5,7 @@
 Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for. If you strong-name sign your own projects you may have noticed that if you reference an unsigned third party assembly you get an error similar to "*Referenced assembly 'A.B.C' does not have a strong name*". If you did not create this assembly, you can use this tool to sign the assembly with your own (or temporarily generated) strong-name key. The tool will also re-write the assembly references (as well as any InternalsVisibleTo references) to match the new signed versions of the assemblies you create.
 
 * [Download Installer](http://brutaldev.com/download/StrongNameSigner_Setup.exe)
+* [NuGet Package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/)
 * [More Information](http://brutaldev.com/post/2013/10/18/NET-Assembly-Strong-Name-Signer)
 
 Screenshots
@@ -21,10 +22,19 @@ You can call the console version in your Visual Studio project files to sign ass
 
 For example, if you want to strong-name sign and fix references to all the NuGet packages that your project uses, you can add this to you Visual Studio project file:
 
-```
+```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
         Command="&quot;C:\Program Files\BrutalDev\.NET Assembly Strong-Name Signer\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+</Target>
+```
+
+If you are making use of the [NuGet package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/), you can make the call from the `packages` directory like this instead (replace with you own `packages` path):
+
+```xml
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.4.4\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
 
@@ -38,7 +48,7 @@ API Usage
 ---------
 Reference **Brutal.Dev.StrongNameSigner.dll** in your project or include it in a PowerShell script.
 
-```
+```csharp
 var newInfo = Brutal.Dev.StrongNameSigner.SigningHelper.SignAssembly(@"C:\MyAssembly.dll");
 ```
 
