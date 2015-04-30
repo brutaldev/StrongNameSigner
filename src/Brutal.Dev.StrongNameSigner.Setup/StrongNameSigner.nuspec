@@ -1,0 +1,30 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+    <metadata>
+        <id>Brutal.Dev.StrongNameSigner</id>
+        <version>1.4.4</version>
+        <title>.NET Assembly Strong-Name Signer</title>
+        <authors>Werner van Deventer</authors>
+        <owners>Werner van Deventer</owners>
+        <licenseUrl>https://github.com/brutaldev/StrongNameSigner#license</licenseUrl>
+        <projectUrl>https://github.com/brutaldev/StrongNameSigner</projectUrl>
+        <iconUrl>https://raw.githubusercontent.com/brutaldev/StrongNameSigner/master/src/Brutal.Dev.StrongNameSigner.UI/Icon.ico</iconUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.
+
+If you strong-name sign your own projects you may have noticed that if you reference an unsigned third party assembly you get an error similar to "Referenced assembly 'A.B.C' does not have a strong name". If you did not create this assembly, you can use this tool to sign the assembly with your own (or temporarily generated) strong-name key.
+
+The tool will also re-write the assembly references (as well as any InternalsVisibleTo references) to match the new signed versions of the assemblies you create.</description>
+        <summary>Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
+        <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
+        <language>en-US</language>
+        <tags>strongname assembly gac unsigned</tags>
+        <dependencies />
+    </metadata>
+    <files>
+        <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\Brutal.Dev.StrongNameSigner.dll" target="tools" />
+        <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\Mono.Cecil.dll" target="tools" />
+        <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\PowerArgs.dll" target="tools" />
+        <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe" target="tools" />
+    </files>
+</package>
