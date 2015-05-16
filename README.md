@@ -34,9 +34,24 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.4.4\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.4.5\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
+
+Often different packages have dependencies that are not signed, but those assemblies are in different directories. To correctly resolve references to dependant assemblies, all required assemblies and the dependencies they reference need to be processed at the same time.
+Elmah is a good example of this. Additional Elmah libraries reference Elmah core, but do not include it in the package, they are installed separately. In order to fix the references to Elmah core, it needs to be able to cross check all signed files so you should sign all of them together.
+
+To add multiple directories to process at the same time (similar to how the UI can process a number of assemblies at once in the grid) just pipe **|** delimit your input directory list.
+
+```xml
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.4.5\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
+</Target>
+```
+
+This way the core library can be signed and the MVC library can have it's reference to the new signed version updated since they will be processed together and each file can be verified against each other after signing.
+As a rule of thumb, always include all libraries that will be affected by any signing in a single call.
 
 Note that any files that are already strong-name signed will not be modified unless they reference a previously unsigned assembly. If you are using NuGet package restore then this works on build servers as well.
 
