@@ -55,10 +55,12 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
         return 1;
       }
-
-      if (Debugger.IsAttached)
+      finally
       {
-        C.ReadKey(true);
+        if (Debugger.IsAttached)
+        {
+          C.ReadKey(true);
+        }
       }
 
       return 0;
@@ -69,18 +71,24 @@ namespace Brutal.Dev.StrongNameSigner.Console
       int signedFiles = 0;
       int referenceFixes = 0;
 
-      IEnumerable<string> filesToSign = null;
+      HashSet<string> filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {
-        filesToSign = Directory.GetFiles(options.InputDirectory, "*.*", SearchOption.AllDirectories)
-          .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                      Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase));
+        foreach (var inputDir in options.InputDirectory.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+          foreach (var file in Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
+            .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                        Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
+          {
+            filesToSign.Add(file);
+          }
+        }
       }
       else
       {
         // We can assume from validation that there will be a single file.
-        filesToSign = new string[] { options.AssemblyFile };
+        filesToSign.Add(options.AssemblyFile);
       }
 
       var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
