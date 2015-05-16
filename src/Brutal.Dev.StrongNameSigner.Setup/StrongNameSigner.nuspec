@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
     <metadata>
         <id>Brutal.Dev.StrongNameSigner</id>
-        <version>1.4.4</version>
+        <version>1.4.5</version>
         <title>.NET Assembly Strong-Name Signer</title>
         <authors>Werner van Deventer</authors>
         <owners>Werner van Deventer</owners>
@@ -22,7 +22,7 @@ The tool will also re-write the assembly references (as well as any InternalsVis
         <dependencies />
     </metadata>
     <files>
-        <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\Brutal.Dev.StrongNameSigner.dll" target="tools" />
+        <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.dll" target="tools" />
         <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\Mono.Cecil.dll" target="tools" />
         <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\PowerArgs.dll" target="tools" />
         <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe" target="tools" />
