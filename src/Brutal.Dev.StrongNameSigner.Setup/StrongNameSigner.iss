@@ -4,9 +4,9 @@
 #define MyAppID "{A89C23E7-A764-4F59-8EF3-5AB0A33E5849}"
 #define MyAppName ".NET Assembly Strong-Name Signer"
 #define MyAppNameNoSpaces "StrongNameSigner"
-#define MyAppVersion "1.4.4.0"
+#define MyAppVersion "1.4.5.0"
 #define MyAppPublisher "BrutalDev"
-#define MyAppURL "http://brutaldev.com"
+#define MyAppURL "https://github.com/brutaldev/StrongNameSigner"
 #define MyAppExeName "StrongNameSigner.exe"
 
 #include "scripts\products.iss"   
@@ -79,6 +79,6 @@ function InitializeSetup(): Boolean;
 begin
   Result := True;
 
-	initwinversion();
+  initwinversion();
   dotnetfx40full();
 end;
