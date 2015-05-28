@@ -19,10 +19,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         var parsed = Args.Parse<Options>(args);
 
-        if (args.Length == 0 || parsed.Help)
+        if (args.Length == 0 || parsed == null || parsed.Help)
         {
           PrintHeader();
-          ArgUsage.GetStyledUsage<Options>().Write();
+          ArgUsage.GenerateUsageFromTemplate(typeof(Options));
         }
         else
         {
@@ -47,7 +47,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         PrintMessageColor(ex.Message, LogLevel.Silent, ConsoleColor.Red);
 
-        ArgUsage.GetStyledUsage<Options>().Write();
+        ArgUsage.GenerateUsageFromTemplate(typeof(Options));
 
         return 2;
       }
@@ -93,7 +93,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
     private static void PrintMessageColor(string message, LogLevel minLogLevel, ConsoleColor color)
     {
-      C.ForegroundColor = ConsoleColor.Green;
+      C.ForegroundColor = color;
       PrintMessage(message, minLogLevel);
       C.ResetColor();      
     }
