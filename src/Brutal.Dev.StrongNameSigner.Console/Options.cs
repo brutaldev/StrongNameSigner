@@ -40,6 +40,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
     [ArgDescription("Displays options and usage information.")]
     public bool Help { get; set; }
 
+    [ArgShortcut("l")]
+    [ArgDescription("The preferred console output logging level. Errors and warnings will always be logged.")]
+    public LogLevel LogLevel { get; set; }
+
     public void Validate()
     {
       if (string.IsNullOrWhiteSpace(AssemblyFile) && string.IsNullOrWhiteSpace(InputDirectory))
