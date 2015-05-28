@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
     <metadata>
         <id>Brutal.Dev.StrongNameSigner</id>
-        <version>1.4.7</version>
+        <version>1.4.8</version>
         <title>.NET Assembly Strong-Name Signer</title>
         <authors>Werner van Deventer</authors>
         <owners>Werner van Deventer</owners>
@@ -16,8 +16,7 @@ If you strong-name sign your own projects you may have noticed that if you refer
 
 The tool will also re-write the assembly references (as well as any InternalsVisibleTo references) to match the new signed versions of the assemblies you create.</description>
         <summary>Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
-        <releaseNotes>Added log level parameter to control console output.
-Fix color typo issue where all color text is green :(</releaseNotes>
+        <releaseNotes></releaseNotes>
         <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
         <language>en-US</language>
         <tags>strongname assembly gac unsigned</tags>
