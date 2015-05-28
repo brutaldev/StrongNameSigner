@@ -261,7 +261,7 @@ namespace Brutal.Dev.StrongNameSigner
       var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath));
       var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath));
       
-      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name && r.Version == b.Name.Version);
+      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name);
 
       if (assemblyReference != null)
       {
@@ -269,6 +269,7 @@ namespace Brutal.Dev.StrongNameSigner
         if (BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
         {
           assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+          assemblyReference.Version = b.Name.Version;
 
           if (!string.IsNullOrEmpty(keyPath))
           {
