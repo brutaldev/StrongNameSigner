@@ -43,9 +43,9 @@
     <AssemblyOriginatorKeyFile>..\..\keys\StrongNameSigner.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="PowerArgs, Version=2.0.6.1, Culture=neutral, PublicKeyToken=26a276264bbd55b8, processorArchitecture=MSIL">
+    <Reference Include="PowerArgs, Version=2.6.0.1, Culture=neutral, PublicKeyToken=26a276264bbd55b8, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\packages\PowerArgs.2.0.6.1\lib\net40\PowerArgs.dll</HintPath>
+      <HintPath>..\..\packages\PowerArgs.2.6.0.1\lib\net40\PowerArgs.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
