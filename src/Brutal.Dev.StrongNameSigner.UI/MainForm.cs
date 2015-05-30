@@ -418,7 +418,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             }
 
             log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
-            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password))
+            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
             {
               log.Append("Reference was found and fixed.").AppendLine();
               referenceFixes++;
@@ -442,7 +442,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
           }
 
           log.AppendFormat("Removing invalid friend references from '{0}'...", filePath).AppendLine();
-          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password))
+          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
           {
             log.Append("Invalid friend assemblies removed.").AppendLine();
             referenceFixes++;

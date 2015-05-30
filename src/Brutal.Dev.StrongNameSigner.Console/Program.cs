@@ -147,7 +147,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         // Go through all the references excluding the file we are working on.
         foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
         {
-          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password))
+          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
           {
             referenceFixes++;
           }
@@ -157,7 +157,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
       foreach (var filePath in signedAssemblyPaths)
       {
-        if (RemoveInvalidFriendAssemblyReferences(filePath, options.KeyFile, options.Password))
+        if (RemoveInvalidFriendAssemblyReferences(filePath, options.KeyFile, options.Password, filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
         {
           referenceFixes++;
         }
@@ -203,7 +203,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return null;
     }
 
-    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, string keyFilePassword)
+    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, string keyFilePassword, params string[] probingPaths)
     {
       try
       {
@@ -211,7 +211,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         PrintMessage(string.Format("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath), LogLevel.Verbose);
 
         var info = SigningHelper.GetAssemblyInfo(assemblyPath);
-        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword))
+        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword, probingPaths))
         {
           PrintMessageColor(string.Format("References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath), LogLevel.Changes, ConsoleColor.Green);
           
@@ -234,7 +234,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return false;
     }
 
-    private static bool RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, string keyFilePassword)
+    private static bool RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, string keyFilePassword, params string[] probingPaths)
     {
       try
       {
@@ -242,7 +242,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         PrintMessage(string.Format("Removing invalid friend references from '{0}'...", assemblyPath), LogLevel.Verbose);
 
         var info = SigningHelper.GetAssemblyInfo(assemblyPath);
-        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, keyFilePassword))
+        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, keyFilePassword, probingPaths))
         {
           PrintMessageColor(string.Format("Invalid friend assemblies removed successfully from '{0}'.", assemblyPath), LogLevel.Changes, ConsoleColor.Green);
 
