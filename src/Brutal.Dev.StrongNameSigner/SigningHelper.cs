@@ -14,6 +14,8 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
+    private static StrongNameKeyPair keyPairCache = null;
+
     /// <summary>
     /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
     /// </summary>
@@ -411,8 +413,6 @@ namespace Brutal.Dev.StrongNameSigner
 
     private static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
     {
-      byte[] keyPairArray = null;
-
       if (!string.IsNullOrEmpty(keyPath))
       {
         if (!string.IsNullOrEmpty(keyFilePassword))
@@ -425,19 +425,25 @@ namespace Brutal.Dev.StrongNameSigner
             throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
           }
 
-          keyPairArray = provider.ExportCspBlob(true);
+          return new StrongNameKeyPair(provider.ExportCspBlob(true));
         }
         else
         {
-          keyPairArray = File.ReadAllBytes(keyPath);
+          return new StrongNameKeyPair(File.ReadAllBytes(keyPath));
         }
       }
       else
       {
-        keyPairArray = GenerateStrongNameKeyPair();
-      }
+        // Only cache generated keys so all signed assemblies use the same public key.
+        if (keyPairCache != null)
+        {
+          return keyPairCache;
+        }
 
-      return new StrongNameKeyPair(keyPairArray);
+        keyPairCache = new StrongNameKeyPair(GenerateStrongNameKeyPair());
+
+        return keyPairCache;
+      }
     }
   }
 }
