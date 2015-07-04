@@ -14,7 +14,7 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
-    private static StrongNameKeyPair keyPairCache = null;
+    private static byte[] keyPairCache = null;
 
     /// <summary>
     /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
@@ -437,12 +437,13 @@ namespace Brutal.Dev.StrongNameSigner
         // Only cache generated keys so all signed assemblies use the same public key.
         if (keyPairCache != null)
         {
-          return keyPairCache;
+          return new StrongNameKeyPair(keyPairCache);
         }
 
-        keyPairCache = new StrongNameKeyPair(GenerateStrongNameKeyPair());
 
-        return keyPairCache;
+        keyPairCache = GenerateStrongNameKeyPair();
+
+        return new StrongNameKeyPair(keyPairCache);
       }
     }
   }
