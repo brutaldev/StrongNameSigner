@@ -440,7 +440,6 @@ namespace Brutal.Dev.StrongNameSigner
           return new StrongNameKeyPair(keyPairCache);
         }
 
-
         keyPairCache = GenerateStrongNameKeyPair();
 
         return new StrongNameKeyPair(keyPairCache);
