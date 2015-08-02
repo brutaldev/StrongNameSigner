@@ -62,7 +62,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <exception cref="System.IO.FileNotFoundException">
     /// Could not find provided assembly file.
     /// or
-    /// Could not find provided strong-name key file file.
+    /// Could not find provided strong-name key file.
     /// </exception>
     /// <exception cref="System.BadImageFormatException">
     /// The file is not a .NET managed assembly.
@@ -86,7 +86,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <exception cref="System.ArgumentNullException">assemblyPath parameter was not provided.</exception>
     /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.
     /// or
-    /// Could not find provided strong-name key file file.</exception>
+    /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">The file is not a .NET managed assembly.</exception>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath, string keyFilePassword, params string[] probingPaths)
     {
@@ -268,14 +268,8 @@ namespace Brutal.Dev.StrongNameSigner
           assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
           assemblyReference.Version = b.Name.Version;
 
-          if (!string.IsNullOrEmpty(keyPath))
-          {
-            a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
-          }
-          else 
-          {
-            a.Write(assemblyPath);
-          }
+          // Save and resign.
+          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
 
           fixApplied = true;
         }
@@ -291,7 +285,8 @@ namespace Brutal.Dev.StrongNameSigner
         friendReference.ConstructorArguments.Clear();
         friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
 
-        b.Write(referenceAssemblyPath);
+        // Save and resign.
+        b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
 
         fixApplied = true;
       }
@@ -358,14 +353,8 @@ namespace Brutal.Dev.StrongNameSigner
 
       if (fixApplied)
       {
-        if (!string.IsNullOrEmpty(keyPath))
-        {
-          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
-        }
-        else
-        {
-          a.Write(assemblyPath);
-        }
+        // Save and resign.
+        a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
       }
 
       return fixApplied;
