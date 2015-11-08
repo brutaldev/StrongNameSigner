@@ -86,7 +86,7 @@
   </Target>
   -->
   <PropertyGroup>
-    <PostBuildEvent>if /I "$(ConfigurationName)" == "Release" "$(SystemRoot)\Microsoft.NET\Framework\v4.0.30319\msbuild.exe" /p:CleanIntermediates=True /p:Configuration=Release "$(SolutionDir)Brutal.Dev.StrongNameSigner.Docs\Documentation.shfbproj"</PostBuildEvent>
+    <PostBuildEvent Condition="'$(OS)' != 'Unix'">if /I "$(ConfigurationName)" == "Release" "$(SystemRoot)\Microsoft.NET\Framework\v4.0.30319\msbuild.exe" /p:CleanIntermediates=True /p:Configuration=Release "$(SolutionDir)Brutal.Dev.StrongNameSigner.Docs\Documentation.shfbproj"</PostBuildEvent>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath)\StyleCop\v4.7\StyleCop.targets" Condition="Exists('$(MSBuildExtensionsPath)\StyleCop\v4.7\StyleCop.targets')" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
