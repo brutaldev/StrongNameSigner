@@ -125,10 +125,11 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
       var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var probingPaths = filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
 
       foreach (var filePath in filesToSign)
       {
-        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password);
+        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password, probingPaths);
         if (signedAssembly != null)
         {
           processedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -147,7 +148,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         // Go through all the references excluding the file we are working on.
         foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
         {
-          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
+          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, probingPaths))
           {
             referenceFixes++;
           }
@@ -157,7 +158,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
       foreach (var filePath in signedAssemblyPaths)
       {
-        if (RemoveInvalidFriendAssemblyReferences(filePath, options.KeyFile, options.Password, filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
+        if (RemoveInvalidFriendAssemblyReferences(filePath, options.KeyFile, options.Password, probingPaths))
         {
           referenceFixes++;
         }
@@ -170,7 +171,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       };
     }
 
-    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password)
+    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password, params string[] probingPaths)
     {
       try
       {
@@ -180,7 +181,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         var info = SigningHelper.GetAssemblyInfo(assemblyPath);
         if (!info.IsSigned)
         {
-          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password);
+          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password, probingPaths);
 
           PrintMessageColor(string.Format("'{0}' was strong-name signed successfully.", info.FilePath), LogLevel.Changes, ConsoleColor.Green);
 

@@ -376,7 +376,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
             if (!assemblyPair.OldInfo.IsSigned)
             {
-              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password);
+              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray());
               log.Append("Strong-name signed successfully.").AppendLine();
               signedAssemblyPaths.Add(filePath);
               signedFiles++;

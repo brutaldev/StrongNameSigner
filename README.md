@@ -34,7 +34,7 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.5.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.6.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
 
@@ -46,7 +46,7 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.5.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.6.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
 </Target>
 ```
 
@@ -75,7 +75,7 @@ For example, ServiceStack's PostgreSQL NuGet package is not signed but other dep
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.5.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.6.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
 </Target>
 ```
 
