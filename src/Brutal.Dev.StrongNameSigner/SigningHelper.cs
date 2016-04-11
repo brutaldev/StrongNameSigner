@@ -180,113 +180,76 @@ namespace Brutal.Dev.StrongNameSigner
 
       var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
 
+      return GetAssemblyInfo(assemblyPath, a);
+    }
+
+    public static AssemblyInfo GetAssemblyInfo(string assemblyPath, AssemblyDefinition a)
+    {
       return new AssemblyInfo()
       {
         FilePath = Path.GetFullPath(assemblyPath),
         DotNetVersion = GetDotNetVersion(a.MainModule.Runtime),
         IsSigned = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
         IsManagedAssembly = a.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
-        Is64BitOnly = a.MainModule.Architecture == TargetArchitecture.AMD64 || a.MainModule.Architecture == TargetArchitecture.IA64,
-        Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
+        Is64BitOnly =
+          a.MainModule.Architecture == TargetArchitecture.AMD64 || a.MainModule.Architecture == TargetArchitecture.IA64,
+        Is32BitOnly =
+          a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) &&
+          !a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
         Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
       };
-    }
-    
-    /// <summary>
-    /// Fixes an assembly reference.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
-    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
-    /// <returns><c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.</returns>
-    /// <exception cref="System.ArgumentNullException">
-    /// assemblyPath was not provided.
-    /// or
-    /// referenceAssemblyPath was not provided.
-    /// </exception>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find provided assembly file.
-    /// or
-    /// Could not find provided reference assembly file.
-    /// </exception>
-    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
-    {
-      return FixAssemblyReference(assemblyPath, referenceAssemblyPath, string.Empty, string.Empty);
     }
 
     /// <summary>
     /// Fixes an assembly reference.
     /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>
-    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
-    /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
-    /// <param name="probingPaths">Additional paths to probe for references.</param>
+    /// <param name="downstreamAssembly"></param>
+    /// <param name="upstreamAssembly"></param>
     /// <returns>
     ///   <c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.
     /// </returns>
     /// <exception cref="System.ArgumentNullException">assemblyPath was not provided.
     /// or
-    /// referenceAssemblyPath was not provided.</exception>
+    /// upstreamAssemblyPath was not provided.</exception>
     /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.
     /// or
     /// Could not find provided reference assembly file.</exception>
-    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath, string keyFilePassword, params string[] probingPaths)
+    public static bool FixAssemblyReference(AssemblyDefinition downstreamAssembly, AssemblyDefinition upstreamAssembly)
     {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
-      {
-        throw new ArgumentNullException("assemblyPath");
-      }
-
-      if (string.IsNullOrWhiteSpace(referenceAssemblyPath))
-      {
-        throw new ArgumentNullException("referenceAssemblyPath");
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
-      }
-
-      if (!File.Exists(referenceAssemblyPath))
-      {
-        throw new FileNotFoundException("Could not find provided reference assembly file.", referenceAssemblyPath);
-      }
 
       bool fixApplied = false;
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
-      
-      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name);
 
-      if (assemblyReference != null)
+      var a2bReference = downstreamAssembly.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == upstreamAssembly.Name.Name);
+
+      //var strongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword);
+
+      if (a2bReference != null)
       {
         // Found a matching reference, let's set the public key token.
-        if (BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+        if (BitConverter.ToString(a2bReference.PublicKeyToken) != BitConverter.ToString(upstreamAssembly.Name.PublicKeyToken))
         {
-          assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
-          assemblyReference.Version = b.Name.Version;
+          a2bReference.PublicKeyToken = upstreamAssembly.Name.PublicKeyToken ?? new byte[0];
+          a2bReference.Version = upstreamAssembly.Name.Version;
 
           // Save and resign.
-          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
+          //downstreamAssembly.Write(downstreamAssemblyPath, new WriterParameters { StrongNameKeyPair = strongNameKeyPair });
 
           fixApplied = true;
         }
       }
 
-      var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
-        attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
+      var b2aReference = upstreamAssembly.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
+        attr.ConstructorArguments[0].Value.ToString() == downstreamAssembly.Name.Name);
       
-      if (friendReference != null && a.Name.HasPublicKey)
+      if (b2aReference != null && downstreamAssembly.Name.HasPublicKey)
       {
         // Add the public key to the attribute.
-        var typeRef = friendReference.ConstructorArguments[0].Type;
-        friendReference.ConstructorArguments.Clear();
-        friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
+        var typeRef = b2aReference.ConstructorArguments[0].Type;
+        b2aReference.ConstructorArguments.Clear();
+        b2aReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, downstreamAssembly.Name.Name + ", PublicKey=" + BitConverter.ToString(downstreamAssembly.Name.PublicKey).Replace("-", string.Empty)));
 
         // Save and resign.
-        b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
+        // upstreamAssembly.Write(upstreamAssemblyPath, new WriterParameters { StrongNameKeyPair = strongNameKeyPair });
 
         fixApplied = true;
       }
@@ -360,7 +323,7 @@ namespace Brutal.Dev.StrongNameSigner
       return fixApplied;
     }
 
-    private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
+    public static ReaderParameters GetReadParameters(string assemblyPath, params string[] probingPaths)
     {
       var resolver = new DefaultAssemblyResolver();
 
@@ -400,7 +363,7 @@ namespace Brutal.Dev.StrongNameSigner
       return "UNKNOWN";
     }
 
-    private static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
+    public static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
     {
       if (!string.IsNullOrEmpty(keyPath))
       {

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Mono.Cecil;
 using PowerArgs;
 using C = System.Console;
 
@@ -127,9 +128,17 @@ namespace Brutal.Dev.StrongNameSigner.Console
       var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var probingPaths = filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
 
+      var lookup = filesToSign
+        .Select(path => new {path, assembly = ReadAssembly(path, probingPaths)})
+        .Where(o=>o.assembly!=null)
+        .ToDictionary(o => o.path, o => o.assembly);
+
+      filesToSign = new HashSet<string>(lookup.Keys);
+      var filesToWrite = new List<AssemblyInfo>();
+
       foreach (var filePath in filesToSign)
       {
-        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password, probingPaths);
+        var signedAssembly = SignSingleAssembly(filePath, lookup[filePath], options.KeyFile, options.OutputDirectory, options.Password, probingPaths);
         if (signedAssembly != null)
         {
           processedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -142,18 +151,28 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
       }
 
-      var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
-      foreach (var filePath in processedAssemblyPaths)
+
+      var referencesToFix = new HashSet<string>(signedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
+      foreach (var downstreamAssemblyPath in processedAssemblyPaths)
       {
         // Go through all the references excluding the file we are working on.
-        foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
+        foreach (var upstreamAssemblyPath in referencesToFix.Where(r => !r.Equals(downstreamAssemblyPath)))
         {
-          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, probingPaths))
+
+          var downstreamAssembly = lookup[downstreamAssemblyPath];
+          var upstreamAssembly = lookup[upstreamAssemblyPath];
+
+          if (FixSingleAssemblyReference(downstreamAssembly, upstreamAssembly))
           {
+            var a = SigningHelper.GetAssemblyInfo(downstreamAssemblyPath,downstreamAssembly);
+            var b = SigningHelper.GetAssemblyInfo(upstreamAssemblyPath,upstreamAssembly);
+            filesToWrite.Add(a);
+            filesToWrite.Add(b);
             referenceFixes++;
           }
         }
       }
+
 
       // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
       foreach (var filePath in signedAssemblyPaths)
@@ -164,6 +183,13 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
       }
 
+      foreach (var assembly in filesToWrite)
+      {
+        var path = assembly.FilePath;
+        var a = lookup[path];
+        a.Write(path, new WriterParameters { StrongNameKeyPair = SigningHelper.GetStrongNameKeyPair(options.KeyFile, options.Password) });
+      }
+
       return new Stats()
       {
         NumberOfSignedFiles = signedFiles,
@@ -171,17 +197,31 @@ namespace Brutal.Dev.StrongNameSigner.Console
       };
     }
 
-    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password, params string[] probingPaths)
+    private static AssemblyDefinition ReadAssembly(string path, string[] probingPaths)
+    {
+      try
+      {
+        return AssemblyDefinition.ReadAssembly(path, SigningHelper.GetReadParameters(path, probingPaths));
+      }
+      catch (BadImageFormatException e)
+      {
+        // Probably just a dll we don't care about. Get Lucky!!
+        C.WriteLine(e);
+        return null;
+      }
+    }
+
+    private static AssemblyInfo SignSingleAssembly(string path, AssemblyDefinition assembly, string keyPath, string outputDirectory, string password, params string[] probingPaths)
     {
       try
       {
         PrintMessage(null, LogLevel.Verbose);
-        PrintMessage(string.Format("Strong-name signing '{0}'...", assemblyPath), LogLevel.Verbose);
+        PrintMessage(string.Format("Strong-name signing '{0}'...", assembly.FullName), LogLevel.Verbose);
 
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        var info = SigningHelper.GetAssemblyInfo(path, assembly);
         if (!info.IsSigned)
         {
-          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password, probingPaths);
+          info = SigningHelper.SignAssembly(path, keyPath, outputDirectory, password, probingPaths);
 
           PrintMessageColor(string.Format("'{0}' was strong-name signed successfully.", info.FilePath), LogLevel.Changes, ConsoleColor.Green);
 
@@ -204,17 +244,16 @@ namespace Brutal.Dev.StrongNameSigner.Console
       return null;
     }
 
-    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, string keyFilePassword, params string[] probingPaths)
+    private static bool FixSingleAssemblyReference(AssemblyDefinition downstreamAssembly, AssemblyDefinition upstreamAssembly)
     {
       try
       {
         PrintMessage(null, LogLevel.Verbose);
-        PrintMessage(string.Format("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath), LogLevel.Verbose);
+        PrintMessage($"Fixing references to '{upstreamAssembly.FullName}' in '{downstreamAssembly.FullName}'...", LogLevel.Verbose);
 
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
-        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword, probingPaths))
+        if (SigningHelper.FixAssemblyReference(downstreamAssembly, upstreamAssembly))
         {
-          PrintMessageColor(string.Format("References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath), LogLevel.Changes, ConsoleColor.Green);
+          PrintMessageColor($"References to '{upstreamAssembly.FullName}' in '{downstreamAssembly.FullName}' were fixed successfully.", LogLevel.Changes, ConsoleColor.Green);
           
           return true;
         }
@@ -225,11 +264,11 @@ namespace Brutal.Dev.StrongNameSigner.Console
       }
       catch (BadImageFormatException bife)
       {
-        PrintMessageColor(string.Format("Warning: {0}", bife.Message), LogLevel.Silent, ConsoleColor.Yellow);
+        PrintMessageColor($"Warning: {bife.Message}", LogLevel.Silent, ConsoleColor.Yellow);
       }
       catch (Exception ex)
       {
-        PrintMessageColor(string.Format("Error: {0}", ex.Message), LogLevel.Silent, ConsoleColor.Red);
+        PrintMessageColor($"Error: {ex.Message}", LogLevel.Silent, ConsoleColor.Red);
       }
 
       return false;

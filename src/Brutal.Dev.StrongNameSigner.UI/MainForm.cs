@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using Microsoft.WindowsAPICodePack.Dialogs;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner.UI
 {
@@ -359,6 +360,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
       var assemblyPaths = e.Argument as IEnumerable<string>;
       var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var filesToWrite = new List<AssemblyInfo>();
 
       if (assemblyPaths != null)
       {
@@ -379,6 +381,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
               assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray());
               log.Append("Strong-name signed successfully.").AppendLine();
               signedAssemblyPaths.Add(filePath);
+              filesToWrite.Add(assemblyPair.NewInfo);
               signedFiles++;
             }
             else
@@ -403,11 +406,17 @@ namespace Brutal.Dev.StrongNameSigner.UI
           }
         }
 
-        var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
-        foreach (var filePath in processedAssemblyPaths)
+        string[] probingPaths = assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
+        var lookup = processedAssemblyPaths
+          .ToDictionary(path => path,
+            path => AssemblyDefinition.ReadAssembly(path, SigningHelper.GetReadParameters(path, probingPaths)));
+          
+
+        var referencesToFix = new HashSet<string>(signedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
+        foreach (var downstreamAssemblyPath in processedAssemblyPaths)
         {
           // Go through all the references excluding the file we are working on.
-          foreach (var reference in referencesToFix.Where(r => !r.Equals(filePath)))
+          foreach (var upstreamAssemblyPath in referencesToFix.Where(r => !r.Equals(downstreamAssemblyPath)))
           {
             backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
 
@@ -417,10 +426,18 @@ namespace Brutal.Dev.StrongNameSigner.UI
               break;
             }
 
-            log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
-            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
+            log.AppendFormat("Fixing references to {1} in {0}...", downstreamAssemblyPath, upstreamAssemblyPath).AppendLine();
+
+            var downstreamAssembly = lookup[downstreamAssemblyPath];
+            var upstreamAssembly = lookup[upstreamAssemblyPath];
+
+            if (SigningHelper.FixAssemblyReference(downstreamAssembly, upstreamAssembly))
             {
               log.Append("Reference was found and fixed.").AppendLine();
+              var a = SigningHelper.GetAssemblyInfo(downstreamAssemblyPath, downstreamAssembly);
+              var b = SigningHelper.GetAssemblyInfo(upstreamAssemblyPath, upstreamAssembly);
+              filesToWrite.Add(a);
+              filesToWrite.Add(b);
               referenceFixes++;
             }
             else
@@ -452,6 +469,13 @@ namespace Brutal.Dev.StrongNameSigner.UI
             log.Append("Nothing to fix.").AppendLine();
           }
         }
+
+      foreach (var assembly in filesToWrite)
+      {
+        var path = assembly.FilePath;
+        var a = lookup[path];
+        a.Write(path, new WriterParameters { StrongNameKeyPair = SigningHelper.GetStrongNameKeyPair(keyFile, password) });
+      }
 
         e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.", signedFiles, assemblyPaths.Count(), referenceFixes);
       }
