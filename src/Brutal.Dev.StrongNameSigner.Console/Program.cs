@@ -104,20 +104,27 @@ namespace Brutal.Dev.StrongNameSigner.Console
       int referenceFixes = 0;
 
       HashSet<string> filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-      
-      if (!string.IsNullOrWhiteSpace(options.InputDirectory))
-      {
-        foreach (var inputDir in options.InputDirectory.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
-        {
-          foreach (var file in Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
-            .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                        Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
-          {
-            filesToSign.Add(file);
-          }
-        }
-      }
-      else
+
+            if (!string.IsNullOrWhiteSpace(options.InputDirectory))
+            {
+                foreach (var inputDir in options.InputDirectory.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (inputDir.EndsWith("*"))
+                    {
+                        var versionedDirectories = Directory.GetDirectories(Directory.GetParent(inputDir).FullName, GetLastSegment(inputDir), SearchOption.TopDirectoryOnly);
+
+                        foreach (var versionedDir in versionedDirectories)
+                        {
+                            AddFiles(versionedDir, filesToSign);
+                        }
+                    }
+                    else
+                    {
+                        AddFiles(inputDir, filesToSign);
+                    }
+                }
+            }
+            else
       {
         // We can assume from validation that there will be a single file.
         filesToSign.Add(options.AssemblyFile);
@@ -171,7 +178,27 @@ namespace Brutal.Dev.StrongNameSigner.Console
       };
     }
 
-    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password, params string[] probingPaths)
+      private static string GetLastSegment(string inputDir)
+      {
+          if (inputDir.Contains("\\"))
+          {
+              return inputDir.Split('\\').Last();
+          }
+
+          return inputDir;
+      }
+
+      private static void AddFiles(string versionedDir, HashSet<string> filesToSign)
+      {
+          foreach (var file in Directory.GetFiles(versionedDir, "*.*", SearchOption.AllDirectories)
+              .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                          Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
+          {
+              filesToSign.Add(file);
+          }
+      }
+
+      private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password, params string[] probingPaths)
     {
       try
       {
