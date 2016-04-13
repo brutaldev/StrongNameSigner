@@ -61,6 +61,8 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         foreach (var inputDir in InputDirectory.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
         {
+                    if (inputDir.EndsWith("*"))
+                        continue;
           if (!Directory.Exists(inputDir))
           {
             throw new ArgException(string.Format("Directory not found: '{0}'", inputDir));
