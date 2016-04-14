@@ -34,7 +34,7 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.6.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.7.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
 
@@ -46,12 +46,30 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.6.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.7.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
 </Target>
 ```
 
 This way the core library can be signed and the MVC library can have it's reference to the new signed version updated since they will be processed together and each file can be verified against each other after signing.
 As a rule of thumb, always include all libraries that will be affected by any signing in a single call.
+
+You can also use wildcards for each of your input directories. The above example could also be written using a wildcard that will match all directories and versions.
+
+```xml
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.7.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
+</Target>
+```
+
+Wildcards can also be complex and placed anywhere in the path. This is useful if you only want a subset of directories as well as only certain framework specific lib directories to be signed.
+
+```xml
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.7.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
+</Target>
+```
 
 Note that any files that are already strong-name signed will not be modified unless they reference a previously unsigned assembly. If you are using NuGet package restore then this works on build servers as well.
 
@@ -75,7 +93,7 @@ For example, ServiceStack's PostgreSQL NuGet package is not signed but other dep
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.6.1\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.7.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
 </Target>
 ```
 

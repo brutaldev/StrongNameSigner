@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using PowerArgs;
 using C = System.Console;
 
@@ -103,17 +104,32 @@ namespace Brutal.Dev.StrongNameSigner.Console
       int signedFiles = 0;
       int referenceFixes = 0;
 
-      HashSet<string> filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {
         foreach (var inputDir in options.InputDirectory.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
         {
-          foreach (var file in Directory.GetFiles(inputDir, "*.*", SearchOption.AllDirectories)
-            .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                        Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
+          if (inputDir.Contains("*"))
           {
-            filesToSign.Add(file);
+            string firstWildCardPart = inputDir.Substring(0, inputDir.IndexOf("*"));
+            string searchPath = firstWildCardPart.Substring(0, firstWildCardPart.LastIndexOf(Path.DirectorySeparatorChar));
+
+            foreach (var dir in Directory.GetDirectories(searchPath, "*", SearchOption.AllDirectories)
+              .Where(d => Regex.IsMatch(d, "^" + Regex.Escape(inputDir).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase)))
+            {
+              foreach (var file in GetFilesToSign(dir))
+              {
+                filesToSign.Add(file);
+              }
+            }
+          }
+          else
+          {
+            foreach (var file in GetFilesToSign(inputDir))
+            {
+              filesToSign.Add(file);
+            }
           }
         }
       }
@@ -265,7 +281,21 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
       return false;
     }
-    
+
+    private static IEnumerable<string> GetFilesToSign(string directory)
+    {
+      var filesToSign = new HashSet<string>();
+
+      foreach (var file in Directory.GetFiles(directory, "*.*", SearchOption.AllDirectories)
+              .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+                          Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
+      {
+        filesToSign.Add(file);
+      }
+
+      return filesToSign;
+    }
+
     private struct Stats
     {
       public int NumberOfSignedFiles { get; set; }
