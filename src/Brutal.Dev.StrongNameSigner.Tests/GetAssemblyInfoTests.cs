@@ -2,6 +2,7 @@
 using Shouldly;
 using System;
 using System.IO;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {

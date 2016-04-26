@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -35,7 +36,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath)
     {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, string.Empty);
+      return SignAssembly(assemblyPath, String.Empty, String.Empty, String.Empty);
     }
 
     /// <summary>
@@ -46,7 +47,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath)
     {
-      return SignAssembly(assemblyPath, keyPath, string.Empty, string.Empty);
+      return SignAssembly(assemblyPath, keyPath, String.Empty, String.Empty);
     }
 
     /// <summary>
@@ -69,7 +70,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// </exception>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
     {
-      return SignAssembly(assemblyPath, keyPath, outputPath, string.Empty);
+      return SignAssembly(assemblyPath, keyPath, outputPath, String.Empty);
     }
 
     /// <summary>
@@ -90,97 +91,10 @@ namespace Brutal.Dev.StrongNameSigner
     /// <exception cref="System.BadImageFormatException">The file is not a .NET managed assembly.</exception>
     public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath, string keyFilePassword, params string[] probingPaths)
     {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
-      {
-        throw new ArgumentNullException("assemblyPath");
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
-      }
-
-      if (string.IsNullOrWhiteSpace(outputPath))
-      {
-        // Overwrite the file if no output path is provided.
-        outputPath = Path.GetDirectoryName(assemblyPath);
-      }
-      else
-      {
-        // Create the directory structure.
-        Directory.CreateDirectory(outputPath);
-      }      
-
-      string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
-
-      // Get the assembly info and go from there.
-      AssemblyInfo info = GetAssemblyInfo(assemblyPath);
-
-      // Don't sign assemblies with a strong-name signature.
-      if (info.IsSigned)
-      {
-        if (!outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
-        {
-          File.Copy(assemblyPath, outputFile, true);
-        }
-
-        return info;
-      }
-
-      if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
-      {
-        // Make a backup before overwriting.
-        File.Copy(outputFile, outputFile + ".unsigned", true);
-      }
-
-      try
-      {
-        AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths))
-          .Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
-      }
-      catch (Exception)
-      {
-        // Restore the backup if something goes wrong.
-        if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
-        {
-          File.Copy(outputFile + ".unsigned", outputFile, true);
-        }
-
-        throw;
-      }
-
-      return GetAssemblyInfo(outputFile);
-    }
-
-    /// <summary>
-    /// Gets .NET assembly information.
-    /// </summary>
-    /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
-    /// <param name="probingPaths">Additional paths to probe for references.</param>
-    /// <returns>
-    /// The assembly information.
-    /// </returns>
-    /// <exception cref="System.ArgumentNullException">assemblyPath parameter was not provided.</exception>
-    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.</exception>
-    public static AssemblyInfo GetAssemblyInfo(string assemblyPath, params string[] probingPaths)
-    {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
-      {
-        throw new ArgumentNullException("assemblyPath");
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
-      }
-
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-
-      return GetAssemblyInfo(assemblyPath, a);
+      var db = new AssemblyCollection(PrintMessageColor);
+      db.AddFromFile(assemblyPath, outputPath);
+      db.Sign(keyPath, keyFilePassword, PrintMessageColor);
+      return db.Assemblies.First().Info;
     }
 
     public static AssemblyInfo GetAssemblyInfo(string assemblyPath, AssemblyDefinition a)
@@ -246,7 +160,7 @@ namespace Brutal.Dev.StrongNameSigner
         // Add the public key to the attribute.
         var typeRef = b2aReference.ConstructorArguments[0].Type;
         b2aReference.ConstructorArguments.Clear();
-        b2aReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, downstreamAssembly.Name.Name + ", PublicKey=" + BitConverter.ToString(downstreamAssembly.Name.PublicKey).Replace("-", string.Empty)));
+        b2aReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, downstreamAssembly.Name.Name + ", PublicKey=" + BitConverter.ToString(downstreamAssembly.Name.PublicKey).Replace("-", String.Empty)));
 
         // Save and resign.
         // upstreamAssembly.Write(upstreamAssemblyPath, new WriterParameters { StrongNameKeyPair = strongNameKeyPair });
@@ -257,89 +171,18 @@ namespace Brutal.Dev.StrongNameSigner
       return fixApplied;
     }
 
-    /// <summary>
-    /// Removes any friend assembly references (InternalsVisibleTo attributes) that do not have public keys.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to remove friend references from.</param>
-    /// <returns><c>true</c> if any invalid friend references were found and fixed, <c>false</c> if no invalid friend references was found.</returns>
-    /// <exception cref="System.ArgumentNullException">
-    /// assemblyPath was not provided.
-    /// </exception>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find provided assembly file.
-    /// </exception>
-    public static bool RemoveInvalidFriendAssemblies(string assemblyPath)
-    {
-      return RemoveInvalidFriendAssemblies(assemblyPath, string.Empty, string.Empty);
-    }
-
-    /// <summary>
-    /// Removes any friend assembly references (InternalsVisibleTo attributes) that do not have public keys.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to remove friend references from.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
-    /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
-    /// <param name="probingPaths">Additional paths to probe for references.</param>
-    /// <returns>
-    ///   <c>true</c> if any invalid friend references were found and fixed, <c>false</c> if no invalid friend references was found.
-    /// </returns>
-    /// <exception cref="System.ArgumentNullException">assemblyPath was not provided.</exception>
-    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.</exception>
-    public static bool RemoveInvalidFriendAssemblies(string assemblyPath, string keyPath, string keyFilePassword, params string[] probingPaths)
-    {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
-      {
-        throw new ArgumentNullException("assemblyPath");
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
-      }
-
-      bool fixApplied = false;
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-
-      var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
-
-      foreach (var friendReference in ivtAttributes)
-      {
-        // Find any without a public key defined.
-        if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
-        {
-          a.CustomAttributes.Remove(friendReference);
-          fixApplied = true;
-        }
-      }
-
-      if (fixApplied)
-      {
-        // Save and resign.
-        a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword) });
-      }
-
-      return fixApplied;
-    }
-
     public static ReaderParameters GetReadParameters(string assemblyPath, params string[] probingPaths)
     {
       var resolver = new DefaultAssemblyResolver();
 
-      if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
-      {
-        resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
-      }
+
+      resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
 
       if (probingPaths != null)
       {
         foreach (var searchDir in probingPaths)
         {
-          if (Directory.Exists(searchDir))
-          {
-            resolver.AddSearchDirectory(searchDir);
-          }
+          resolver.AddSearchDirectory(searchDir);
         }
       }
 
@@ -365,9 +208,9 @@ namespace Brutal.Dev.StrongNameSigner
 
     public static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
     {
-      if (!string.IsNullOrEmpty(keyPath))
+      if (!String.IsNullOrEmpty(keyPath))
       {
-        if (!string.IsNullOrEmpty(keyFilePassword))
+        if (!String.IsNullOrEmpty(keyFilePassword))
         {
           var cert = new X509Certificate2(keyPath, keyFilePassword, X509KeyStorageFlags.Exportable);
 
@@ -396,6 +239,89 @@ namespace Brutal.Dev.StrongNameSigner
 
         return new StrongNameKeyPair(keyPairCache);
       }
+    }
+
+    public static void FileWriteTransaction(string path, Action action )
+    {
+      var backup = path + ".backup";
+      if (File.Exists(path))
+      {
+        // Make a backup before overwriting.
+        File.Copy(path, backup, true);
+      }
+
+      try
+      {
+        action();
+      }
+      catch (Exception)
+      {
+        if (File.Exists(backup))
+          File.Copy(backup, path, true);
+        throw;
+      }
+      finally
+      {
+        if (File.Exists(backup))
+          File.Delete(backup);
+      }
+      
+    }
+
+    public static void PrintMessageColor(string message, LogLevel minLogLevel, ConsoleColor? color)
+    {
+      if(color==null)
+        Console.ResetColor();
+      else
+        Console.ForegroundColor = color.Value;
+      PrintMessage(message, minLogLevel);
+      Console.ResetColor();      
+    }
+
+    public static void PrintMessage(string message, LogLevel minLogLevel)
+    {
+      if (currentLogLevel <= minLogLevel)
+      {
+        if (String.IsNullOrEmpty(message))
+        {
+          Console.WriteLine();
+        }
+        else
+        {
+          Console.WriteLine(message);
+        }
+      }
+    }
+
+    public static LogLevel currentLogLevel = LogLevel.Default;
+
+    /// <summary>
+    /// Gets .NET assembly information.
+    /// </summary>
+    /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
+    /// <param name="probingPaths">Additional paths to probe for references.</param>
+    /// <returns>
+    /// The assembly information.
+    /// </returns>
+    /// <exception cref="System.ArgumentNullException">assemblyPath parameter was not provided.</exception>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.</exception>
+    public static AssemblyInfo GetAssemblyInfo(string assemblyPath, params string[] probingPaths)
+    {
+      // Verify assembly path was passed in.
+      if (String.IsNullOrWhiteSpace(assemblyPath))
+      {
+        throw new ArgumentNullException("assemblyPath");
+      }
+
+      // Make sure the file actually exists.
+      if (!File.Exists(assemblyPath))
+      {
+        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+      }
+
+      var a = AssemblyDefinition.ReadAssembly(assemblyPath, SigningHelper.GetReadParameters(assemblyPath, probingPaths));
+
+      return SigningHelper.GetAssemblyInfo(assemblyPath, a);
     }
   }
 }

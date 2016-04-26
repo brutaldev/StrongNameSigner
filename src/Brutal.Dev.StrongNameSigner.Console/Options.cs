@@ -32,7 +32,6 @@ namespace Brutal.Dev.StrongNameSigner.Console
     [ArgShortcut("in")]
     public string InputDirectory { get; set; }
 
-    [ArgExistingDirectory]
     [ArgShortcut("out")]
     [ArgDescription("Output directory for strong-name signed assemblies. Defaults to current directory.")]
     public string OutputDirectory { get; set; }

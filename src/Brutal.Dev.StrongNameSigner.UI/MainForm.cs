@@ -16,9 +16,10 @@ namespace Brutal.Dev.StrongNameSigner.UI
   public partial class MainForm : Form
   {
     private string keyFile = string.Empty;
-    private string outputPath = string.Empty;
+    private string outputDirectory = string.Empty;
     private string password = string.Empty;
     private StringBuilder log = new StringBuilder();
+    private Action<string, LogLevel, ConsoleColor?> _Logger;
 
     public MainForm()
     {
@@ -26,6 +27,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
       Application.ThreadException += ApplicationThreadException;
       AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
+      _Logger = (message, logLevel, color) => log.AppendFormat(message??"").AppendLine();
     }
 
     private static ListViewItem CreateListViewItem(AssemblyInfo info)
@@ -286,7 +288,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     private void ButtonSignClick(object sender, EventArgs e)
     {
       keyFile = string.Empty;
-      outputPath = string.Empty;
+      outputDirectory = string.Empty;
       password = string.Empty;
       log.Clear();
 
@@ -317,7 +319,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
       }
       else
       {
-        outputPath = textBoxOutput.Text.Trim();
+        outputDirectory = textBoxOutput.Text.Trim();
       }
 
       var assemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -353,133 +355,17 @@ namespace Brutal.Dev.StrongNameSigner.UI
     private void BackgroundWorkerDoWork(object sender, DoWorkEventArgs e)
     {
       e.Result = string.Empty;
-
-      int progress = 0;
-      int signedFiles = 0;
-      int referenceFixes = 0;
-      var assemblyPaths = e.Argument as IEnumerable<string>;
-      var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-      var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-      var filesToWrite = new List<AssemblyInfo>();
-
-      if (assemblyPaths != null)
+      var filesToSign = new HashSet<string>((IEnumerable<string>) e.Argument);
+      var db = new AssemblyCollection(_Logger);
+      foreach (var file in filesToSign)
       {
-        // We go through assemblies three times and every assembly -1 for reference fixes.
-        double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 3;
-        
-        foreach (var filePath in assemblyPaths)
-        {
-          var assemblyPair = new AssemblyPair();
-
-          try
-          {
-            log.AppendFormat("Strong-name signing {0}...", filePath).AppendLine();
-
-            assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
-            if (!assemblyPair.OldInfo.IsSigned)
-            {
-              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray());
-              log.Append("Strong-name signed successfully.").AppendLine();
-              signedAssemblyPaths.Add(filePath);
-              filesToWrite.Add(assemblyPair.NewInfo);
-              signedFiles++;
-            }
-            else
-            {
-              assemblyPair.NewInfo = assemblyPair.OldInfo;
-              log.Append("Already strong-name signed...").AppendLine();
-            }
-
-            processedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
-          }
-          catch (Exception ex)
-          {
-            log.AppendFormat("Error strong-name signing {0}: {1}", filePath, ex.Message).AppendLine();
-          }
-
-          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100), assemblyPair);
-
-          if (backgroundWorker.CancellationPending)
-          {
-            e.Cancel = true;
-            break;
-          }
-        }
-
-        string[] probingPaths = assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
-        var lookup = processedAssemblyPaths
-          .ToDictionary(path => path,
-            path => AssemblyDefinition.ReadAssembly(path, SigningHelper.GetReadParameters(path, probingPaths)));
-          
-
-        var referencesToFix = new HashSet<string>(signedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
-        foreach (var downstreamAssemblyPath in processedAssemblyPaths)
-        {
-          // Go through all the references excluding the file we are working on.
-          foreach (var upstreamAssemblyPath in referencesToFix.Where(r => !r.Equals(downstreamAssemblyPath)))
-          {
-            backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
-
-            if (backgroundWorker.CancellationPending)
-            {
-              e.Cancel = true;
-              break;
-            }
-
-            log.AppendFormat("Fixing references to {1} in {0}...", downstreamAssemblyPath, upstreamAssemblyPath).AppendLine();
-
-            var downstreamAssembly = lookup[downstreamAssemblyPath];
-            var upstreamAssembly = lookup[upstreamAssemblyPath];
-
-            if (SigningHelper.FixAssemblyReference(downstreamAssembly, upstreamAssembly))
-            {
-              log.Append("Reference was found and fixed.").AppendLine();
-              var a = SigningHelper.GetAssemblyInfo(downstreamAssemblyPath, downstreamAssembly);
-              var b = SigningHelper.GetAssemblyInfo(upstreamAssemblyPath, upstreamAssembly);
-              filesToWrite.Add(a);
-              filesToWrite.Add(b);
-              referenceFixes++;
-            }
-            else
-            {
-              log.Append("Nothing to fix.").AppendLine();
-            }
-          }
-        }
-
-        // Go through all processed assemblies and remove invalid friend references.
-        foreach (var filePath in signedAssemblyPaths)
-        {
-          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
-
-          if (backgroundWorker.CancellationPending)
-          {
-            e.Cancel = true;
-            break;
-          }
-
-          log.AppendFormat("Removing invalid friend references from '{0}'...", filePath).AppendLine();
-          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
-          {
-            log.Append("Invalid friend assemblies removed.").AppendLine();
-            referenceFixes++;
-          }
-          else
-          {
-            log.Append("Nothing to fix.").AppendLine();
-          }
-        }
-
-      foreach (var assembly in filesToWrite)
-      {
-        var path = assembly.FilePath;
-        var a = lookup[path];
-        a.Write(path, new WriterParameters { StrongNameKeyPair = SigningHelper.GetStrongNameKeyPair(keyFile, password) });
+        db.AddFromFile(file, outputDirectory);
       }
-
-        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.", signedFiles, assemblyPaths.Count(), referenceFixes);
-      }
-    }
+      var stats = db.Sign(keyFile, password, _Logger);
+      e.Result = string.Format(CultureInfo.CurrentCulture,
+        "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.",
+        stats.NumberOfSignedFiles, filesToSign.Count, stats.NumberOfFixedReferences);
+  }
 
     private void BackgroundWorkerProgressChanged(object sender, ProgressChangedEventArgs e)
     {

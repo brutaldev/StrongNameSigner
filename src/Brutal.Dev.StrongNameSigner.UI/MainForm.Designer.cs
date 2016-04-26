@@ -204,7 +204,7 @@
       this.buttonSign.Name = "buttonSign";
       this.buttonSign.Size = new System.Drawing.Size(179, 38);
       this.buttonSign.TabIndex = 12;
-      this.buttonSign.Text = "Sign Assemblies";
+      this.buttonSign.Text = "SignIfNeeded Assemblies";
       this.buttonSign.UseVisualStyleBackColor = true;
       this.buttonSign.Click += new System.EventHandler(this.ButtonSignClick);
       // 
