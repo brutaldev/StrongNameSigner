@@ -36,7 +36,7 @@ namespace Brutal.Dev.StrongNameSigner
         .Where(f => Path.GetExtension(f).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
                     Path.GetExtension(f).Equals(".dll", StringComparison.OrdinalIgnoreCase)))
       {
-        Add(sourceDirectory, targetDirectory, file.Remove(0, sourceDirectory.Length));
+        Add(sourceDirectory, targetDirectory, file.Remove(0, sourceDirectory.Length).TrimStart('\\'));
       }
     }
     public void AddFromFile(string sourceFile, string targetDirectory)
