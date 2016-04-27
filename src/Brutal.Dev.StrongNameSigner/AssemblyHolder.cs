@@ -128,8 +128,13 @@ namespace Brutal.Dev.StrongNameSigner
       var dir = Path.GetDirectoryName(TargetPath);
       if (!Directory.Exists(dir))
         Directory.CreateDirectory(dir);
+
+      if(File.Exists(SourcePdbPath))
+        File.Copy(SourcePdbPath, TargetPdbPath, true);
+
       File.Copy(SourcePath, TargetPath, true);
     }
+
 
 
     public void Write(string keyFile, string password)
@@ -174,6 +179,12 @@ namespace Brutal.Dev.StrongNameSigner
 
     public string SourcePath => Path.Combine(SourceDirectory, RelativePath);
     public string TargetPath => Path.Combine(TargetDirectory, RelativePath);
+
+    public string SourcePdbPath => SigningHelper.PdbForAssembly(SourcePath);
+
+
+    public string TargetPdbPath => SigningHelper.PdbForAssembly(TargetPath);
+
 
     public string SourceDirectory { get; }
     public string TargetDirectory { get; }
