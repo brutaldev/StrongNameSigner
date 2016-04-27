@@ -186,7 +186,11 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      return new ReaderParameters() { AssemblyResolver = resolver };
+
+      if(File.Exists(PdbForAssembly(assemblyPath)))
+        return new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = true};
+      else
+        return new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = false};
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
@@ -322,6 +326,11 @@ namespace Brutal.Dev.StrongNameSigner
       var a = AssemblyDefinition.ReadAssembly(assemblyPath, SigningHelper.GetReadParameters(assemblyPath, probingPaths));
 
       return SigningHelper.GetAssemblyInfo(assemblyPath, a);
+    }
+
+    public static string PdbForAssembly(string assemblyPath)
+    {
+      return Path.ChangeExtension(assemblyPath , ".pdb");
     }
   }
 }
