@@ -121,6 +121,9 @@ namespace Brutal.Dev.StrongNameSigner
 
     private void Copy()
     {
+      if (SourcePath == TargetPath)
+        return;
+
       _Log($"Copying {SourcePath} to {TargetPath} ",LogLevel.Verbose, null);
       var dir = Path.GetDirectoryName(TargetPath);
       if (!Directory.Exists(dir))
