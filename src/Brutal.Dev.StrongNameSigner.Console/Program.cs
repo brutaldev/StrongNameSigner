@@ -146,7 +146,9 @@ namespace Brutal.Dev.StrongNameSigner.Console
       foreach (var filePath in filesToSign)
       {
         var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password, probingPaths);
-        if (signedAssembly != null)
+
+        // Check if it got signed.
+        if (signedAssembly != null && signedAssembly.IsSigned)
         {
           processedAssemblyPaths.Add(signedAssembly.FilePath);
           signedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -154,7 +156,8 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
         else
         {
-          processedAssemblyPaths.Add(filePath);
+          string outputFilePath = string.IsNullOrWhiteSpace(options.OutputDirectory) ? Path.GetDirectoryName(filePath) : options.OutputDirectory;
+          processedAssemblyPaths.Add(Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath)));
         }
       }
 
@@ -163,7 +166,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         // Go through all the references excluding the file we are working on.
         foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
-        {
+        { 
           if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, probingPaths))
           {
             referenceFixes++;
@@ -194,14 +197,14 @@ namespace Brutal.Dev.StrongNameSigner.Console
         PrintMessage(null, LogLevel.Verbose);
         PrintMessage(string.Format("Strong-name signing '{0}'...", assemblyPath), LogLevel.Verbose);
 
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
-        if (!info.IsSigned)
+        var oldInfo = SigningHelper.GetAssemblyInfo(assemblyPath);
+        var newInfo = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password, probingPaths);
+
+        if (!oldInfo.IsSigned && newInfo.IsSigned)
         {
-          info = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password, probingPaths);
+          PrintMessageColor(string.Format("'{0}' was strong-name signed successfully.", newInfo.FilePath), LogLevel.Changes, ConsoleColor.Green);
 
-          PrintMessageColor(string.Format("'{0}' was strong-name signed successfully.", info.FilePath), LogLevel.Changes, ConsoleColor.Green);
-
-          return info;
+          return newInfo;
         }
         else
         {

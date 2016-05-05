@@ -362,6 +362,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
       if (assemblyPaths != null)
       {
+        var probingPaths = assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
+
         // We go through assemblies three times and every assembly -1 for reference fixes.
         double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 3;
         
@@ -374,19 +376,19 @@ namespace Brutal.Dev.StrongNameSigner.UI
             log.AppendFormat("Strong-name signing {0}...", filePath).AppendLine();
 
             assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
-            if (!assemblyPair.OldInfo.IsSigned)
+            assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, probingPaths);
+
+            if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
             {
-              assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray());
               log.Append("Strong-name signed successfully.").AppendLine();
-              signedAssemblyPaths.Add(filePath);
-              signedFiles++;
+              signedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
+              signedFiles++; 
             }
             else
             {
-              assemblyPair.NewInfo = assemblyPair.OldInfo;
               log.Append("Already strong-name signed...").AppendLine();
             }
-
+            
             processedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
           }
           catch (Exception ex)
@@ -418,7 +420,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             }
 
             log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
-            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
+            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password, probingPaths))
             {
               log.Append("Reference was found and fixed.").AppendLine();
               referenceFixes++;
@@ -442,7 +444,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
           }
 
           log.AppendFormat("Removing invalid friend references from '{0}'...", filePath).AppendLine();
-          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password, assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray()))
+          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password, probingPaths))
           {
             log.Append("Invalid friend assemblies removed.").AppendLine();
             referenceFixes++;
