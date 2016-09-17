@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -14,6 +15,8 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
+    private static readonly ConcurrentDictionary<string, AssemblyDefinition> AssemblyDefinitonCache = new ConcurrentDictionary<string, AssemblyDefinition>(StringComparer.OrdinalIgnoreCase);
+
     private static byte[] keyPairCache = null;
 
     /// <summary>
@@ -145,6 +148,9 @@ namespace Brutal.Dev.StrongNameSigner
       {
         AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths))
           .Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
+
+        AssemblyDefinition removed;
+        AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
       }
       catch (Exception)
       {
@@ -184,7 +190,17 @@ namespace Brutal.Dev.StrongNameSigner
         throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
       }
 
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+      AssemblyDefinition a = null;
+      if (AssemblyDefinitonCache.ContainsKey(assemblyPath))
+      {
+        AssemblyDefinitonCache.TryGetValue(assemblyPath, out a);
+      }
+
+      if (a == null)
+      {
+        a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+        AssemblyDefinitonCache.TryAdd(assemblyPath, a);
+      }
 
       return new AssemblyInfo()
       {
@@ -261,10 +277,32 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       bool fixApplied = false;
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-      var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
+
+      AssemblyDefinition a = null;
+      if (AssemblyDefinitonCache.ContainsKey(assemblyPath))
+      {
+        AssemblyDefinitonCache.TryGetValue(assemblyPath, out a);
+      }
+
+      AssemblyDefinition b = null;
+      if (AssemblyDefinitonCache.ContainsKey(referenceAssemblyPath))
+      {
+        AssemblyDefinitonCache.TryGetValue(referenceAssemblyPath, out b);
+      }
+
+      if (a == null)
+      {
+        a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+        AssemblyDefinitonCache.TryAdd(assemblyPath, a);
+      }
+
+      if (b == null)
+      {
+        b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
+        AssemblyDefinitonCache.TryAdd(referenceAssemblyPath, b);
+      }
             
-      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name == b.Name.Name);
+      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
 
       if (assemblyReference != null)
       {
@@ -276,6 +314,9 @@ namespace Brutal.Dev.StrongNameSigner
 
           // Save and resign.
           a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+
+          AssemblyDefinition removed;
+          AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
 
           fixApplied = true;
         }
@@ -293,6 +334,9 @@ namespace Brutal.Dev.StrongNameSigner
 
         // Save and resign.
         b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
+
+        AssemblyDefinition removed;
+        AssemblyDefinitonCache.TryRemove(referenceAssemblyPath, out removed);
 
         fixApplied = true;
       }
@@ -343,7 +387,18 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       bool fixApplied = false;
-      var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+
+      AssemblyDefinition a = null;
+      if (AssemblyDefinitonCache.ContainsKey(assemblyPath))
+      {
+        AssemblyDefinitonCache.TryGetValue(assemblyPath, out a);
+      }
+
+      if (a == null)
+      {
+        a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+        AssemblyDefinitonCache.TryAdd(assemblyPath, a);
+      }
 
       var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
 
@@ -361,9 +416,47 @@ namespace Brutal.Dev.StrongNameSigner
       {
         // Save and resign.
         a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+
+        AssemblyDefinition removed;
+        AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
       }
 
       return fixApplied;
+    }
+    
+    internal static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
+    {
+      if (!string.IsNullOrEmpty(keyPath))
+      {
+        if (!string.IsNullOrEmpty(keyFilePassword))
+        {
+          var cert = new X509Certificate2(keyPath, keyFilePassword, X509KeyStorageFlags.Exportable);
+
+          var provider = cert.PrivateKey as RSACryptoServiceProvider;
+          if (provider == null)
+          {
+            throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
+          }
+
+          return new StrongNameKeyPair(provider.ExportCspBlob(true));
+        }
+        else
+        {
+          return new StrongNameKeyPair(File.ReadAllBytes(keyPath));
+        }
+      }
+      else
+      {
+        // Only cache generated keys so all signed assemblies use the same public key.
+        if (keyPairCache != null)
+        {
+          return new StrongNameKeyPair(keyPairCache);
+        }
+
+        keyPairCache = GenerateStrongNameKeyPair();
+
+        return new StrongNameKeyPair(keyPairCache);
+      }
     }
 
     private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
@@ -404,41 +497,6 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return "UNKNOWN";
-    }
-
-    private static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
-    {
-      if (!string.IsNullOrEmpty(keyPath))
-      {
-        if (!string.IsNullOrEmpty(keyFilePassword))
-        {
-          var cert = new X509Certificate2(keyPath, keyFilePassword, X509KeyStorageFlags.Exportable);
-
-          var provider = cert.PrivateKey as RSACryptoServiceProvider;
-          if (provider == null)
-          {
-            throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
-          }
-
-          return new StrongNameKeyPair(provider.ExportCspBlob(true));
-        }
-        else
-        {
-          return new StrongNameKeyPair(File.ReadAllBytes(keyPath));
-        }
-      }
-      else
-      {
-        // Only cache generated keys so all signed assemblies use the same public key.
-        if (keyPairCache != null)
-        {
-          return new StrongNameKeyPair(keyPairCache);
-        }
-
-        keyPairCache = GenerateStrongNameKeyPair();
-
-        return new StrongNameKeyPair(keyPairCache);
-      }
     }
   }
 }

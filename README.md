@@ -18,7 +18,10 @@ Screenshots
 
 Build Process
 -------------
-You can call the console version in your Visual Studio project files to sign assemblies before it gets built. This will change the references to your assemblies to strong-name signed ones allowing to sign your own projects and reference unsigned assemblies. All assemblies that are found (including signed ones) will have their references corrected if they were using any files that now have public key tokens.
+By default all unsigned referenced assemblies in your project automatically be signed just by installing the [NuGet package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/).
+This will change the references to your assemblies to strong-name signed ones allowing you to sign your own projects and reference unsigned assemblies. All assemblies that are found (including signed ones) will have their references corrected if they were using any files that now have public key tokens.
+
+If you need to be more specific about what to sign you can call the console version in your Visual Studio project files to sign assemblies before it gets built.
 
 For example, if you want to strong-name sign and fix references to all the NuGet packages that your project uses, you can add this to you Visual Studio project file:
 
@@ -34,7 +37,7 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.8.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.0.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
 
@@ -46,7 +49,7 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.8.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.0.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.1&quot;" />
 </Target>
 ```
 
@@ -58,7 +61,7 @@ You can also use wildcards for each of your input directories. The above example
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.8.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.0.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
 </Target>
 ```
 
@@ -67,7 +70,7 @@ Wildcards can also be complex and placed anywhere in the path. This is useful if
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.8.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.0.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
 </Target>
 ```
 
@@ -93,7 +96,7 @@ For example, ServiceStack's PostgreSQL NuGet package is not signed but other dep
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.1.8.0\tools\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.0.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
 </Target>
 ```
 

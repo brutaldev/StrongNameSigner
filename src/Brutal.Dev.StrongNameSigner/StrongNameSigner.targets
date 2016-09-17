@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <UsingTask TaskName="Brutal.Dev.StrongNameSigner.AutomaticBuildTask" AssemblyFile="$(MSBuildThisFileDirectory)Brutal.Dev.StrongNameSigner.dll" />
+
+  <Target Name="StrongNameSignerTarget" AfterTargets="AfterResolveReferences">
+    <Brutal.Dev.StrongNameSigner.AutomaticBuildTask References="@(ReferencePath)" CopyLocalPaths="@(ReferenceCopyLocalPaths)" OutputPath="$(IntermediateOutputPath)">
+      <Output TaskParameter="SignedAssembliesToReference" ItemName="AssembliesToReference" />
+      <Output TaskParameter="NewCopyLocalFiles" ItemName="NewCopyLocalFiles" />
+    </Brutal.Dev.StrongNameSigner.AutomaticBuildTask>
+
+    <ItemGroup>
+      <ReferencePath Remove="@(ReferencePath)" />
+      <ReferencePath Include="@(AssembliesToReference)" />
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(NewCopyLocalFiles)" />
+    </ItemGroup>
+  </Target>
+
+  <PropertyGroup>
+    <ResolveReferencesDependsOn>$(ResolveReferencesDependsOn);StrongNameSignerTarget</ResolveReferencesDependsOn>
+  </PropertyGroup>
+</Project>
