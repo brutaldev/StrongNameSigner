@@ -50,7 +50,7 @@ namespace Brutal.Dev.StrongNameSigner
           Directory.CreateDirectory(signedAssemblyFolder);
         }
 
-        string snkFilePath = Path.Combine(signedAssemblyFolder, "StrongNameSigner.snk");
+        string snkFilePath = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "StrongNameSigner.snk");
         if (!File.Exists(snkFilePath))
         {
           File.WriteAllBytes(snkFilePath, SigningHelper.GenerateStrongNameKeyPair());
@@ -133,7 +133,7 @@ namespace Brutal.Dev.StrongNameSigner
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex);
+        Log.LogErrorFromException(ex, true);
       }
 
       return false;
@@ -162,11 +162,11 @@ namespace Brutal.Dev.StrongNameSigner
       }
       catch (BadImageFormatException bife)
       {
-        Log.LogWarningFromException(bife);
+        Log.LogWarningFromException(bife, true);
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex);
+        Log.LogErrorFromException(ex, true, true, null);
       }
 
       return null;
@@ -193,11 +193,11 @@ namespace Brutal.Dev.StrongNameSigner
       }
       catch (BadImageFormatException bife)
       {
-        Log.LogWarningFromException(bife);
+        Log.LogWarningFromException(bife, true);
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex);
+        Log.LogErrorFromException(ex, true, true, null);
       }
 
       return false;
@@ -224,11 +224,11 @@ namespace Brutal.Dev.StrongNameSigner
       }
       catch (BadImageFormatException bife)
       {
-        Log.LogWarningFromException(bife);
+        Log.LogWarningFromException(bife, true);
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex);
+        Log.LogErrorFromException(ex, true, true, null);
       }
 
       return false;
