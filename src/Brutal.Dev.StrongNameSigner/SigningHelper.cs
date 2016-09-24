@@ -278,30 +278,9 @@ namespace Brutal.Dev.StrongNameSigner
 
       bool fixApplied = false;
 
-      AssemblyDefinition a = null;
-      if (AssemblyDefinitonCache.ContainsKey(assemblyPath))
-      {
-        AssemblyDefinitonCache.TryGetValue(assemblyPath, out a);
-      }
-
-      AssemblyDefinition b = null;
-      if (AssemblyDefinitonCache.ContainsKey(referenceAssemblyPath))
-      {
-        AssemblyDefinitonCache.TryGetValue(referenceAssemblyPath, out b);
-      }
-
-      if (a == null)
-      {
-        a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-        AssemblyDefinitonCache.TryAdd(assemblyPath, a);
-      }
-
-      if (b == null)
-      {
-        b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
-        AssemblyDefinitonCache.TryAdd(referenceAssemblyPath, b);
-      }
-            
+      AssemblyDefinition a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+      AssemblyDefinition b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
+       
       var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
 
       if (assemblyReference != null)
@@ -314,7 +293,7 @@ namespace Brutal.Dev.StrongNameSigner
 
           // Save and resign.
           a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
-
+          
           AssemblyDefinition removed;
           AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
 
@@ -388,17 +367,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       bool fixApplied = false;
 
-      AssemblyDefinition a = null;
-      if (AssemblyDefinitonCache.ContainsKey(assemblyPath))
-      {
-        AssemblyDefinitonCache.TryGetValue(assemblyPath, out a);
-      }
-
-      if (a == null)
-      {
-        a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-        AssemblyDefinitonCache.TryAdd(assemblyPath, a);
-      }
+      AssemblyDefinition a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
 
       var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
 

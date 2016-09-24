@@ -229,8 +229,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         PrintMessage(null, LogLevel.Verbose);
         PrintMessage(string.Format("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath), LogLevel.Verbose);
-
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        
         if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword, probingPaths))
         {
           PrintMessageColor(string.Format("References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath), LogLevel.Changes, ConsoleColor.Green);
@@ -260,8 +259,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         PrintMessage(null, LogLevel.Verbose);
         PrintMessage(string.Format("Removing invalid friend references from '{0}'...", assemblyPath), LogLevel.Verbose);
-
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        
         if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, keyFilePassword, probingPaths))
         {
           PrintMessageColor(string.Format("Invalid friend assemblies removed successfully from '{0}'.", assemblyPath), LogLevel.Changes, ConsoleColor.Green);

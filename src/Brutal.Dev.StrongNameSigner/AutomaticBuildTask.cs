@@ -172,19 +172,16 @@ namespace Brutal.Dev.StrongNameSigner
       return null;
     }
 
-    private bool FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, params string[] probingPaths)
+    private void FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, params string[] probingPaths)
     {
       try
       {
         Log.LogMessage(MessageImportance.Low, string.Empty);
         Log.LogMessage(MessageImportance.Low, "Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath);
-
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
+        
         if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, null, probingPaths))
         {
           Log.LogMessage(MessageImportance.Normal, "References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath);
-
-          return true;
         }
         else
         {
@@ -199,23 +196,18 @@ namespace Brutal.Dev.StrongNameSigner
       {
         Log.LogErrorFromException(ex, true, true, null);
       }
-
-      return false;
     }
 
-    private bool RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, params string[] probingPaths)
+    private void RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, params string[] probingPaths)
     {
       try
       {
         Log.LogMessage(MessageImportance.Low, string.Empty);
         Log.LogMessage(MessageImportance.Low, "Removing invalid friend references from '{0}'...", assemblyPath);
 
-        var info = SigningHelper.GetAssemblyInfo(assemblyPath);
         if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, null, probingPaths))
         {
           Log.LogMessage(MessageImportance.Normal, "Invalid friend assemblies removed successfully from '{0}'.", assemblyPath);
-
-          return true;
         }
         else
         {
@@ -230,8 +222,6 @@ namespace Brutal.Dev.StrongNameSigner
       {
         Log.LogErrorFromException(ex, true, true, null);
       }
-
-      return false;
     }
   }
 }
