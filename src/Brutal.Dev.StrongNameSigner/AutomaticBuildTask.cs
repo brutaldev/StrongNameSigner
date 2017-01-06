@@ -41,10 +41,10 @@ namespace Brutal.Dev.StrongNameSigner
           Log.LogError("Task parameter 'OutputPath' not provided.");
           return false;
         }
-
+        
         SignedAssembliesToReference = new ITaskItem[References.Length];
 
-        string signedAssemblyFolder = Path.GetFullPath(Path.Combine(OutputPath.ItemSpec, "StrongNameSigner"));        
+        string signedAssemblyFolder = Path.GetFullPath(Path.Combine(OutputPath.ItemSpec, "StrongNameSigner"));
         if (!Directory.Exists(signedAssemblyFolder))
         {
           Directory.CreateDirectory(signedAssemblyFolder);
@@ -55,7 +55,10 @@ namespace Brutal.Dev.StrongNameSigner
         {
           File.WriteAllBytes(snkFilePath, SigningHelper.GenerateStrongNameKeyPair());
         }
-                
+
+        Log.LogMessage(MessageImportance.Normal, "Signed Assembly Directory: {0}", signedAssemblyFolder);
+        Log.LogMessage(MessageImportance.Normal, "SNK File Path: {0}", snkFilePath);
+
         var updatedReferencePaths = new Dictionary<string, string>();
         var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -138,7 +141,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       return false;
     }
-    
+
     private AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, params string[] probingPaths)
     {
       try
@@ -178,7 +181,7 @@ namespace Brutal.Dev.StrongNameSigner
       {
         Log.LogMessage(MessageImportance.Low, string.Empty);
         Log.LogMessage(MessageImportance.Low, "Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath);
-        
+
         if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, null, probingPaths))
         {
           Log.LogMessage(MessageImportance.Normal, "References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath);

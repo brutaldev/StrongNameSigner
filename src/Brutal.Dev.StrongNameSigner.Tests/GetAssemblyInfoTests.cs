@@ -2,13 +2,14 @@
 using Shouldly;
 using System;
 using System.IO;
+using System.Reflection;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
   [TestFixture]
   public class GetAssemblyInfoTests
   {
-    private const string TestAssemblyDirectory = @"TestAssemblies";
+    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"TestAssemblies");
 
     [Test]
     public void GetAssemblyInfo_Public_API_Test()
@@ -24,17 +25,15 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
-    [ExpectedException(typeof(FileNotFoundException))]
     public void GetAssemblyInfo_Public_API_Invalid_Path_Should_Throw_Exception()
     {
-      SigningHelper.GetAssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist"));
+      Assert.Throws<FileNotFoundException>(() => SigningHelper.GetAssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")));
     }
 
     [Test]
-    [ExpectedException(typeof(BadImageFormatException))]
     public void GetAssemblyInfo_Public_API_Invalid_File_Should_Throw_Exception()
     {
-      SigningHelper.GetAssemblyInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "calc.exe"));
+      Assert.Throws<BadImageFormatException>(() => SigningHelper.GetAssemblyInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "calc.exe")));
     }
 
     [Test]

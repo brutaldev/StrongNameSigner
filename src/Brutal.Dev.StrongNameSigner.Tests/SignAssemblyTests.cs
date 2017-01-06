@@ -4,13 +4,14 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Reflection;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
   [TestFixture]
   public class SignAssemblyTests
   {
-    private const string TestAssemblyDirectory = @"TestAssemblies";
+    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"TestAssemblies");
 
     [Test]
     public void SignAssembly_Public_API_Test()
@@ -26,24 +27,21 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
-    [ExpectedException(typeof(FileNotFoundException))]
     public void SignAssembly_Public_API_Invalid_Path_Should_Throw_Exception()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist"));
+      Assert.Throws<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")));
     }
 
     [Test]
-    [ExpectedException(typeof(ArgumentException))]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Password_Not_Provided()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"));
+      Assert.Throws<ArgumentException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx")));
     }
 
     [Test]
-    [ExpectedException(typeof(CryptographicException))]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Wrong_Password_Provided()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops");
+      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops"));
     }
 
     [Test]
@@ -53,17 +51,15 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
-    [ExpectedException(typeof(DirectoryNotFoundException))]
     public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_Directory()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), "C:\\DoesNotExist\\KeyFile.snk");
+      Assert.Throws<DirectoryNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), "C:\\DoesNotExist\\KeyFile.snk"));
     }
 
     [Test]
-    [ExpectedException(typeof(FileNotFoundException))]
     public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_File()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\KeyFileThatDoesNotExist.snk");
+      Assert.Throws<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\KeyFileThatDoesNotExist.snk"));
     }
 
     [Test]
