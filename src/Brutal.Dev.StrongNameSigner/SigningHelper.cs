@@ -7,6 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Mono.Cecil;
+using System.Collections.Generic;
+using System.Text;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -15,7 +17,7 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
-    private static readonly ConcurrentDictionary<string, AssemblyDefinition> AssemblyDefinitonCache = new ConcurrentDictionary<string, AssemblyDefinition>(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConcurrentDictionary<string, KeyValuePair<string, AssemblyDefinition>> AssemblyDefinitonCache = new ConcurrentDictionary<string, KeyValuePair<string, AssemblyDefinition>>(StringComparer.OrdinalIgnoreCase);
 
     private static byte[] keyPairCache = null;
 
@@ -24,7 +26,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// </summary>
     /// <returns>A strong-name key pair array.</returns>
     public static byte[] GenerateStrongNameKeyPair()
-    { 
+    {
       using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
       {
         return provider.ExportCspBlob(!provider.PublicOnly);
@@ -149,7 +151,7 @@ namespace Brutal.Dev.StrongNameSigner
         AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths))
           .Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
 
-        AssemblyDefinition removed;
+        KeyValuePair<string, AssemblyDefinition> removed;
         AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
       }
       catch (Exception)
@@ -189,31 +191,38 @@ namespace Brutal.Dev.StrongNameSigner
       {
         throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
       }
-
-      AssemblyDefinition a = null;
-      if (AssemblyDefinitonCache.ContainsKey(assemblyPath))
+      
+      var a = new KeyValuePair<string, AssemblyDefinition>(null, null);
+      if (AssemblyDefinitonCache.ContainsKey(assemblyPath) && AssemblyDefinitonCache.TryGetValue(assemblyPath, out a))
       {
-        AssemblyDefinitonCache.TryGetValue(assemblyPath, out a);
+        // Check if the file contents have changed.
+        if (!GetFileMD5Hash(assemblyPath).Equals(a.Key, StringComparison.OrdinalIgnoreCase))
+        {
+          AssemblyDefinitonCache.TryRemove(assemblyPath, out a);
+          
+          // Overwrite with a blank version.
+          a = new KeyValuePair<string, AssemblyDefinition>(null, null);
+        }
       }
 
-      if (a == null)
+      if (a.Value == null)
       {
-        a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
+        a = new KeyValuePair<string, AssemblyDefinition>(GetFileMD5Hash(assemblyPath), AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)));
         AssemblyDefinitonCache.TryAdd(assemblyPath, a);
       }
 
       return new AssemblyInfo()
       {
         FilePath = Path.GetFullPath(assemblyPath),
-        DotNetVersion = GetDotNetVersion(a.MainModule.Runtime),
-        IsSigned = a.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
-        IsManagedAssembly = a.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
-        Is64BitOnly = a.MainModule.Architecture == TargetArchitecture.AMD64 || a.MainModule.Architecture == TargetArchitecture.IA64,
-        Is32BitOnly = a.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
-        Is32BitPreferred = a.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
+        DotNetVersion = GetDotNetVersion(a.Value.MainModule.Runtime),
+        IsSigned = a.Value.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
+        IsManagedAssembly = a.Value.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
+        Is64BitOnly = a.Value.MainModule.Architecture == TargetArchitecture.AMD64 || a.Value.MainModule.Architecture == TargetArchitecture.IA64,
+        Is32BitOnly = a.Value.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !a.Value.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
+        Is32BitPreferred = a.Value.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
       };
     }
-    
+
     /// <summary>
     /// Fixes an assembly reference.
     /// </summary>
@@ -280,7 +289,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       AssemblyDefinition a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
       AssemblyDefinition b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
-       
+
       var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
 
       if (assemblyReference != null)
@@ -293,8 +302,8 @@ namespace Brutal.Dev.StrongNameSigner
 
           // Save and resign.
           a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
-          
-          AssemblyDefinition removed;
+
+          KeyValuePair<string, AssemblyDefinition> removed;
           AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
 
           fixApplied = true;
@@ -303,7 +312,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
         attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
-      
+
       if (friendReference != null && a.Name.HasPublicKey)
       {
         // Add the public key to the attribute.
@@ -314,7 +323,7 @@ namespace Brutal.Dev.StrongNameSigner
         // Save and resign.
         b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
 
-        AssemblyDefinition removed;
+        KeyValuePair<string, AssemblyDefinition> removed;
         AssemblyDefinitonCache.TryRemove(referenceAssemblyPath, out removed);
 
         fixApplied = true;
@@ -386,13 +395,13 @@ namespace Brutal.Dev.StrongNameSigner
         // Save and resign.
         a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
 
-        AssemblyDefinition removed;
+        KeyValuePair<string, AssemblyDefinition> removed;
         AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
       }
 
       return fixApplied;
     }
-    
+
     internal static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
     {
       if (!string.IsNullOrEmpty(keyPath))
@@ -466,6 +475,28 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return "UNKNOWN";
+    }
+
+    private static string GetFileMD5Hash(string filePath)
+    {
+      if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+      {
+        return string.Empty;
+      }
+
+      var sb = new StringBuilder();
+      using (var md5 = MD5.Create())
+      {
+        byte[] bytes = File.ReadAllBytes(filePath);
+        byte[] encoded = md5.ComputeHash(bytes);
+
+        for (int i = 0; i < encoded.Length; i++)
+        {
+          sb.Append(encoded[i].ToString("X2"));
+        }
+      }
+
+      return sb.ToString();
     }
   }
 }
