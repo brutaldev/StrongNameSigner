@@ -40,6 +40,13 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
         Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.2\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
+Or you can use the variable so that updating the package version won't break your code:
+```xml
+<Target Name="BeforeBuild">
+  <Exec ContinueOnError="false"
+        Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+</Target>
+```
 
 Often different packages have dependencies that are not signed, but those assemblies are in different directories. To correctly resolve references to dependant assemblies, all required assemblies and the dependencies they reference need to be processed at the same time.
 Elmah is a good example of this. Additional Elmah libraries reference Elmah core, but do not include it in the package, they are installed separately. In order to fix the references to Elmah core, it needs to be able to cross check all signed files so you should sign all of them together.
