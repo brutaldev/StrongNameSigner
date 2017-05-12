@@ -18,8 +18,7 @@
 
   <PropertyGroup>
     <ResolveReferencesDependsOn>$(ResolveReferencesDependsOn);StrongNameSignerTarget</ResolveReferencesDependsOn>
-	<!-- Declare a variable that contains the path to the StrongNameSigner dirctory to use in Pre / Post build steps
-	with the following syntax: $(StrongNameSignerDirectory) -->
-	<StrongNameSignerDirectory>$(MSBuildThisFileDirectory)</StrongNameSignerDirectory>
+    <!-- Declare a variable that contains the path to the StrongNameSigner directory for pre and post build steps with the following syntax: $(StrongNameSignerDirectory) -->
+    <StrongNameSignerDirectory>$(MSBuildThisFileDirectory)</StrongNameSignerDirectory>
   </PropertyGroup>
 </Project>

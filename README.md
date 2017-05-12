@@ -37,10 +37,11 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.2\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
-Or you can use the variable so that updating the package version won't break your code:
+
+You can also provide specify a value for the `$(StrongNameSignerDirectory)` variable to avoid having to update your project files when a new version is released.
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
@@ -56,7 +57,7 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.2\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.2&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.3&quot;" />
 </Target>
 ```
 
@@ -68,7 +69,7 @@ You can also use wildcards for each of your input directories. The above example
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.2\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
 </Target>
 ```
 
@@ -77,7 +78,7 @@ Wildcards can also be complex and placed anywhere in the path. This is useful if
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.2\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
 </Target>
 ```
 
@@ -103,7 +104,7 @@ For example, ServiceStack's PostgreSQL NuGet package is not signed but other dep
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.2\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
 </Target>
 ```
 
