@@ -148,11 +148,16 @@ namespace Brutal.Dev.StrongNameSigner
 
       try
       {
-        AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths))
-          .Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
+        using (var ad = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
+        {
+          ad.Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
+        }
 
         KeyValuePair<string, AssemblyDefinition> removed;
-        AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
+        if (AssemblyDefinitonCache.TryRemove(assemblyPath, out removed))
+        {
+          removed.Value.Dispose();
+        }
       }
       catch (Exception)
       {
@@ -198,7 +203,10 @@ namespace Brutal.Dev.StrongNameSigner
         // Check if the file contents have changed.
         if (!GetFileMD5Hash(assemblyPath).Equals(a.Key, StringComparison.OrdinalIgnoreCase))
         {
-          AssemblyDefinitonCache.TryRemove(assemblyPath, out a);
+          if (AssemblyDefinitonCache.TryRemove(assemblyPath, out a))
+          {
+            a.Value.Dispose();
+          }
           
           // Overwrite with a blank version.
           a = new KeyValuePair<string, AssemblyDefinition>(null, null);
@@ -287,46 +295,53 @@ namespace Brutal.Dev.StrongNameSigner
 
       bool fixApplied = false;
 
-      AssemblyDefinition a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-      AssemblyDefinition b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths));
-
-      var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
-
-      if (assemblyReference != null)
+      using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
+      using (var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths)))
       {
-        // Found a matching reference, let's set the public key token.
-        if (BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+        var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
+
+        if (assemblyReference != null)
         {
-          assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
-          assemblyReference.Version = b.Name.Version;
+          // Found a matching reference, let's set the public key token.
+          if (BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+          {
+            assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+            assemblyReference.Version = b.Name.Version;
+
+            // Save and resign.
+            a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+
+            KeyValuePair<string, AssemblyDefinition> removed;
+            if (AssemblyDefinitonCache.TryRemove(assemblyPath, out removed))
+            {
+              removed.Value.Dispose();
+            }
+
+            fixApplied = true;
+          }
+        }
+
+        var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
+          attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
+
+        if (friendReference != null && a.Name.HasPublicKey)
+        {
+          // Add the public key to the attribute.
+          var typeRef = friendReference.ConstructorArguments[0].Type;
+          friendReference.ConstructorArguments.Clear();
+          friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
 
           // Save and resign.
-          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+          b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
 
           KeyValuePair<string, AssemblyDefinition> removed;
-          AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
+          if (AssemblyDefinitonCache.TryRemove(referenceAssemblyPath, out removed))
+          {
+            removed.Value.Dispose();
+          }
 
           fixApplied = true;
         }
-      }
-
-      var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
-        attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
-
-      if (friendReference != null && a.Name.HasPublicKey)
-      {
-        // Add the public key to the attribute.
-        var typeRef = friendReference.ConstructorArguments[0].Type;
-        friendReference.ConstructorArguments.Clear();
-        friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
-
-        // Save and resign.
-        b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
-
-        KeyValuePair<string, AssemblyDefinition> removed;
-        AssemblyDefinitonCache.TryRemove(referenceAssemblyPath, out removed);
-
-        fixApplied = true;
       }
 
       return fixApplied;
@@ -376,27 +391,31 @@ namespace Brutal.Dev.StrongNameSigner
 
       bool fixApplied = false;
 
-      AssemblyDefinition a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths));
-
-      var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
-
-      foreach (var friendReference in ivtAttributes)
+      using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
       {
-        // Find any without a public key defined.
-        if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
+        var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
+
+        foreach (var friendReference in ivtAttributes)
         {
-          a.CustomAttributes.Remove(friendReference);
-          fixApplied = true;
+          // Find any without a public key defined.
+          if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
+          {
+            a.CustomAttributes.Remove(friendReference);
+            fixApplied = true;
+          }
         }
-      }
 
-      if (fixApplied)
-      {
-        // Save and resign.
-        a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+        if (fixApplied)
+        {
+          // Save and resign.
+          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
 
-        KeyValuePair<string, AssemblyDefinition> removed;
-        AssemblyDefinitonCache.TryRemove(assemblyPath, out removed);
+          KeyValuePair<string, AssemblyDefinition> removed;
+          if (AssemblyDefinitonCache.TryRemove(assemblyPath, out removed))
+          {
+            removed.Value.Dispose();
+          }
+        }
       }
 
       return fixApplied;
