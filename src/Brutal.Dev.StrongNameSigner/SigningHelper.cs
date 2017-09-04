@@ -457,7 +457,18 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      return new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+      ReaderParameters readParams = null;
+
+      try
+      {
+        readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+      }
+      catch (InvalidOperationException)
+      {
+        readParams = new ReaderParameters() { AssemblyResolver = resolver };
+      }
+      
+      return readParams;
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
