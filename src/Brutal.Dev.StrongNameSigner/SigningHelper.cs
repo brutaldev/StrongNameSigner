@@ -129,11 +129,22 @@ namespace Brutal.Dev.StrongNameSigner
       {
         if (!outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
         {
+          if (File.Exists(outputFile))
+          {
+            File.SetAttributes(outputFile, FileAttributes.Normal);
+          }
+
           File.Copy(assemblyPath, outputFile, true);
 
           if (writeSymbols)
           {
-            File.Copy(Path.ChangeExtension(assemblyPath, ".pdb"), Path.ChangeExtension(outputFile, ".pdb"), true);
+            var newPdbFile = Path.ChangeExtension(outputFile, ".pdb");
+            if (File.Exists(newPdbFile))
+            {
+              File.SetAttributes(newPdbFile, FileAttributes.Normal);
+            }
+
+            File.Copy(Path.ChangeExtension(assemblyPath, ".pdb"), newPdbFile, true);
           }
         }
 
@@ -143,11 +154,22 @@ namespace Brutal.Dev.StrongNameSigner
       if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
       {
         // Make a backup before overwriting.
-        File.Copy(outputFile, outputFile + ".unsigned", true);
+        var backupFile = outputFile + ".unsigned";
+        if (File.Exists(backupFile))
+        {
+          File.SetAttributes(backupFile, FileAttributes.Normal);
+        }
+
+        File.Copy(outputFile, backupFile, true);
       }
 
       try
       {
+        if (File.Exists(outputFile))
+        {
+          File.SetAttributes(outputFile, FileAttributes.Normal);
+        }
+
         AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths))
           .Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
 
@@ -159,6 +181,11 @@ namespace Brutal.Dev.StrongNameSigner
         // Restore the backup if something goes wrong.
         if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
         {
+          if (File.Exists(outputFile))
+          {
+            File.SetAttributes(outputFile, FileAttributes.Normal);
+          }
+
           File.Copy(outputFile + ".unsigned", outputFile, true);
         }
 
@@ -301,6 +328,11 @@ namespace Brutal.Dev.StrongNameSigner
           assemblyReference.Version = b.Name.Version;
 
           // Save and resign.
+          if (File.Exists(assemblyPath))
+          {
+            File.SetAttributes(assemblyPath, FileAttributes.Normal);
+          }
+
           a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
 
           KeyValuePair<string, AssemblyDefinition> removed;
@@ -321,6 +353,11 @@ namespace Brutal.Dev.StrongNameSigner
         friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
 
         // Save and resign.
+        if (File.Exists(referenceAssemblyPath))
+        {
+          File.SetAttributes(referenceAssemblyPath, FileAttributes.Normal);
+        }
+
         b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
 
         KeyValuePair<string, AssemblyDefinition> removed;
@@ -393,6 +430,11 @@ namespace Brutal.Dev.StrongNameSigner
       if (fixApplied)
       {
         // Save and resign.
+        if (File.Exists(assemblyPath))
+        {
+          File.SetAttributes(assemblyPath, FileAttributes.Normal);
+        }
+
         a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
 
         KeyValuePair<string, AssemblyDefinition> removed;
