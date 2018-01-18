@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Mono.Cecil;
-using System.Collections.Generic;
 using System.Text;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -129,11 +129,22 @@ namespace Brutal.Dev.StrongNameSigner
       {
         if (!outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
         {
+          if (File.Exists(outputFile))
+          {
+            File.SetAttributes(outputFile, FileAttributes.Normal);
+          }
+
           File.Copy(assemblyPath, outputFile, true);
 
           if (writeSymbols)
           {
-            File.Copy(Path.ChangeExtension(assemblyPath, ".pdb"), Path.ChangeExtension(outputFile, ".pdb"), true);
+            var newPdbFile = Path.ChangeExtension(outputFile, ".pdb");
+            if (File.Exists(newPdbFile))
+            {
+              File.SetAttributes(newPdbFile, FileAttributes.Normal);
+            }
+
+            File.Copy(Path.ChangeExtension(assemblyPath, ".pdb"), newPdbFile, true);
           }
         }
 
@@ -143,14 +154,42 @@ namespace Brutal.Dev.StrongNameSigner
       if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
       {
         // Make a backup before overwriting.
-        File.Copy(outputFile, outputFile + ".unsigned", true);
+        var backupFile = outputFile + ".unsigned";
+        if (File.Exists(backupFile))
+        {
+          File.SetAttributes(backupFile, FileAttributes.Normal);
+        }
+
+        File.Copy(outputFile, backupFile, true);
       }
 
       try
       {
+        if (File.Exists(outputFile))
+        {
+          File.SetAttributes(outputFile, FileAttributes.Normal);
+        }
+
+        var tempOutputFile = outputFile;
         using (var ad = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
-          ad.Write(outputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
+          if (assemblyPath.Equals(outputFile, StringComparison.OrdinalIgnoreCase))
+          {
+            // Can't overwrite with a lock in place, create a copy and rename after disposing.
+            tempOutputFile = Path.GetTempFileName();
+          }
+
+          ad.Write(tempOutputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
+        }
+
+        if (tempOutputFile != outputFile)
+        {
+          if (File.Exists(tempOutputFile))
+          {
+            File.SetAttributes(tempOutputFile, FileAttributes.Normal);
+          }
+
+          File.Copy(tempOutputFile, outputFile, true);
         }
 
         KeyValuePair<string, AssemblyDefinition> removed;
@@ -164,6 +203,11 @@ namespace Brutal.Dev.StrongNameSigner
         // Restore the backup if something goes wrong.
         if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
         {
+          if (File.Exists(outputFile))
+          {
+            File.SetAttributes(outputFile, FileAttributes.Normal);
+          }
+
           File.Copy(outputFile + ".unsigned", outputFile, true);
         }
 
@@ -196,21 +240,18 @@ namespace Brutal.Dev.StrongNameSigner
       {
         throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
       }
-      
+
       var a = new KeyValuePair<string, AssemblyDefinition>(null, null);
-      if (AssemblyDefinitonCache.ContainsKey(assemblyPath) && AssemblyDefinitonCache.TryGetValue(assemblyPath, out a))
+      if (AssemblyDefinitonCache.ContainsKey(assemblyPath) && AssemblyDefinitonCache.TryGetValue(assemblyPath, out a) &&
+          !GetFileMD5Hash(assemblyPath).Equals(a.Key, StringComparison.OrdinalIgnoreCase))  // Check if the file contents have changed.
       {
-        // Check if the file contents have changed.
-        if (!GetFileMD5Hash(assemblyPath).Equals(a.Key, StringComparison.OrdinalIgnoreCase))
+        if (AssemblyDefinitonCache.TryRemove(assemblyPath, out a))
         {
-          if (AssemblyDefinitonCache.TryRemove(assemblyPath, out a))
-          {
-            a.Value.Dispose();
-          }
-          
-          // Overwrite with a blank version.
-          a = new KeyValuePair<string, AssemblyDefinition>(null, null);
+          a.Value.Dispose();
         }
+
+        // Overwrite with a blank version.
+        a = new KeyValuePair<string, AssemblyDefinition>(null, null);
       }
 
       if (a.Value == null)
@@ -300,25 +341,27 @@ namespace Brutal.Dev.StrongNameSigner
       {
         var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
 
-        if (assemblyReference != null)
+        // Found a matching reference, let's set the public key token.
+        if (assemblyReference != null && BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
         {
-          // Found a matching reference, let's set the public key token.
-          if (BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+          assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+          assemblyReference.Version = b.Name.Version;
+
+          // Save and resign.
+          if (File.Exists(assemblyPath))
           {
-            assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
-            assemblyReference.Version = b.Name.Version;
-
-            // Save and resign.
-            a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
-
-            KeyValuePair<string, AssemblyDefinition> removed;
-            if (AssemblyDefinitonCache.TryRemove(assemblyPath, out removed))
-            {
-              removed.Value.Dispose();
-            }
-
-            fixApplied = true;
+            File.SetAttributes(assemblyPath, FileAttributes.Normal);
           }
+
+          a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+
+          KeyValuePair<string, AssemblyDefinition> removed;
+          if (AssemblyDefinitonCache.TryRemove(assemblyPath, out removed))
+          {
+            removed.Value.Dispose();
+          }
+
+          fixApplied = true;
         }
 
         var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
@@ -332,6 +375,11 @@ namespace Brutal.Dev.StrongNameSigner
           friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
 
           // Save and resign.
+          if (File.Exists(referenceAssemblyPath))
+          {
+            File.SetAttributes(referenceAssemblyPath, FileAttributes.Normal);
+          }
+
           b.Write(referenceAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
 
           KeyValuePair<string, AssemblyDefinition> removed;
@@ -408,6 +456,11 @@ namespace Brutal.Dev.StrongNameSigner
         if (fixApplied)
         {
           // Save and resign.
+          if (File.Exists(assemblyPath))
+          {
+            File.SetAttributes(assemblyPath, FileAttributes.Normal);
+          }
+
           a.Write(assemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
 
           KeyValuePair<string, AssemblyDefinition> removed;
@@ -476,7 +529,18 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      return new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+      ReaderParameters readParams = null;
+
+      try
+      {
+        readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+      }
+      catch (InvalidOperationException)
+      {
+        readParams = new ReaderParameters() { AssemblyResolver = resolver };
+      }
+
+      return readParams;
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)

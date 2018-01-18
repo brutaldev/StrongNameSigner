@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.7
+VisualStudioVersion = 15.0.26730.12
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner", "Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj", "{947EECC6-5EBC-4D2A-BAC4-8E88B5BAFE84}"
 EndProject
@@ -31,9 +31,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		Brutal.Dev.StrongNameSigner.Setup\EULA.txt = Brutal.Dev.StrongNameSigner.Setup\EULA.txt
 		..\README.md = ..\README.md
-		..\sonar-project.properties = ..\sonar-project.properties
 		Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.iss = Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.iss
 		Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.nuspec = Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.nuspec
+		Brutal.Dev.StrongNameSigner\StrongNameSigner.targets = Brutal.Dev.StrongNameSigner\StrongNameSigner.targets
 	EndProjectSection
 EndProject
 Global
@@ -77,6 +77,9 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BD9B8B59-57F2-4994-9575-C94C1B99984C}
 	EndGlobalSection
 	GlobalSection(CodealikeProperties) = postSolution
 		SolutionGuid = b98c8034-a14d-47f1-b4f0-378f8a176e80

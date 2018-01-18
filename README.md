@@ -37,7 +37,7 @@ If you are making use of the [NuGet package](https://www.nuget.org/packages/Brut
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.4\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
 
@@ -49,7 +49,7 @@ You can also provide specify a value for the `$(StrongNameSignerDirectory)` vari
 </Target>
 ```
 
-Often different packages have dependencies that are not signed, but those assemblies are in different directories. To correctly resolve references to dependant assemblies, all required assemblies and the dependencies they reference need to be processed at the same time.
+Often different packages have dependencies that are not signed, but those assemblies are in different directories. To correctly resolve references to dependent assemblies, all required assemblies and the dependencies they reference need to be processed at the same time.
 Elmah is a good example of this. Additional Elmah libraries reference Elmah core, but do not include it in the package, they are installed separately. In order to fix the references to Elmah core, it needs to be able to cross check all signed files so you should sign all of them together.
 
 To add multiple directories to process at the same time (similar to how the UI can process a number of assemblies at once in the grid) just pipe **|** delimit your input directory list.
@@ -57,7 +57,7 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.3&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.4\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.4&quot;" />
 </Target>
 ```
 
@@ -69,7 +69,7 @@ You can also use wildcards for each of your input directories. The above example
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.4\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
 </Target>
 ```
 
@@ -78,7 +78,7 @@ Wildcards can also be complex and placed anywhere in the path. This is useful if
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.4\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
 </Target>
 ```
 
@@ -93,18 +93,18 @@ Dealing With Dependencies
 
 To avoid a complicated explanation on how this works, just include ALL assemblies that reference each other whether they are signed or not. As of version 1.4.8, all included file paths are probed for references so they can be fixed without having to copy them into the signed assembly directory.
 
-When dependant assemblies cannot be found and references weren't fixed correctly, the following type of error will occur during a build.
+When dependent assemblies cannot be found and references weren't fixed correctly, the following type of error will occur during a build.
 
 ```
 The type 'XYZ' is defined in an assembly that is not referenced. You must add a reference to assembly 'SomeAssembly, Version=1.2.34.5, Culture=neutral, PublicKeyToken=null'.
 ```
 
-For example, ServiceStack's PostgreSQL NuGet package is not signed but other dependant assemblies are. Furthermore, these dependant assembly versions don't match what is referenced in `ServiceStack.OrmLite.PostgreSQL`. To correct the reference versions as well as ensuring the correct signed assemblies are referenced, simply include all the files that need to be processed in a single command to the strong-name signer.
+For example, ServiceStack's PostgreSQL NuGet package is not signed but other dependent assemblies are. Furthermore, these dependent assembly versions don't match what is referenced in `ServiceStack.OrmLite.PostgreSQL`. To correct the reference versions as well as ensuring the correct signed assemblies are referenced, simply include all the files that need to be processed in a single command to the strong-name signer.
 
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.3\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.2.1.4\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
 </Target>
 ```
 
