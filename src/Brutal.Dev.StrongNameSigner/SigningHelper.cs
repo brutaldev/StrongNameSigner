@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -27,7 +28,9 @@ namespace Brutal.Dev.StrongNameSigner
     /// <returns>A strong-name key pair array.</returns>
     public static byte[] GenerateStrongNameKeyPair()
     {
+#pragma warning disable S4426 // Cryptographic keys should not be too short
       using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
+#pragma warning restore S4426 // Cryptographic keys should not be too short
       {
         return provider.ExportCspBlob(!provider.PublicOnly);
       }
@@ -513,36 +516,37 @@ namespace Brutal.Dev.StrongNameSigner
 
     private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
     {
-      var resolver = new DefaultAssemblyResolver();
-
-      if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
+      using (var resolver = new DefaultAssemblyResolver())
       {
-        resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
-      }
-
-      if (probingPaths != null)
-      {
-        foreach (var searchDir in probingPaths)
+        if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
         {
-          if (Directory.Exists(searchDir))
+          resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
+        }
+
+        if (probingPaths != null)
+        {
+          foreach (var searchDir in probingPaths)
           {
-            resolver.AddSearchDirectory(searchDir);
+            if (Directory.Exists(searchDir))
+            {
+              resolver.AddSearchDirectory(searchDir);
+            }
           }
         }
-      }
 
-      ReaderParameters readParams = null;
+        ReaderParameters readParams = null;
 
-      try
-      {
-        readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
-      }
-      catch (InvalidOperationException)
-      {
-        readParams = new ReaderParameters() { AssemblyResolver = resolver };
-      }
+        try
+        {
+          readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+        }
+        catch (InvalidOperationException)
+        {
+          readParams = new ReaderParameters() { AssemblyResolver = resolver };
+        }
 
-      return readParams;
+        return readParams;
+      }
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
@@ -577,7 +581,7 @@ namespace Brutal.Dev.StrongNameSigner
 
         for (int i = 0; i < encoded.Length; i++)
         {
-          sb.Append(encoded[i].ToString("X2"));
+          sb.Append(encoded[i].ToString("X2", CultureInfo.InvariantCulture));
         }
       }
 
