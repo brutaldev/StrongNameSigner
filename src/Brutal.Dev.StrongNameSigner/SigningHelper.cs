@@ -189,6 +189,7 @@ namespace Brutal.Dev.StrongNameSigner
         {
           File.SetAttributes(tempOutputFile, FileAttributes.Normal);
           File.Copy(tempOutputFile, outputFile, true);
+          File.Delete(tempOutputFile);
         }
 
         AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
@@ -386,12 +387,14 @@ namespace Brutal.Dev.StrongNameSigner
       {
         File.SetAttributes(tempOutputFileA, FileAttributes.Normal);
         File.Copy(tempOutputFileA, assemblyPath, true);
+        File.Delete(tempOutputFileA);
       }
 
       if (File.Exists(tempOutputFileB))
       {
         File.SetAttributes(tempOutputFileB, FileAttributes.Normal);
         File.Copy(tempOutputFileB, referenceAssemblyPath, true);
+        File.Delete(tempOutputFileB);
       }
 
       return fixApplied;
@@ -474,6 +477,7 @@ namespace Brutal.Dev.StrongNameSigner
       {
         File.SetAttributes(tempOutputFile, FileAttributes.Normal);
         File.Copy(tempOutputFile, assemblyPath, true);
+        File.Delete(tempOutputFile);
       }
 
       return fixApplied;
