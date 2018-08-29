@@ -74,12 +74,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj">
-      <Project>{947eecc6-5ebc-4d2a-bac4-8e88b5bafe84}</Project>
-      <Name>Brutal.Dev.StrongNameSigner</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="packages.config" />
     <None Include="TestAssemblies\PasswordTest.pfx">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -153,9 +147,15 @@
     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.A.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.B.dll">
+     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
+     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.B.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+     </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.A.Signed.dll">
@@ -164,6 +164,12 @@
     <None Include="TestAssemblies\Brutal.Dev.StrongNameSigner.TestAssembly.B.Signed.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj">
+      <Project>{947eecc6-5ebc-4d2a-bac4-8e88b5bafe84}</Project>
+      <Name>Brutal.Dev.StrongNameSigner</Name>
+    </ProjectReference>
   </ItemGroup>
   <Choose>
     <When Condition="'$(VisualStudioVersion)' == '10.0' And '$(IsCodedUITest)' == 'True'">
