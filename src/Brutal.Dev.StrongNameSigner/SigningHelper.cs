@@ -123,10 +123,9 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
-      using (OutputFileManager outputFileMgr = new OutputFileManager(assemblyPath, outputFile))
+      using (var outputFileMgr = new OutputFileManager(assemblyPath, outputFile))
       {
         // Get the assembly info and go from there.
-
         AssemblyInfo info = GetAssemblyInfo(assemblyPath);
 
         // Don't sign assemblies with a strong-name signature.
@@ -141,7 +140,6 @@ namespace Brutal.Dev.StrongNameSigner
 
           return GetAssemblyInfo(outputFile);
         }
-
 
         if (outputFileMgr.IsInPlaceReplace)
         {
@@ -282,8 +280,8 @@ namespace Brutal.Dev.StrongNameSigner
 
       bool fixApplied = false;
 
-      using (var aMgr = new OutputFileManager(assemblyPath, assemblyPath))
-      using (var bMgr = new OutputFileManager(referenceAssemblyPath, referenceAssemblyPath))
+      using (var fileManagerA = new OutputFileManager(assemblyPath, assemblyPath))
+      using (var fileManagerB = new OutputFileManager(referenceAssemblyPath, referenceAssemblyPath))
       {
         using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         using (var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths)))
@@ -296,7 +294,7 @@ namespace Brutal.Dev.StrongNameSigner
             assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
             assemblyReference.Version = b.Name.Version;
 
-            a.Write(aMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+            a.Write(fileManagerA.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
 
             AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
 
@@ -314,7 +312,7 @@ namespace Brutal.Dev.StrongNameSigner
             friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
 
             // Save and resign.
-            b.Write(bMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
+            b.Write(fileManagerB.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
 
             AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
 
@@ -322,8 +320,8 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        aMgr.Commit();
-        bMgr.Commit();
+        fileManagerA.Commit();
+        fileManagerB.Commit();
       }
 
       return fixApplied;
@@ -526,7 +524,7 @@ namespace Brutal.Dev.StrongNameSigner
       {
         SourceAssemblyPath = Path.GetFullPath(sourceAssemblyPath);
         TargetAssemblyPath = Path.GetFullPath(targetAssemblyPath);
-        IsInPlaceReplace = String.Equals(SourceAssemblyPath, TargetAssemblyPath, StringComparison.Ordinal);
+        IsInPlaceReplace = string.Equals(SourceAssemblyPath, TargetAssemblyPath, StringComparison.Ordinal);
 
         if (IsInPlaceReplace)
         {
@@ -549,15 +547,13 @@ namespace Brutal.Dev.StrongNameSigner
 
       #region Properties
 
-      private bool UseTemporaryDirectory => tempDir != null;
-
       /// <summary>
-      /// Gets a value indicating whether the source assembly has a matching pdb file.
+      /// Gets a value indicating whether the source assembly has a matching PDB file.
       /// </summary>
       public bool HasSymbols { get; }
 
       /// <summary>
-      /// Indicates whether the SourceAssembyPath and the TargetAssemblyPath are equal.
+      /// Indicates whether the SourceAssemblyPath and the TargetAssemblyPath are equal.
       /// </summary>
       public bool IsInPlaceReplace { get; }
 
@@ -567,7 +563,7 @@ namespace Brutal.Dev.StrongNameSigner
       public string SourceAssemblyPath { get; }
 
       /// <summary>
-      /// Gets the path to the .pdb file of the source assembly. (Does not check for existance of the file)
+      /// Gets the path to the .PDB file of the source assembly. (Does not check for existence of the file)
       /// </summary>
       public string SourcePdbPath => Path.ChangeExtension(SourceAssemblyPath, ".pdb");
 
@@ -578,7 +574,7 @@ namespace Brutal.Dev.StrongNameSigner
       public string IntermediateAssemblyPath { get; }
 
       /// <summary>
-      /// Gets the intermediate path to which the new .pdb should be written. This may be the same as <see cref="TargetAssemblyPath"/>,
+      /// Gets the intermediate path to which the new .PDB should be written. This may be the same as <see cref="TargetAssemblyPath"/>,
       /// if it is different from <see cref="SourceAssemblyPath"/>.
       /// </summary>
       public string IntermediatePdbPath => Path.ChangeExtension(IntermediateAssemblyPath, ".pdb");
@@ -589,7 +585,7 @@ namespace Brutal.Dev.StrongNameSigner
       public string TargetAssemblyPath { get; }
 
       /// <summary>
-      /// Gets the path to the .pdb file of the target assembly. (Does not check for existance of the file)
+      /// Gets the path to the .PDB file of the target assembly. (Does not check for existence of the file)
       /// </summary>
       public string TargetPdbPath => Path.ChangeExtension(TargetAssemblyPath, ".pdb");
 
@@ -599,7 +595,7 @@ namespace Brutal.Dev.StrongNameSigner
       public string BackupAssemblyPath => SourceAssemblyPath + ".unsigned";
 
       /// <summary>
-      /// Gets the path to where a backup of the source .pdb file should be saved.
+      /// Gets the path to where a backup of the source .PDB file should be saved.
       /// </summary>
       public string BackupPdbPath => SourcePdbPath + ".unsigned";
 
@@ -607,6 +603,8 @@ namespace Brutal.Dev.StrongNameSigner
       /// This property will be set to true after <see cref="CreateBackup"/> has been called.
       /// </summary>
       public bool HasBackup { get; private set; }
+
+      private bool UseTemporaryDirectory => tempDir != null;
 
       #endregion
 
@@ -616,8 +614,11 @@ namespace Brutal.Dev.StrongNameSigner
       public void CreateBackup()
       {
         CopyFile(SourceAssemblyPath, BackupAssemblyPath, false);
+
         if (HasSymbols)
+        {
           CopyFile(SourcePdbPath, BackupPdbPath, false);
+        }
 
         HasBackup = true;
       }
@@ -629,8 +630,11 @@ namespace Brutal.Dev.StrongNameSigner
       public void CopySourceToFinalOutput()
       {
         CopyFile(SourceAssemblyPath, TargetAssemblyPath, false);
+
         if (HasSymbols)
+        {
           CopyFile(SourcePdbPath, TargetPdbPath, false);
+        }
       }
 
       /// <summary>
@@ -658,6 +662,7 @@ namespace Brutal.Dev.StrongNameSigner
               CopyFile(BackupAssemblyPath, SourceAssemblyPath, true);
               CopyFile(BackupPdbPath, SourcePdbPath, true);
             }
+
             throw;
           }
         }
