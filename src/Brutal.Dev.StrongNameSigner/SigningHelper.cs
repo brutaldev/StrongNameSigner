@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -122,95 +123,42 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
-      bool writeSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb"));
-
-      // Get the assembly info and go from there.
-      AssemblyInfo info = GetAssemblyInfo(assemblyPath);
-
-      // Don't sign assemblies with a strong-name signature.
-      if (info.IsSigned)
+      using (OutputFileManager outputFileMgr = new OutputFileManager(assemblyPath, outputFile))
       {
-        if (!outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
+        // Get the assembly info and go from there.
+
+        AssemblyInfo info = GetAssemblyInfo(assemblyPath);
+
+        // Don't sign assemblies with a strong-name signature.
+        if (info.IsSigned)
         {
-          if (File.Exists(outputFile))
+          // If the target directory is different from the input...
+          if (!outputFileMgr.IsInPlaceReplace)
           {
-            File.SetAttributes(outputFile, FileAttributes.Normal);
+            // ...just copy the source file to the destination.
+            outputFileMgr.CopySourceToFinalOutput();
           }
 
-          File.Copy(assemblyPath, outputFile, true);
-
-          if (writeSymbols)
-          {
-            var newPdbFile = Path.ChangeExtension(outputFile, ".pdb");
-            if (File.Exists(newPdbFile))
-            {
-              File.SetAttributes(newPdbFile, FileAttributes.Normal);
-            }
-
-            File.Copy(Path.ChangeExtension(assemblyPath, ".pdb"), newPdbFile, true);
-          }
+          return GetAssemblyInfo(outputFile);
         }
 
-        return GetAssemblyInfo(outputFile);
-      }
 
-      if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
-      {
-        // Make a backup before overwriting.
-        var backupFile = outputFile + ".unsigned";
-        if (File.Exists(backupFile))
+        if (outputFileMgr.IsInPlaceReplace)
         {
-          File.SetAttributes(backupFile, FileAttributes.Normal);
+          outputFileMgr.CreateBackup();
         }
 
-        File.Copy(outputFile, backupFile, true);
-      }
-
-      try
-      {
-        if (File.Exists(outputFile))
-        {
-          File.SetAttributes(outputFile, FileAttributes.Normal);
-        }
-
-        var tempOutputFile = outputFile;
         using (var ad = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
-          if (assemblyPath.Equals(outputFile, StringComparison.OrdinalIgnoreCase))
-          {
-            // Can't overwrite with a lock in place, create a copy and rename after disposing.
-            tempOutputFile = Path.GetTempFileName();
-          }
-
-          ad.Write(tempOutputFile, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = writeSymbols });
-        }
-
-        if (tempOutputFile != outputFile && File.Exists(tempOutputFile))
-        {
-          File.SetAttributes(tempOutputFile, FileAttributes.Normal);
-          File.Copy(tempOutputFile, outputFile, true);
-          File.Delete(tempOutputFile);
+          ad.Write(outputFileMgr.IntermediateAssemblyPath, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = outputFileMgr.HasSymbols });
         }
 
         AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
+
+        outputFileMgr.Commit();
+
+        return GetAssemblyInfo(outputFile);
       }
-      catch (Exception)
-      {
-        // Restore the backup if something goes wrong.
-        if (outputFile.Equals(Path.GetFullPath(assemblyPath), StringComparison.OrdinalIgnoreCase))
-        {
-          if (File.Exists(outputFile))
-          {
-            File.SetAttributes(outputFile, FileAttributes.Normal);
-          }
-
-          File.Copy(outputFile + ".unsigned", outputFile, true);
-        }
-
-        throw;
-      }
-
-      return GetAssemblyInfo(outputFile);
     }
 
     /// <summary>
@@ -333,68 +281,49 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       bool fixApplied = false;
-      var tempOutputFileA = Path.GetTempFileName();
-      var tempOutputFileB = Path.GetTempFileName();
 
-      using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
-      using (var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths)))
+      using (var aMgr = new OutputFileManager(assemblyPath, assemblyPath))
+      using (var bMgr = new OutputFileManager(referenceAssemblyPath, referenceAssemblyPath))
       {
-        var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
-
-        // Found a matching reference, let's set the public key token.
-        if (assemblyReference != null && BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
+        using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
+        using (var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths)))
         {
-          assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
-          assemblyReference.Version = b.Name.Version;
+          var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
 
-          if (File.Exists(assemblyPath))
+          // Found a matching reference, let's set the public key token.
+          if (assemblyReference != null && BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
           {
-            File.SetAttributes(assemblyPath, FileAttributes.Normal);
+            assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+            assemblyReference.Version = b.Name.Version;
+
+            a.Write(aMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+
+            AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
+
+            fixApplied = true;
           }
 
-          a.Write(tempOutputFileA, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+          var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
+            attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
 
-          AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
-
-          fixApplied = true;
-        }
-
-        var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
-          attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
-
-        if (friendReference != null && a.Name.HasPublicKey)
-        {
-          // Add the public key to the attribute.
-          var typeRef = friendReference.ConstructorArguments[0].Type;
-          friendReference.ConstructorArguments.Clear();
-          friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
-
-          // Save and resign.
-          if (File.Exists(referenceAssemblyPath))
+          if (friendReference != null && a.Name.HasPublicKey)
           {
-            File.SetAttributes(referenceAssemblyPath, FileAttributes.Normal);
+            // Add the public key to the attribute.
+            var typeRef = friendReference.ConstructorArguments[0].Type;
+            friendReference.ConstructorArguments.Clear();
+            friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
+
+            // Save and resign.
+            b.Write(bMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
+
+            AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
+
+            fixApplied = true;
           }
-
-          b.Write(tempOutputFileB, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
-
-          AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
-
-          fixApplied = true;
         }
-      }
 
-      if (File.Exists(tempOutputFileA))
-      {
-        File.SetAttributes(tempOutputFileA, FileAttributes.Normal);
-        File.Copy(tempOutputFileA, assemblyPath, true);
-        File.Delete(tempOutputFileA);
-      }
-
-      if (File.Exists(tempOutputFileB))
-      {
-        File.SetAttributes(tempOutputFileB, FileAttributes.Normal);
-        File.Copy(tempOutputFileB, referenceAssemblyPath, true);
-        File.Delete(tempOutputFileB);
+        aMgr.Commit();
+        bMgr.Commit();
       }
 
       return fixApplied;
@@ -443,41 +372,31 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       bool fixApplied = false;
-      var tempOutputFile = Path.GetTempFileName();
-
-      using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
+      using (var outFileMgr = new OutputFileManager(assemblyPath, assemblyPath))
       {
-        var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
-
-        foreach (var friendReference in ivtAttributes)
+        using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
-          // Find any without a public key defined.
-          if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
+          var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
+
+          foreach (var friendReference in ivtAttributes)
           {
-            a.CustomAttributes.Remove(friendReference);
-            fixApplied = true;
+            // Find any without a public key defined.
+            if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value != null && ca.Value.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
+            {
+              a.CustomAttributes.Remove(friendReference);
+              fixApplied = true;
+            }
+          }
+
+          if (fixApplied)
+          {
+            a.Write(outFileMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+
+            AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
           }
         }
 
-        if (fixApplied)
-        {
-          // Save and resign.
-          if (File.Exists(assemblyPath))
-          {
-            File.SetAttributes(assemblyPath, FileAttributes.Normal);
-          }
-
-          a.Write(tempOutputFile, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
-
-          AssemblyInfoCache.TryRemove(assemblyPath, out KeyValuePair<string, AssemblyInfo> _);
-        }
-      }
-
-      if (File.Exists(tempOutputFile))
-      {
-        File.SetAttributes(tempOutputFile, FileAttributes.Normal);
-        File.Copy(tempOutputFile, assemblyPath, true);
-        File.Delete(tempOutputFile);
+        outFileMgr.Commit();
       }
 
       return fixApplied;
@@ -590,6 +509,208 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return sb.ToString();
+    }
+
+    /// <summary>
+    /// Utility class that assists in the handling of temporary files during assembly signing. It will create 
+    /// a temporary directory to hold generated files during the signing process, and will move these to their
+    /// final location upon calling <see cref="Commit"/>.  It also ensures that all temporary/intermediate files
+    /// are deleted upon disposing the instance.
+    /// </summary>
+    /// <seealso cref="System.IDisposable" />
+    private sealed class OutputFileManager : IDisposable
+    {
+      private string tempDir;
+
+      public OutputFileManager(string sourceAssemblyPath, string targetAssemblyPath)
+      {
+        SourceAssemblyPath = Path.GetFullPath(sourceAssemblyPath);
+        TargetAssemblyPath = Path.GetFullPath(targetAssemblyPath);
+        IsInPlaceReplace = String.Equals(SourceAssemblyPath, TargetAssemblyPath, StringComparison.Ordinal);
+
+        if (IsInPlaceReplace)
+        {
+          tempDir = Path.Combine(Path.GetDirectoryName(sourceAssemblyPath), $"StrongNamerTemp.{Process.GetCurrentProcess().Id}.{Path.GetRandomFileName()}");
+          Directory.CreateDirectory(tempDir);
+          IntermediateAssemblyPath = Path.Combine(tempDir, Path.GetFileName(sourceAssemblyPath));
+        }
+        else
+        {
+          IntermediateAssemblyPath = TargetAssemblyPath;
+        }
+
+        HasSymbols = File.Exists(Path.ChangeExtension(SourceAssemblyPath, ".pdb"));
+      }
+
+      ~OutputFileManager()
+      {
+        Dispose();
+      }
+
+      #region Properties
+
+      private bool UseTemporaryDirectory => tempDir != null;
+
+      /// <summary>
+      /// Gets a value indicating whether the source assembly has a matching pdb file.
+      /// </summary>
+      public bool HasSymbols { get; }
+
+      /// <summary>
+      /// Indicates whether the SourceAssembyPath and the TargetAssemblyPath are equal.
+      /// </summary>
+      public bool IsInPlaceReplace { get; }
+
+      /// <summary>
+      /// Gets the path of the source assembly.
+      /// </summary>
+      public string SourceAssemblyPath { get; }
+
+      /// <summary>
+      /// Gets the path to the .pdb file of the source assembly. (Does not check for existance of the file)
+      /// </summary>
+      public string SourcePdbPath => Path.ChangeExtension(SourceAssemblyPath, ".pdb");
+
+      /// <summary>
+      /// Gets the intermediate path to which the new assembly should be written. This may be the same as <see cref="TargetAssemblyPath"/>,
+      /// if it is different from <see cref="SourceAssemblyPath"/>. (This property is never equal to <see cref="SourceAssemblyPath"/>).
+      /// </summary>
+      public string IntermediateAssemblyPath { get; }
+
+      /// <summary>
+      /// Gets the intermediate path to which the new .pdb should be written. This may be the same as <see cref="TargetAssemblyPath"/>,
+      /// if it is different from <see cref="SourceAssemblyPath"/>.
+      /// </summary>
+      public string IntermediatePdbPath => Path.ChangeExtension(IntermediateAssemblyPath, ".pdb");
+
+      /// <summary>
+      /// Gets the path to where the final output assembly should reside. This may be the same as <see cref="SourceAssemblyPath"/>.
+      /// </summary>
+      public string TargetAssemblyPath { get; }
+
+      /// <summary>
+      /// Gets the path to the .pdb file of the target assembly. (Does not check for existance of the file)
+      /// </summary>
+      public string TargetPdbPath => Path.ChangeExtension(TargetAssemblyPath, ".pdb");
+
+      /// <summary>
+      /// Gets the path to where a backup of the source assembly should be saved.
+      /// </summary>
+      public string BackupAssemblyPath => SourceAssemblyPath + ".unsigned";
+
+      /// <summary>
+      /// Gets the path to where a backup of the source .pdb file should be saved.
+      /// </summary>
+      public string BackupPdbPath => SourcePdbPath + ".unsigned";
+
+      /// <summary>
+      /// This property will be set to true after <see cref="CreateBackup"/> has been called.
+      /// </summary>
+      public bool HasBackup { get; private set; }
+
+      #endregion
+
+      /// <summary>
+      /// Creates a backup of the input files by simply copying them to the <see cref="BackupAssemblyPath"/> and <see cref="BackupPdbPath"/>.
+      /// </summary>
+      public void CreateBackup()
+      {
+        CopyFile(SourceAssemblyPath, BackupAssemblyPath, false);
+        if (HasSymbols)
+          CopyFile(SourcePdbPath, BackupPdbPath, false);
+
+        HasBackup = true;
+      }
+
+      /// <summary>
+      /// Directly copies <see cref="SourceAssemblyPath"/> and <see cref="SourcePdbPath"/> to <see cref="TargetAssemblyPath"/> 
+      /// and <see cref="TargetPdbPath"/> (if the source files exists).
+      /// </summary>
+      public void CopySourceToFinalOutput()
+      {
+        CopyFile(SourceAssemblyPath, TargetAssemblyPath, false);
+        if (HasSymbols)
+          CopyFile(SourcePdbPath, TargetPdbPath, false);
+      }
+
+      /// <summary>
+      /// Moves the intermediate files to the target locations if a temporary directory was used during generation. 
+      /// Otherwise this method does nothing.
+      /// </summary>
+      public void Commit()
+      {
+        if (UseTemporaryDirectory)
+        {
+          try
+          {
+            // Only move files if the target assembly to move actually was created.
+            CopyFile(IntermediateAssemblyPath, TargetAssemblyPath, true);
+            if (HasSymbols)
+            {
+              CopyFile(IntermediatePdbPath, TargetPdbPath, true);
+            }
+          }
+          catch (Exception)
+          {
+            if (HasBackup)
+            {
+              // Restore backup
+              CopyFile(BackupAssemblyPath, SourceAssemblyPath, true);
+              CopyFile(BackupPdbPath, SourcePdbPath, true);
+            }
+            throw;
+          }
+        }
+        else
+        {
+          // Nothing to commit if we didn't use a temporary directory.
+        }
+      }
+
+      public void Dispose()
+      {
+        GC.SuppressFinalize(this);
+        if (tempDir != null)
+        {
+          try
+          {
+            Directory.Delete(tempDir, true);
+            tempDir = null;
+          }
+          catch
+          {
+            // Ignore errors when attempting to clean up temporary directory.
+          }
+        }
+      }
+
+      /// <summary>
+      /// Copies or moves a single file if it exists. It will always overwrite the target if it exists (provided that
+      /// the source file exists).
+      /// </summary>
+      /// <param name="source">The source file to copy/move if it exists.</param>
+      /// <param name="target">The target file to write to.</param>
+      /// <param name="move">if set to <see langword="true" /> the file is moved, otherwise it is copied.</param>
+      private static void CopyFile(string source, string target, bool move)
+      {
+        if (File.Exists(source))
+        {
+          if (File.Exists(target))
+          {
+            File.SetAttributes(target, FileAttributes.Normal);
+            File.Delete(target);
+          }
+
+          if (move)
+          {
+            File.Move(source, target);
+          }
+          else
+          {
+            File.Copy(source, target);
+          }
+        }
+      }
     }
   }
 }
