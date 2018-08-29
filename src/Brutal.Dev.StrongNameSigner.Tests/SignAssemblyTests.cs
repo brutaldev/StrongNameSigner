@@ -3,7 +3,6 @@ using Shouldly;
 using System;
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using System.Reflection;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
@@ -12,6 +11,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
   public class SignAssemblyTests
   {
     private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"TestAssemblies");
+
 
     [Test]
     public void SignAssembly_Public_API_Test()
@@ -143,6 +143,99 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is32BitPreferred.ShouldBe(false);
       info.Is64BitOnly.ShouldBe(true);
       info.IsSigned.ShouldBe(true);
+    }
+
+
+    [Test]
+    public void SignAssembly_InPlaceWithPdb_Should_Succeed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      try
+      {
+        string targetAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), targetAssemblyPath);
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"), Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"));
+
+        SigningHelper.SignAssembly(targetAssemblyPath);
+        var info = SigningHelper.GetAssemblyInfo(targetAssemblyPath);
+        Assert.IsTrue(info.IsSigned);
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Test]
+    public void SignAssembly_NewLocationWithPdb_Should_Succeed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      var outDir = Path.Combine(tempDir, "out");
+      Directory.CreateDirectory(outDir);
+      try
+      {
+        string sourceAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), sourceAssemblyPath);
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"), Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"));
+
+        SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir);
+        string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
+        Assert.IsTrue(File.Exists(outAssembly));
+        Assert.IsTrue(File.Exists(Path.ChangeExtension(outAssembly, ".pdb")));
+        var info = SigningHelper.GetAssemblyInfo(outAssembly);
+        Assert.IsTrue(info.IsSigned);
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Test]
+    public void SignAssembly_NewLocationWithoutPdb_Should_Succeed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      var outDir = Path.Combine(tempDir, "out");
+      Directory.CreateDirectory(outDir);
+      try
+      {
+        string sourceAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), sourceAssemblyPath);
+
+        SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir);
+        string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
+        Assert.IsTrue(File.Exists(outAssembly));
+        var info = SigningHelper.GetAssemblyInfo(outAssembly);
+        Assert.IsTrue(info.IsSigned);
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Test]
+    public void SignAssembly_InPlaceWithoutPdb_Should_Succeed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      try
+      {
+        string targetAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), targetAssemblyPath);
+
+        SigningHelper.SignAssembly(targetAssemblyPath);
+        var info = SigningHelper.GetAssemblyInfo(targetAssemblyPath);
+        Assert.IsTrue(info.IsSigned);
+
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
     }
   }
 }

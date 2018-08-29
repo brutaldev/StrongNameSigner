@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Brutal.Dev.StrongNameSigner;
+using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -36,3 +37,12 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("2.2.0.0")]
 [assembly: AssemblyFileVersion("2.2.0.0")]
+
+
+// These assemblies are used by Cecil, and reading assemblies with symbols without these DLL's present
+// will cause an error ("No Symbols Found"). So to ensure that these are actually referenced by 
+// StrongNameSigner and copied along to the output directory as well as the UnitTests when running 
+// them, we use this "hack".
+[assembly: ForceAssemblyReference(typeof(Mono.Cecil.Pdb.NativePdbReader))]
+[assembly: ForceAssemblyReference(typeof(Mono.Cecil.Mdb.MdbReader))]
+[assembly: ForceAssemblyReference(typeof(Mono.Cecil.Rocks.TypeDefinitionRocks))]
