@@ -527,8 +527,8 @@ namespace Brutal.Dev.StrongNameSigner
         IsInPlaceReplace = string.Equals(SourceAssemblyPath, TargetAssemblyPath, StringComparison.Ordinal);
 
         if (IsInPlaceReplace)
-        {
-          tempDir = Path.Combine(Path.GetDirectoryName(sourceAssemblyPath), $"StrongNamerTemp.{Process.GetCurrentProcess().Id}.{Path.GetRandomFileName()}");
+        {          
+          tempDir = Path.Combine(Path.GetTempPath(), $"StrongNamerTemp.{Process.GetCurrentProcess().Id}.{Path.GetRandomFileName()}");
           Directory.CreateDirectory(tempDir);
           IntermediateAssemblyPath = Path.Combine(tempDir, Path.GetFileName(sourceAssemblyPath));
         }

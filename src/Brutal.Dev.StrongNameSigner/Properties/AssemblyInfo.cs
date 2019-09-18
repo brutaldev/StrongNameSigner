@@ -1,8 +1,7 @@
-﻿using Brutal.Dev.StrongNameSigner;
-using System;
+﻿using System;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Brutal.Dev.StrongNameSigner;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
@@ -12,7 +11,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("https://brutaldev.com")]
 [assembly: AssemblyProduct("Brutal.Dev.StrongNameSigner")]
-[assembly: AssemblyCopyright("Copyright © 2013-2017")]
+[assembly: AssemblyCopyright("Copyright © 2013-2019")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -35,9 +34,8 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.3.0.0")]
-[assembly: AssemblyFileVersion("2.3.0.0")]
-
+[assembly: AssemblyVersion("2.4.0.0")]
+[assembly: AssemblyFileVersion("2.4.0.0")]
 
 // These assemblies are used by Cecil, and reading assemblies with symbols without these DLL's present
 // will cause an error ("No Symbols Found"). So to ensure that these are actually referenced by 
