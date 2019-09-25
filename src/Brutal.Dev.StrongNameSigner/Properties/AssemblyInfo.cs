@@ -34,8 +34,8 @@ using Brutal.Dev.StrongNameSigner;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.4.0.0")]
-[assembly: AssemblyFileVersion("2.4.0.0")]
+[assembly: AssemblyVersion("2.5.0.0")]
+[assembly: AssemblyFileVersion("2.5.0.0")]
 
 // These assemblies are used by Cecil, and reading assemblies with symbols without these DLL's present
 // will cause an error ("No Symbols Found"). So to ensure that these are actually referenced by 
