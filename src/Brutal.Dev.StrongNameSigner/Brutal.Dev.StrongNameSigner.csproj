@@ -73,6 +73,7 @@
     <Compile Include="AssemblyInfo.cs" />
     <Compile Include="AutomaticBuildTask.cs" />
     <Compile Include="ForceAssemblyReferenceAttribute.cs" />
+    <Compile Include="OutputFileManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SigningHelper.cs" />
   </ItemGroup>

@@ -1,11 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>Brutal.Dev.StrongNameSigner</id>
     <version>2.4.0</version>
     <title>.NET Assembly Strong-Name Signer</title>
     <authors>Werner van Deventer</authors>
     <owners>Werner van Deventer</owners>
+    <license type="expression">Apache-2.0</license>
     <licenseUrl>https://github.com/brutaldev/StrongNameSigner#license</licenseUrl>
     <projectUrl>https://github.com/brutaldev/StrongNameSigner</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/brutaldev/StrongNameSigner/master/src/Brutal.Dev.StrongNameSigner.UI/Icon.ico</iconUrl>
