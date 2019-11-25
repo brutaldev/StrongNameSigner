@@ -38,12 +38,17 @@ namespace Brutal.Dev.StrongNameSigner
     public string DotNetVersion { get; internal set; }
 
     /// <summary>
+    /// Determine the type of signing that is in place in the assembly.
+    /// </summary>
+    public StrongNameType SigningType { get; internal set; }
+
+    /// <summary>
     /// Gets a value indicating whether this assembly is strong-name signed.
     /// </summary>
     /// <value>
     ///   <c>true</c> if the assembly is strong-name signed; otherwise, <c>false</c>.
     /// </value>
-    public bool IsSigned { get; internal set; }
+    public bool IsSigned => SigningType == StrongNameType.Signed;
 
     /// <summary>
     /// Gets a value indicating whether this assembly was built with the 32-bit preferred setting (.NET 4.5).

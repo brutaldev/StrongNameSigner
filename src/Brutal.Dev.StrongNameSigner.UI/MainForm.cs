@@ -14,11 +14,12 @@ namespace Brutal.Dev.StrongNameSigner.UI
 {
   public partial class MainForm : Form
   {
+    private readonly StringBuilder log = new StringBuilder();
+
     private string keyFile = string.Empty;
     private string outputPath = string.Empty;
     private string password = string.Empty;
-    private StringBuilder log = new StringBuilder();
-
+    
     public MainForm()
     {
       InitializeComponent();
@@ -34,7 +35,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
         Path.GetFileName(info.FilePath),
         info.DotNetVersion,
         (info.IsAnyCpu ? "Any CPU" : info.Is32BitOnly ? "x86" : info.Is64BitOnly ? "x64" : "UNKNOWN") + (info.Is32BitPreferred ? " (x86 preferred)" : string.Empty),
-        info.IsSigned ? "Yes" : "No",
+        info.SigningType == StrongNameType.Signed ? "Yes" : info.SigningType == StrongNameType.DelaySigned ? "Delay" : "No",
         info.FilePath
       });
 
@@ -42,9 +43,13 @@ namespace Brutal.Dev.StrongNameSigner.UI
       item.UseItemStyleForSubItems = false;
 
       // Update the color of the signed column.
-      if (info.IsSigned)
+      if (info.SigningType == StrongNameType.Signed)
       {
         item.SubItems[3].ForeColor = Color.Green;
+      }
+      else if (info.SigningType == StrongNameType.DelaySigned)
+      {
+        item.SubItems[3].ForeColor = Color.DarkOrange;
       }
       else
       {
@@ -67,7 +72,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       if (CommonOpenFileDialog.IsPlatformSupported)
       {
-        using (CommonOpenFileDialog dialog = new CommonOpenFileDialog())
+        using (var dialog = new CommonOpenFileDialog())
         {
           dialog.Title = openFileDialogKey.Title;
           dialog.DefaultExtension = openFileDialogKey.DefaultExt;
@@ -103,7 +108,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       if (CommonOpenFileDialog.IsPlatformSupported)
       {
-        using (CommonOpenFileDialog dialog = new CommonOpenFileDialog())
+        using (var dialog = new CommonOpenFileDialog())
         {
           dialog.Title = folderBrowserDialogOutput.Description;
           dialog.EnsurePathExists = true;
@@ -163,9 +168,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
     private void ListViewAssembliesDragDrop(object sender, DragEventArgs e)
     {
-      var data = e.Data.GetData(DataFormats.FileDrop) as IEnumerable<string>;
-
-      if (data != null)
+      if (e.Data.GetData(DataFormats.FileDrop) is IEnumerable<string> data)
       {
         var assemblies = data.Where(d => (Path.GetExtension(d).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
                                           Path.GetExtension(d).Equals(".dll", StringComparison.OrdinalIgnoreCase)) &&
@@ -221,7 +224,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       if (CommonOpenFileDialog.IsPlatformSupported)
       {
-        using (CommonOpenFileDialog dialog = new CommonOpenFileDialog())
+        using (var dialog = new CommonOpenFileDialog())
         {
           dialog.Title = openFileDialogAssembly.Title;
           dialog.DefaultExtension = openFileDialogAssembly.DefaultExt;
@@ -356,11 +359,10 @@ namespace Brutal.Dev.StrongNameSigner.UI
       int progress = 0;
       int signedFiles = 0;
       int referenceFixes = 0;
-      var assemblyPaths = e.Argument as IEnumerable<string>;
       var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-      if (assemblyPaths != null)
+      if (e.Argument is IEnumerable<string> assemblyPaths)
       {
         var probingPaths = assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
 

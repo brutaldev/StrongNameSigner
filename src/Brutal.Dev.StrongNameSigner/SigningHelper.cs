@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -197,11 +198,13 @@ namespace Brutal.Dev.StrongNameSigner
       {
         using (var definition = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
+          bool wasVerified = false;
+
           var info = new AssemblyInfo()
           {
             FilePath = Path.GetFullPath(assemblyPath),
             DotNetVersion = GetDotNetVersion(definition.MainModule.Runtime),
-            IsSigned = definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned),
+            SigningType = !definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned) ? StrongNameType.NotSigned : StrongNameSignatureVerificationEx(assemblyPath, true, ref wasVerified) ? StrongNameType.Signed : StrongNameType.DelaySigned,
             IsManagedAssembly = definition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
             Is64BitOnly = definition.MainModule.Architecture == TargetArchitecture.AMD64 || definition.MainModule.Architecture == TargetArchitecture.IA64,
             Is32BitOnly = definition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
@@ -454,8 +457,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        ReaderParameters readParams = null;
-
+        ReaderParameters readParams;
         try
         {
           readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
@@ -507,5 +509,8 @@ namespace Brutal.Dev.StrongNameSigner
 
       return sb.ToString();
     }
+
+    [DllImport("mscoree.dll", CharSet = CharSet.Unicode)]
+    private static extern bool StrongNameSignatureVerificationEx(string filePath, bool forceVerification, ref bool wasVerified);
   }
 }
