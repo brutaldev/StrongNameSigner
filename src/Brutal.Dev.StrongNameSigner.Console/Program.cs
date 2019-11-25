@@ -16,6 +16,12 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
     private static int Main(string[] args)
     {
+      if (bool.TryParse(Environment.GetEnvironmentVariable("SNS_DISABLE_CONSOLE_SIGNING"), out var disabled) && disabled)
+      {
+        PrintMessageColor(".NET Assembly Strong-Name Signer is disabled via the SNS_DISABLE_CONSOLE_SIGNING environment variable.", LogLevel.Default, ConsoleColor.Red);
+        return 0;
+      }        
+
       try
       {
         var parsed = Args.Parse<Options>(args);
