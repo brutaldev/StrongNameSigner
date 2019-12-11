@@ -109,7 +109,7 @@ namespace Brutal.Dev.StrongNameSigner
       // Make sure the file actually exists.
       if (!File.Exists(assemblyPath))
       {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
       }
 
       if (string.IsNullOrWhiteSpace(outputPath))
@@ -181,7 +181,7 @@ namespace Brutal.Dev.StrongNameSigner
       // Make sure the file actually exists.
       if (!File.Exists(assemblyPath))
       {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
       }
 
       var a = new KeyValuePair<string, AssemblyInfo>(null, null);
@@ -273,12 +273,12 @@ namespace Brutal.Dev.StrongNameSigner
       // Make sure the file actually exists.
       if (!File.Exists(assemblyPath))
       {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
       }
 
       if (!File.Exists(referenceAssemblyPath))
       {
-        throw new FileNotFoundException("Could not find provided reference assembly file.", referenceAssemblyPath);
+        throw new FileNotFoundException($"Could not find provided reference assembly file '{referenceAssemblyPath}'.", referenceAssemblyPath);
       }
 
       bool fixApplied = false;
@@ -369,7 +369,7 @@ namespace Brutal.Dev.StrongNameSigner
       // Make sure the file actually exists.
       if (!File.Exists(assemblyPath))
       {
-        throw new FileNotFoundException("Could not find provided assembly file.", assemblyPath);
+        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
       }
 
       bool fixApplied = false;

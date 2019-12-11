@@ -196,22 +196,29 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="move">if set to <see langword="true" /> the file is moved, otherwise it is copied.</param>
     private static void CopyFile(string source, string target, bool move)
     {
-      if (File.Exists(source))
+      try
       {
-        if (File.Exists(target))
+        if (File.Exists(source))
         {
-          File.SetAttributes(target, FileAttributes.Normal);
-          File.Delete(target);
-        }
+          if (File.Exists(target))
+          {
+            File.SetAttributes(target, FileAttributes.Normal);
+            File.Delete(target);
+          }
 
-        if (move)
-        {
-          File.Move(source, target);
+          if (move)
+          {
+            File.Move(source, target);
+          }
+          else
+          {
+            File.Copy(source, target);
+          }
         }
-        else
-        {
-          File.Copy(source, target);
-        }
+      }
+      catch
+      {
+        // Ignore file operation failures.
       }
     }
   }

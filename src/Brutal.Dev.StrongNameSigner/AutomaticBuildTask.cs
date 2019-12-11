@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Build.Framework;
@@ -25,6 +26,7 @@ namespace Brutal.Dev.StrongNameSigner
 
     public override bool Execute()
     {
+      var timer = Stopwatch.StartNew();
       bool chagesMade = false;
 
       try
@@ -67,31 +69,46 @@ namespace Brutal.Dev.StrongNameSigner
         for (int i = 0; i < References.Length; i++)
         {
           var ret = new TaskItem(References[i]);
-          var signedAssembly = SigningHelper.GetAssemblyInfo(References[i].ItemSpec);
 
-          // Check if it is currently signed.
-          if (!signedAssembly.IsSigned)
+          if (References[i].ItemSpec.IndexOf("netstandard.library", StringComparison.OrdinalIgnoreCase) > -1 &&
+              References[i].ItemSpec.IndexOf("\\dotnet\\sdk\\", StringComparison.OrdinalIgnoreCase) > -1)
           {
-            signedAssembly = SignSingleAssembly(References[i].ItemSpec, snkFilePath, signedAssemblyFolder, probingPaths);
-            chagesMade = true;
-          }
+            ret.ItemSpec = References[i].ItemSpec;
+            SignedAssembliesToReference[i] = ret;
 
-          if (signedAssembly.IsSigned)
-          {
-            signedAssemblyPaths.Add(signedAssembly.FilePath);
-            processedAssemblyPaths.Add(signedAssembly.FilePath);
-            ret.ItemSpec = signedAssembly.FilePath;
+            if (SignedAssembliesToReference[i].ItemSpec != References[i].ItemSpec)
+            {
+              updatedReferencePaths[References[i].ItemSpec] = SignedAssembliesToReference[i].ItemSpec;
+            }
           }
           else
           {
-            processedAssemblyPaths.Add(References[i].ItemSpec);
-          }
+            var signedAssembly = SigningHelper.GetAssemblyInfo(References[i].ItemSpec);
 
-          SignedAssembliesToReference[i] = ret;
+            // Check if it is currently signed.
+            if (!signedAssembly.IsSigned)
+            {
+              signedAssembly = SignSingleAssembly(References[i].ItemSpec, snkFilePath, signedAssemblyFolder, probingPaths);
+              chagesMade = true;
+            }
 
-          if (SignedAssembliesToReference[i].ItemSpec != References[i].ItemSpec)
-          {
-            updatedReferencePaths[References[i].ItemSpec] = SignedAssembliesToReference[i].ItemSpec;
+            if (signedAssembly.IsSigned)
+            {
+              signedAssemblyPaths.Add(signedAssembly.FilePath);
+              processedAssemblyPaths.Add(signedAssembly.FilePath);
+              ret.ItemSpec = signedAssembly.FilePath;
+            }
+            else
+            {
+              processedAssemblyPaths.Add(References[i].ItemSpec);
+            }
+
+            SignedAssembliesToReference[i] = ret;
+
+            if (SignedAssembliesToReference[i].ItemSpec != References[i].ItemSpec)
+            {
+              updatedReferencePaths[References[i].ItemSpec] = SignedAssembliesToReference[i].ItemSpec;
+            }
           }
         }
 
@@ -132,11 +149,13 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
+        Log.LogMessage(MessageImportance.High, "Brutal Developer .NET Assembly Strong-Name Signer took {0} to complete.", timer.Elapsed);
+
         return true;
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex, true);
+        Log.LogErrorFromException(ex, true, true, null);
       }
 
       return false;
@@ -154,7 +173,7 @@ namespace Brutal.Dev.StrongNameSigner
 
         if (!oldInfo.IsSigned && newInfo.IsSigned)
         {
-          Log.LogMessage(MessageImportance.Normal, "'{0}' was strong-name signed successfully.", newInfo.FilePath);
+          Log.LogMessage(MessageImportance.High, "'{0}' was strong-name signed successfully.", newInfo.FilePath);
 
           return newInfo;
         }
@@ -163,13 +182,17 @@ namespace Brutal.Dev.StrongNameSigner
           Log.LogMessage(MessageImportance.Low, "'{0}' already strong-name signed...", assemblyPath);
         }
       }
-      catch (BadImageFormatException bife)
+      catch (BadImageFormatException ex)
       {
-        Log.LogWarningFromException(bife, true);
+        Log.LogWarningFromException(ex, true);
+      }
+      catch (IOException ex)
+      {
+        Log.LogWarningFromException(ex, false);
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex, true, true, null);
+        Log.LogErrorFromException(ex, true, true, assemblyPath);
       }
 
       return null;
@@ -184,20 +207,24 @@ namespace Brutal.Dev.StrongNameSigner
 
         if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, null, probingPaths))
         {
-          Log.LogMessage(MessageImportance.Normal, "References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath);
+          Log.LogMessage(MessageImportance.High, "References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath);
         }
         else
         {
           Log.LogMessage(MessageImportance.Low, "No assembly references to fix in '{0}'...", assemblyPath);
         }
       }
-      catch (BadImageFormatException bife)
+      catch (BadImageFormatException ex)
       {
-        Log.LogWarningFromException(bife, true);
+        Log.LogWarningFromException(ex, true);
+      }
+      catch (IOException ex)
+      {
+        Log.LogWarningFromException(ex, false);
       }
       catch (Exception ex)
       {
-        Log.LogErrorFromException(ex, true, true, null);
+        Log.LogErrorFromException(ex, true, true, referencePath);
       }
     }
 
@@ -210,20 +237,24 @@ namespace Brutal.Dev.StrongNameSigner
 
         if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, null, probingPaths))
         {
-          Log.LogMessage(MessageImportance.Normal, "Invalid friend assemblies removed successfully from '{0}'.", assemblyPath);
+          Log.LogMessage(MessageImportance.High, "Invalid friend assemblies removed successfully from '{0}'.", assemblyPath);
         }
         else
         {
           Log.LogMessage(MessageImportance.Low, "No friend references to fix in '{0}'...", assemblyPath);
         }
       }
-      catch (BadImageFormatException bife)
+      catch (BadImageFormatException ex)
       {
-        Log.LogWarningFromException(bife, true);
+        Log.LogWarningFromException(ex, true);
+      }
+      catch (IOException ex)
+      {
+        Log.LogWarningFromException(ex, false);
       }
       catch (Exception ex)
-      {
-        Log.LogErrorFromException(ex, true, true, null);
+      { 
+        Log.LogErrorFromException(ex, true, true, assemblyPath);
       }
     }
   }
