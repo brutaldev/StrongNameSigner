@@ -4,9 +4,9 @@
 
 Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for. If you strong-name sign your own projects you may have noticed that if you reference an unsigned third party assembly you get an error similar to "*Referenced assembly 'A.B.C' does not have a strong name*". If you did not create this assembly, you can use this tool to sign the assembly with your own (or temporarily generated) strong-name key. The tool will also re-write the assembly references (as well as any InternalsVisibleTo references) to match the new signed versions of the assemblies you create.
 
-* [Download Installer](http://brutaldev.com/download/StrongNameSigner_Setup.exe)
+* [Download Installer](https://brutaldev.com/download/StrongNameSigner_Setup.exe)
 * [NuGet Package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/)
-* [More Information](http://brutaldev.com/post/2013/10/18/NET-Assembly-Strong-Name-Signer)
+* [More Information](https://brutaldev.com/post/2013/10/18/NET-Assembly-Strong-Name-Signer)
 
 Screenshots
 -----------
@@ -18,7 +18,7 @@ Screenshots
 
 Build Process
 -------------
-By default all unsigned referenced assemblies in your project automatically be signed just by installing the [NuGet package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/).
+By default all unsigned referenced assemblies in your project can automatically be signed just by installing the [NuGet package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/).
 This will change the references to your assemblies to strong-name signed ones allowing you to sign your own projects and reference unsigned assemblies. All assemblies that are found (including signed ones) will have their references corrected if they were using any files that now have public key tokens.
 
 If you need to be more specific about what to sign you can call the console version in your Visual Studio project files to sign assemblies before it gets built.
@@ -122,7 +122,7 @@ Build
 -----
 
 To build the project you need to have the following third party software installed.
- - [Sandcastle Help File Builder](https://shfb.codeplex.com/) (to build API documentation in Release mode)
+ - [Sandcastle Help File Builder](https://github.com/EWSoftware/SHFB/) (to build API documentation in Release mode)
  - [Inno Setup](http://www.jrsoftware.org/isdl.php) (to compile the installer)
 
 License
