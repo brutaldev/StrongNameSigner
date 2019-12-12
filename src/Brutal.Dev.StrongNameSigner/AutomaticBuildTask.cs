@@ -31,7 +31,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       try
       {
-        Log.LogMessage(MessageImportance.Normal, "---- Brutal Developer .NET Assembly Strong-Name Signer ----");
+        Log.LogMessage(MessageImportance.High, "-- Starting Brutal Developer .NET Assembly Strong-Name Signer Task --");
 
         if (References == null || References.Length == 0)
         {
@@ -70,9 +70,14 @@ namespace Brutal.Dev.StrongNameSigner
         {
           var ret = new TaskItem(References[i]);
 
-          if (References[i].ItemSpec.IndexOf("netstandard.library", StringComparison.OrdinalIgnoreCase) > -1 &&
-              References[i].ItemSpec.IndexOf("\\dotnet\\sdk\\", StringComparison.OrdinalIgnoreCase) > -1)
+          if (References[i].ItemSpec.IndexOf("\\Reference Assemblies\\Microsoft\\", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf("\\Microsoft.NET\\Framework\\", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf("\\netstandard.library\\", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf("\\dotnet\\sdk\\", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf("\\dotnet\\packs\\", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf("\\dotnet\\shared\\Microsoft.", StringComparison.OrdinalIgnoreCase) > -1)
           {
+            // Don't attempt to sign and process framework assemblies, they should be signed already, just add them to be copied.
             ret.ItemSpec = References[i].ItemSpec;
             SignedAssembliesToReference[i] = ret;
 
@@ -149,7 +154,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        Log.LogMessage(MessageImportance.High, "Brutal Developer .NET Assembly Strong-Name Signer took {0} to complete.", timer.Elapsed);
+        Log.LogMessage(MessageImportance.High, "-- Finished Brutal Developer .NET Assembly Strong-Name Signer Task -- {0}", timer.Elapsed);
 
         return true;
       }
@@ -173,13 +178,13 @@ namespace Brutal.Dev.StrongNameSigner
 
         if (!oldInfo.IsSigned && newInfo.IsSigned)
         {
-          Log.LogMessage(MessageImportance.High, "'{0}' was strong-name signed successfully.", newInfo.FilePath);
+          Log.LogMessage(MessageImportance.High, "Strong-name signature applied to '{0}' successfully.", newInfo.FilePath);
 
           return newInfo;
         }
         else
         {
-          Log.LogMessage(MessageImportance.Low, "'{0}' already strong-name signed...", assemblyPath);
+          Log.LogMessage(MessageImportance.Low, "Strong-name signature already applied to '{0}'...", assemblyPath);
         }
       }
       catch (BadImageFormatException ex)

@@ -47,7 +47,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     [Test]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Work_With_Correct_Password()
     {
-      SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123");
+      Assert.DoesNotThrow(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123"));
     }
 
     [Test]
