@@ -70,8 +70,9 @@ namespace Brutal.Dev.StrongNameSigner
         {
           var ret = new TaskItem(References[i]);
 
-          if (References[i].ItemSpec.IndexOf("netstandard.library", StringComparison.OrdinalIgnoreCase) > -1 &&
-              References[i].ItemSpec.IndexOf("\\dotnet\\sdk\\", StringComparison.OrdinalIgnoreCase) > -1)
+          if ((References[i].ItemSpec.IndexOf("netstandard.library", StringComparison.OrdinalIgnoreCase) > -1 &&
+               References[i].ItemSpec.IndexOf("\\dotnet\\sdk\\", StringComparison.OrdinalIgnoreCase) > -1) ||
+              (References[i].ItemSpec.IndexOf(@"\Reference Assemblies\Microsoft\Framework\", StringComparison.OrdinalIgnoreCase) > -1))
           {
             ret.ItemSpec = References[i].ItemSpec;
             SignedAssembliesToReference[i] = ret;
