@@ -91,17 +91,17 @@ namespace Brutal.Dev.StrongNameSigner
             {
               signedAssembly = SignSingleAssembly(References[i].ItemSpec, snkFilePath, signedAssemblyFolder, probingPaths);
               chagesMade = true;
-            }
-
-            if (signedAssembly.IsSigned)
-            {
-              signedAssemblyPaths.Add(signedAssembly.FilePath);
-              processedAssemblyPaths.Add(signedAssembly.FilePath);
-              ret.ItemSpec = signedAssembly.FilePath;
-            }
-            else
-            {
-              processedAssemblyPaths.Add(References[i].ItemSpec);
+              
+              if (signedAssembly.IsSigned)
+              {
+                signedAssemblyPaths.Add(signedAssembly.FilePath);
+                processedAssemblyPaths.Add(signedAssembly.FilePath);
+                ret.ItemSpec = signedAssembly.FilePath;
+              }
+              else
+              {
+                processedAssemblyPaths.Add(References[i].ItemSpec);
+              }
             }
 
             SignedAssembliesToReference[i] = ret;
