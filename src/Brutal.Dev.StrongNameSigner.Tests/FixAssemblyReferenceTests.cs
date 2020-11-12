@@ -1,17 +1,15 @@
-﻿using NUnit.Framework;
-using Shouldly;
-using System;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 using System.Reflection;
+using NUnit.Framework;
+using Shouldly;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
   [TestFixture]
   public class FixAssemblyReferenceTests
   {
-    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"TestAssemblies");
-    
+    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "TestAssemblies");
+
     [Test]
     public void FixAssemblyReference_Public_API_Invalid_Path1_Should_Throw_Exception()
     {
@@ -35,4 +33,3 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
   }
 }
-

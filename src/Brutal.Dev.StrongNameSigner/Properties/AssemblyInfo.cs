@@ -11,7 +11,7 @@ using Brutal.Dev.StrongNameSigner;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("https://brutaldev.com")]
 [assembly: AssemblyProduct("Brutal.Dev.StrongNameSigner")]
-[assembly: AssemblyCopyright("Copyright © 2013-2019")]
+[assembly: AssemblyCopyright("Copyright © 2013-2020")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -34,8 +34,8 @@ using Brutal.Dev.StrongNameSigner;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.7.1.0")]
-[assembly: AssemblyFileVersion("2.7.1.0")]
+[assembly: AssemblyVersion("2.8.0.0")]
+[assembly: AssemblyFileVersion("2.8.0.0")]
 
 // These assemblies are used by Cecil, and reading assemblies with symbols without these DLL's present
 // will cause an error ("No Symbols Found"). So to ensure that these are actually referenced by 

@@ -49,17 +49,17 @@
   <ItemGroup>
     <Reference Include="Microsoft.Build.Framework" />
     <Reference Include="Microsoft.Build.Utilities.v4.0" />
-    <Reference Include="Mono.Cecil, Version=0.11.1.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Mono.Cecil.0.11.1\lib\net40\Mono.Cecil.dll</HintPath>
+    <Reference Include="Mono.Cecil, Version=0.11.3.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Mono.Cecil.0.11.3\lib\net40\Mono.Cecil.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.Cecil.Mdb, Version=0.11.1.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Mono.Cecil.0.11.1\lib\net40\Mono.Cecil.Mdb.dll</HintPath>
+    <Reference Include="Mono.Cecil.Mdb, Version=0.11.3.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Mono.Cecil.0.11.3\lib\net40\Mono.Cecil.Mdb.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.Cecil.Pdb, Version=0.11.1.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Mono.Cecil.0.11.1\lib\net40\Mono.Cecil.Pdb.dll</HintPath>
+    <Reference Include="Mono.Cecil.Pdb, Version=0.11.3.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Mono.Cecil.0.11.3\lib\net40\Mono.Cecil.Pdb.dll</HintPath>
     </Reference>
-    <Reference Include="Mono.Cecil.Rocks, Version=0.11.1.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\Mono.Cecil.0.11.1\lib\net40\Mono.Cecil.Rocks.dll</HintPath>
+    <Reference Include="Mono.Cecil.Rocks, Version=0.11.3.0, Culture=neutral, PublicKeyToken=50cebf1cceb9d05e, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Mono.Cecil.0.11.3\lib\net40\Mono.Cecil.Rocks.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -97,11 +97,11 @@
     <PostBuildEvent Condition="'$(OS)' != 'Unix'">if /I "$(ConfigurationName)" == "Release" "$(SystemRoot)\Microsoft.NET\Framework\v4.0.30319\msbuild.exe" /p:CleanIntermediates=True /p:Configuration=Release "$(SolutionDir)Brutal.Dev.StrongNameSigner.Docs\Documentation.shfbproj"</PostBuildEvent>
   </PropertyGroup>
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
-  <Import Project="..\..\packages\StyleCop.MSBuild.6.1.0\build\StyleCop.MSBuild.targets" Condition="Exists('..\..\packages\StyleCop.MSBuild.6.1.0\build\StyleCop.MSBuild.targets')" />
+  <Import Project="..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets" Condition="Exists('..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\..\packages\StyleCop.MSBuild.6.1.0\build\StyleCop.MSBuild.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\StyleCop.MSBuild.6.1.0\build\StyleCop.MSBuild.targets'))" />
+    <Error Condition="!Exists('..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets'))" />
   </Target>
 </Project>
