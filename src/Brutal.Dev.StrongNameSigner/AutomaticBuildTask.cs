@@ -43,7 +43,7 @@ namespace Brutal.Dev.StrongNameSigner
           Log.LogError("Task parameter 'OutputPath' not provided.");
           return false;
         }
-        
+
         SignedAssembliesToReference = new ITaskItem[References.Length];
 
         string signedAssemblyFolder = Path.GetFullPath(Path.Combine(OutputPath.ItemSpec, "StrongNameSigner"));
@@ -94,7 +94,8 @@ namespace Brutal.Dev.StrongNameSigner
             if (!signedAssembly.IsSigned)
             {
               signedAssembly = SignSingleAssembly(References[i].ItemSpec, snkFilePath, signedAssemblyFolder, probingPaths);
-              if(signedAssembly != null)
+
+              if (signedAssembly != null)
               {
                 chagesMade = true;
               }
@@ -262,7 +263,7 @@ namespace Brutal.Dev.StrongNameSigner
         Log.LogWarningFromException(ex, false);
       }
       catch (Exception ex)
-      { 
+      {
         Log.LogErrorFromException(ex, true, true, assemblyPath);
       }
     }

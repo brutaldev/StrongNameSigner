@@ -93,9 +93,6 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <PropertyGroup>
-    <PostBuildEvent Condition="'$(OS)' != 'Unix'">if /I "$(ConfigurationName)" == "Release" "$(SystemRoot)\Microsoft.NET\Framework\v4.0.30319\msbuild.exe" /p:CleanIntermediates=True /p:Configuration=Release "$(SolutionDir)Brutal.Dev.StrongNameSigner.Docs\Documentation.shfbproj"</PostBuildEvent>
-  </PropertyGroup>
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
   <Import Project="..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets" Condition="Exists('..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
@@ -104,12 +101,4 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\StyleCop.MSBuild.6.2.0\build\StyleCop.MSBuild.targets'))" />
   </Target>
-  <PropertyGroup>
-    <PostBuildEvent>REM requires installing nuget commandline.  example using chocolatey: 
-REM choco install nuget.commandline
-REM note: output dir cannot end in slash
-if /I "$(ConfigurationName)" == "Release" nuget.exe pack $(ProjectDir)..\Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.nuspec -Properties "Configuration=$(Configuration)" -NonInteractive -OutputDirectory "$(ProjectDir)bin\$(ConfigurationName)
-
-if /I "$(ConfigurationName)" == "Release" "$(SystemRoot)\Microsoft.NET\Framework\v4.0.30319\msbuild.exe" /p:CleanIntermediates=True /p:Configuration=Release "$(SolutionDir)Brutal.Dev.StrongNameSigner.Docs\Documentation.shfbproj"</PostBuildEvent>
-  </PropertyGroup>
 </Project>
