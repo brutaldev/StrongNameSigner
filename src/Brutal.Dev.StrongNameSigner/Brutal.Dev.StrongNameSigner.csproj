@@ -104,4 +104,12 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\..\packages\StyleCop.MSBuild.6.1.0\build\StyleCop.MSBuild.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\..\packages\StyleCop.MSBuild.6.1.0\build\StyleCop.MSBuild.targets'))" />
   </Target>
+  <PropertyGroup>
+    <PostBuildEvent>REM requires installing nuget commandline.  example using chocolatey: 
+REM choco install nuget.commandline
+REM note: output dir cannot end in slash
+if /I "$(ConfigurationName)" == "Release" nuget.exe pack $(ProjectDir)..\Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.nuspec -Properties "Configuration=$(Configuration)" -NonInteractive -OutputDirectory "$(ProjectDir)bin\$(ConfigurationName)
+
+if /I "$(ConfigurationName)" == "Release" "$(SystemRoot)\Microsoft.NET\Framework\v4.0.30319\msbuild.exe" /p:CleanIntermediates=True /p:Configuration=Release "$(SolutionDir)Brutal.Dev.StrongNameSigner.Docs\Documentation.shfbproj"</PostBuildEvent>
+  </PropertyGroup>
 </Project>

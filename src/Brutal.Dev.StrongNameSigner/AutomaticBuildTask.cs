@@ -94,10 +94,13 @@ namespace Brutal.Dev.StrongNameSigner
             if (!signedAssembly.IsSigned)
             {
               signedAssembly = SignSingleAssembly(References[i].ItemSpec, snkFilePath, signedAssemblyFolder, probingPaths);
-              chagesMade = true;
+              if(signedAssembly != null)
+              {
+                chagesMade = true;
+              }
             }
 
-            if (signedAssembly.IsSigned)
+            if (signedAssembly != null && signedAssembly.IsSigned)
             {
               signedAssemblyPaths.Add(signedAssembly.FilePath);
               processedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -185,6 +188,7 @@ namespace Brutal.Dev.StrongNameSigner
         else
         {
           Log.LogMessage(MessageImportance.Low, "Strong-name signature already applied to '{0}'...", assemblyPath);
+          Log.LogMessage(MessageImportance.Low, "Original assembly IsSigned: {0}, After signing attempt IsSigned: {1}", oldInfo.IsSigned.ToString(), newInfo.IsSigned.ToString());
         }
       }
       catch (BadImageFormatException ex)
