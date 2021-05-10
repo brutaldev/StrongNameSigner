@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Brutal.Dev.StrongNameSigner.UI
+﻿namespace Brutal.Dev.StrongNameSigner.UI
 {
   internal class AssemblyPair
   {

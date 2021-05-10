@@ -1,13 +1,6 @@
-﻿using Brutal.Dev.StrongNameSigner.TestAssembly.NET45.Properties;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
 using System.Windows.Forms;
+using Brutal.Dev.StrongNameSigner.TestAssembly.NET45.Properties;
 
 namespace Brutal.Dev.StrongNameSigner.TestAssembly.NET45
 {

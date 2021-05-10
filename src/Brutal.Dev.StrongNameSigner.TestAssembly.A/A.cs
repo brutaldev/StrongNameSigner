@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
-namespace Brutal.Dev.StrongNameSigner.TestAssembly.A
+﻿namespace Brutal.Dev.StrongNameSigner.TestAssembly.A
 {
   public class A
   {

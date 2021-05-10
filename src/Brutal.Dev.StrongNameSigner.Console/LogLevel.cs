@@ -1,6 +1,4 @@
-﻿using System.ComponentModel;
-
-namespace Brutal.Dev.StrongNameSigner.Console
+﻿namespace Brutal.Dev.StrongNameSigner.Console
 {
   internal enum LogLevel
   {
