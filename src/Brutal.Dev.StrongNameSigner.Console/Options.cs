@@ -5,7 +5,7 @@ using PowerArgs;
 namespace Brutal.Dev.StrongNameSigner.Console
 {
   [ArgExample("StrongNameSigner.Console -a MyUnsignedAssembly.dll", "Strong-name sign a single assembly and overwrite the original, a backup will be created.")]
-  [ArgExample("StrongNameSigner.Console -a MyUnsignedAssembly.dll -o \"C:\\Signed\\\"", "Strong-name sign a single assembly called MyUnsignedAssembly.dll and copy the signed version to C:\\Signed.")]
+  [ArgExample("StrongNameSigner.Console -a MyUnsignedAssembly.dll -out \"C:\\Signed\\\"", "Strong-name sign a single assembly called MyUnsignedAssembly.dll and copy the signed version to C:\\Signed.")]
   [ArgExample("StrongNameSigner.Console -a MyUnsignedAssembly.dll -k PersonalKey.snk", "Strong-name sign a single assembly with your own personal strong-name key file.")]
   [ArgExample("StrongNameSigner.Console -in C:\\Unsigned\\|C:\\More\\\" -out \"C:\\Signed\\\"", "Strong-name sign all assemblies (DLL and EXE) found in C:\\Unsigned and C:\\More and copy the signed versions to C:\\Signed.")]
   internal class Options
@@ -33,6 +33,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
     [ArgDescription("Output directory for strong-name signed assemblies. Defaults to current directory.")]
     public string OutputDirectory { get; set; }
 
+    [ArgShortcut("ks")]
+    [ArgDescription("Preserves directory struture in output directory.")]
+    public bool KeepStructure { get; set; }
+
     [HelpHook]
     [ArgShortcut("h")]
     [ArgDescription("Displays options and usage information.")]
@@ -52,6 +56,16 @@ namespace Brutal.Dev.StrongNameSigner.Console
       if (!string.IsNullOrWhiteSpace(AssemblyFile) && !string.IsNullOrWhiteSpace(InputDirectory))
       {
         throw new ArgException("Both a single assembly file and an input directory cannot be used at the same time.");
+      }
+
+      if (string.IsNullOrWhiteSpace(OutputDirectory) && KeepStructure)
+      {
+        throw new ArgException("Keep struture is only available when output directory is provided.");
+      }
+
+      if (string.IsNullOrWhiteSpace(KeyFile))
+      {
+        throw new ArgException("Please provide an key file.");
       }
 
       if (!string.IsNullOrWhiteSpace(InputDirectory))
