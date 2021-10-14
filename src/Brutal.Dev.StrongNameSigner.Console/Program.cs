@@ -149,9 +149,18 @@ namespace Brutal.Dev.StrongNameSigner.Console
       var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var probingPaths = filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
 
+      var basePath = Path.GetFullPath(options.InputDirectory);
+
       foreach (var filePath in filesToSign)
       {
-        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, options.OutputDirectory, options.Password, probingPaths);
+        var outputDirectory = options.OutputDirectory;
+        if (options.KeepStructure)
+        {
+          var fullFilePath = Path.GetFullPath(filePath);
+          outputDirectory = Path.GetDirectoryName(fullFilePath)?.Replace(basePath, outputDirectory);
+        }
+        
+        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, outputDirectory, options.Password, probingPaths);
 
         // Check if it got signed.
         if (signedAssembly != null && signedAssembly.IsSigned)
@@ -162,7 +171,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
         else
         {
-          string outputFilePath = string.IsNullOrWhiteSpace(options.OutputDirectory) ? Path.GetDirectoryName(filePath) : options.OutputDirectory;
+          string outputFilePath = string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory;
           processedAssemblyPaths.Add(Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath)));
         }
       }
