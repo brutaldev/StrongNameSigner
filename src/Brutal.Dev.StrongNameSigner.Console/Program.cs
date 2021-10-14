@@ -171,7 +171,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
         else
         {
-          string outputFilePath = string.IsNullOrWhiteSpace(options.OutputDirectory) ? Path.GetDirectoryName(filePath) : options.OutputDirectory;
+          string outputFilePath = string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory;
           processedAssemblyPaths.Add(Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath)));
         }
       }
