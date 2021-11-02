@@ -380,11 +380,15 @@ namespace Brutal.Dev.StrongNameSigner.UI
             assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
             assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, probingPaths);
 
-            if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
+            if (assemblyPair.NewInfo.SigningType == StrongNameType.DelaySigned)
+            {
+              log.Append("Delay-signed assembly signing is not supported yet...").AppendLine();
+            }
+            else if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
             {
               log.Append("Strong-name signed successfully.").AppendLine();
               signedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
-              signedFiles++; 
+              signedFiles++;
             }
             else
             {
@@ -517,6 +521,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
       buttonCancel.Enabled = !enabled;
 
       textBoxKey.Enabled = enabled;
+      textBoxPassword.Enabled = enabled;
       textBoxOutput.Enabled = enabled;
       listViewAssemblies.Enabled = enabled;
       buttonKey.Enabled = enabled;

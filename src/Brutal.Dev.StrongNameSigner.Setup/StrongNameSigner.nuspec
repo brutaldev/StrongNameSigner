@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>Brutal.Dev.StrongNameSigner</id>
-    <version>2.8.0</version>
+    <version>2.9.0</version>
     <title>.NET Assembly Strong-Name Signer</title>
     <authors>Werner van Deventer</authors>
     <owners>Werner van Deventer</owners>
@@ -21,7 +21,11 @@ The tool will also re-write the assembly references (as well as any InternalsVis
     </description>
     <summary>Automatic strong-name signing of referenced assemblies. Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
     <releaseNotes>- Update to the latest Mono Cecil which fixes a number of issues that can only make things better.
-- Fix null reference error when signing ReferenceAssemblyAnnotator (issue #62).
+- Fix issues #38 and tested #44.
+- Update version numbers.
+- Ignore delay signed assemblies that simply throw exception.
+- Fix password field not being disabled in the UI.
+- Update packages.
     </releaseNotes>
     <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
     <language>en-US</language>

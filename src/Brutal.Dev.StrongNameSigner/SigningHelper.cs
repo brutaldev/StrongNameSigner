@@ -129,7 +129,8 @@ namespace Brutal.Dev.StrongNameSigner
         var info = GetAssemblyInfo(assemblyPath);
 
         // Don't sign assemblies with a strong-name signature.
-        if (info.IsSigned)
+        // Also do not sign delay signed assemblies, need to figure out how to do this correctly: https://github.com/brutaldev/StrongNameSigner/issues/42
+        if (info.IsSigned || info.SigningType == StrongNameType.DelaySigned)
         {
           // If the target directory is different from the input...
           if (!outputFileMgr.IsInPlaceReplace)
@@ -296,7 +297,10 @@ namespace Brutal.Dev.StrongNameSigner
             assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
             assemblyReference.Version = b.Name.Version;
 
-            a.Write(fileManagerA.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+            if (!a.Name.IsRetargetable)
+            {
+              a.Write(fileManagerA.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+            }
 
             AssemblyInfoCache.TryRemove(assemblyPath, out var _);
 
@@ -313,8 +317,11 @@ namespace Brutal.Dev.StrongNameSigner
             friendReference.ConstructorArguments.Clear();
             friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
 
-            // Save and resign.
-            b.Write(fileManagerB.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
+            if (!b.Name.IsRetargetable)
+            {
+              // Save and resign.
+              b.Write(fileManagerB.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
+            }
 
             AssemblyInfoCache.TryRemove(assemblyPath, out var _);
 
@@ -390,7 +397,10 @@ namespace Brutal.Dev.StrongNameSigner
 
           if (fixApplied)
           {
-            a.Write(outFileMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+            if (!a.Name.IsRetargetable)
+            {
+              a.Write(outFileMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+            }
 
             AssemblyInfoCache.TryRemove(assemblyPath, out var _);
           }
