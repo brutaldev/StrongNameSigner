@@ -10,8 +10,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
   [TestFixture]
   public class SignAssemblyTests
   {
-    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), @"TestAssemblies");
-
+    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "TestAssemblies");
 
     [Test]
     public void SignAssembly_Public_API_Test()
@@ -145,7 +144,6 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.IsSigned.ShouldBe(true);
     }
 
-
     [Test]
     public void SignAssembly_InPlaceWithPdb_Should_Succeed()
     {
@@ -230,7 +228,6 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         SigningHelper.SignAssembly(targetAssemblyPath);
         var info = SigningHelper.GetAssemblyInfo(targetAssemblyPath);
         Assert.IsTrue(info.IsSigned);
-
       }
       finally
       {

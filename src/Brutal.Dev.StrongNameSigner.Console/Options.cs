@@ -34,7 +34,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
     public string OutputDirectory { get; set; }
 
     [ArgShortcut("ks")]
-    [ArgDescription("Preserves directory struture in output directory.")]
+    [ArgDescription("Preserves directory structure in output directory.")]
     public bool KeepStructure { get; set; }
 
     [HelpHook]
@@ -60,12 +60,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
       if (string.IsNullOrWhiteSpace(OutputDirectory) && KeepStructure)
       {
-        throw new ArgException("Keep struture is only available when output directory is provided.");
-      }
-
-      if (string.IsNullOrWhiteSpace(KeyFile))
-      {
-        throw new ArgException("Please provide an key file.");
+        throw new ArgException("Keep structure is only available when output directory is provided.");
       }
 
       if (!string.IsNullOrWhiteSpace(InputDirectory))

@@ -20,13 +20,13 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         PrintMessageColor(".NET Assembly Strong-Name Signer is disabled via the SNS_DISABLE_CONSOLE_SIGNING environment variable.", LogLevel.Default, ConsoleColor.Red);
         return 0;
-      }        
+      }
 
       try
       {
         var parsed = Args.Parse<Options>(args);
 
-        if (args.Length == 0 || parsed == null || parsed.Help)
+        if (args.Length == 0 || parsed?.Help != false)
         {
           PrintHeader();
           ArgUsage.GenerateUsageFromTemplate(typeof(Options));
@@ -102,7 +102,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
     {
       C.ForegroundColor = color;
       PrintMessage(message, minLogLevel);
-      C.ResetColor();      
+      C.ResetColor();
     }
 
     private static Stats SignAssemblies(Options options)
@@ -111,7 +111,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       int referenceFixes = 0;
 
       var filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-      
+
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {
         foreach (var inputDir in options.InputDirectory.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries))
@@ -149,21 +149,29 @@ namespace Brutal.Dev.StrongNameSigner.Console
       var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var probingPaths = filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
 
-      var basePath = Path.GetFullPath(options.InputDirectory);
-
       foreach (var filePath in filesToSign)
       {
         var outputDirectory = options.OutputDirectory;
         if (options.KeepStructure)
         {
+          var basePath = string.Empty;
+          if (!string.IsNullOrWhiteSpace(options.InputDirectory))
+          {
+            basePath = Path.GetFullPath(options.InputDirectory);
+          }
+          else
+          {
+            basePath = Path.GetDirectoryName(options.AssemblyFile);
+          }
+
           var fullFilePath = Path.GetFullPath(filePath);
           outputDirectory = Path.GetDirectoryName(fullFilePath)?.Replace(basePath, outputDirectory);
         }
-        
+
         var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, outputDirectory, options.Password, probingPaths);
 
         // Check if it got signed.
-        if (signedAssembly != null && signedAssembly.IsSigned)
+        if (signedAssembly?.IsSigned == true)
         {
           processedAssemblyPaths.Add(signedAssembly.FilePath);
           signedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -181,7 +189,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         // Go through all the references excluding the file we are working on.
         foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
-        { 
+        {
           if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, probingPaths))
           {
             referenceFixes++;
@@ -248,11 +256,11 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         PrintMessage(null, LogLevel.Verbose);
         PrintMessage(string.Format("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath), LogLevel.Verbose);
-        
+
         if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword, probingPaths))
         {
           PrintMessageColor(string.Format("References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath), LogLevel.Changes, ConsoleColor.Green);
-          
+
           return true;
         }
         else
@@ -278,7 +286,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         PrintMessage(null, LogLevel.Verbose);
         PrintMessage(string.Format("Removing invalid friend references from '{0}'...", assemblyPath), LogLevel.Verbose);
-        
+
         if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, keyFilePassword, probingPaths))
         {
           PrintMessageColor(string.Format("Invalid friend assemblies removed successfully from '{0}'.", assemblyPath), LogLevel.Changes, ConsoleColor.Green);

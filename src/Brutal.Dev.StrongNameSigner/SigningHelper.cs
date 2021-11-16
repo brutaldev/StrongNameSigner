@@ -222,7 +222,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <summary>
     /// Fixes an assembly reference.
     /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>    
+    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>
     /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
     /// <returns><c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.</returns>
     /// <exception cref="System.ArgumentNullException">
