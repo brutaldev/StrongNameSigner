@@ -4,13 +4,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Mono.Cecil;
+using Mono.Security.Cryptography;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -19,27 +19,9 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
-    private static readonly IClrStrongName ClrStrongName;
     private static readonly ConcurrentDictionary<string, KeyValuePair<string, AssemblyInfo>> AssemblyInfoCache = new ConcurrentDictionary<string, KeyValuePair<string, AssemblyInfo>>(StringComparer.OrdinalIgnoreCase);
 
     private static byte[] keyPairCache;
-
-    static SigningHelper()
-    {
-      try
-      {
-        var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
-
-        if (runtimeInterface != null)
-        {
-          ClrStrongName = runtimeInterface as IClrStrongName;
-        }
-      }
-      catch (InvalidCastException)
-      {
-        // Nothing to do here, cannot create the runtime interface (probably not Windows) so will skip verification.
-      }
-    }
 
     /// <summary>
     /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
@@ -138,6 +120,8 @@ namespace Brutal.Dev.StrongNameSigner
         Directory.CreateDirectory(outputPath);
       }
 
+      var keyPair = GetStrongNameKeyPair(keyPath, keyFilePassword);
+
       string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
       using (var outputFileMgr = new OutputFileManager(assemblyPath, outputFile))
       {
@@ -165,7 +149,12 @@ namespace Brutal.Dev.StrongNameSigner
 
         using (var ad = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
-          ad.Write(outputFileMgr.IntermediateAssemblyPath, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = outputFileMgr.HasSymbols });
+          ad.Name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+          ad.Name.PublicKey = GetPublicKey(keyPair);
+          ad.Name.HasPublicKey = true;
+          ad.Name.Attributes &= AssemblyAttributes.PublicKey;
+
+          ad.Write(outputFileMgr.IntermediateAssemblyPath, new WriterParameters() { StrongNameKeyBlob = keyPair, WriteSymbols = outputFileMgr.HasSymbols });
         }
 
         AssemblyInfoCache.TryRemove(assemblyPath, out var _);
@@ -214,8 +203,28 @@ namespace Brutal.Dev.StrongNameSigner
       {
         using (var definition = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
+          IClrStrongName clrStrongName = null;
+
+          try
+          {
+            var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
+
+            if (runtimeInterface != null)
+            {
+              clrStrongName = runtimeInterface as IClrStrongName;
+            }
+          }
+          catch (InvalidCastException)
+          {
+            // Nothing to do here, cannot create the runtime interface so will skip verification.
+          }
+          catch (PlatformNotSupportedException)
+          {
+            // Nothing to do here, this only works in Windows.
+          }
+
           var strongNameVerified = false;
-          var strongNameVerificationResult = ClrStrongName?.StrongNameSignatureVerificationEx(assemblyPath, true, out var verificationForced);
+          var strongNameVerificationResult = clrStrongName?.StrongNameSignatureVerificationEx(assemblyPath, true, out var verificationForced);
           strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
 
           var info = new AssemblyInfo()
@@ -300,6 +309,7 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       bool fixApplied = false;
+      var keyPair = GetStrongNameKeyPair(keyPath, keyFilePassword);
 
       using (var fileManagerA = new OutputFileManager(assemblyPath, assemblyPath))
       using (var fileManagerB = new OutputFileManager(referenceAssemblyPath, referenceAssemblyPath))
@@ -317,7 +327,12 @@ namespace Brutal.Dev.StrongNameSigner
 
             if (!a.Name.IsRetargetable)
             {
-              a.Write(fileManagerA.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+              a.Name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+              a.Name.PublicKey = GetPublicKey(keyPair);
+              a.Name.HasPublicKey = true;
+              a.Name.Attributes &= AssemblyAttributes.PublicKey;
+
+              a.Write(fileManagerA.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
             }
 
             AssemblyInfoCache.TryRemove(assemblyPath, out var _);
@@ -337,8 +352,13 @@ namespace Brutal.Dev.StrongNameSigner
 
             if (!b.Name.IsRetargetable)
             {
+              b.Name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+              b.Name.PublicKey = GetPublicKey(keyPair);
+              b.Name.HasPublicKey = true;
+              b.Name.Attributes &= AssemblyAttributes.PublicKey;
+
               // Save and resign.
-              b.Write(fileManagerB.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
+              b.Write(fileManagerB.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
             }
 
             AssemblyInfoCache.TryRemove(assemblyPath, out var _);
@@ -397,6 +417,8 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       bool fixApplied = false;
+      var keyPair = GetStrongNameKeyPair(keyPath, keyFilePassword);
+
       using (var outFileMgr = new OutputFileManager(assemblyPath, assemblyPath))
       {
         using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
@@ -417,7 +439,12 @@ namespace Brutal.Dev.StrongNameSigner
           {
             if (!a.Name.IsRetargetable)
             {
-              a.Write(outFileMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
+              a.Name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+              a.Name.PublicKey = GetPublicKey(keyPair);
+              a.Name.HasPublicKey = true;
+              a.Name.Attributes &= AssemblyAttributes.PublicKey;
+
+              a.Write(outFileMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
             }
 
             AssemblyInfoCache.TryRemove(assemblyPath, out var _);
@@ -430,7 +457,7 @@ namespace Brutal.Dev.StrongNameSigner
       return fixApplied;
     }
 
-    internal static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
+    internal static byte[] GetStrongNameKeyPair(string keyPath, string keyFilePassword)
     {
       if (!string.IsNullOrEmpty(keyPath))
       {
@@ -443,11 +470,11 @@ namespace Brutal.Dev.StrongNameSigner
             throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
           }
 
-          return new StrongNameKeyPair(provider.ExportCspBlob(true));
+          return provider.ExportCspBlob(true);
         }
         else
         {
-          return new StrongNameKeyPair(File.ReadAllBytes(keyPath));
+          return File.ReadAllBytes(keyPath);
         }
       }
       else
@@ -455,12 +482,12 @@ namespace Brutal.Dev.StrongNameSigner
         // Only cache generated keys so all signed assemblies use the same public key.
         if (keyPairCache != null)
         {
-          return new StrongNameKeyPair(keyPairCache);
+          return keyPairCache;
         }
 
         keyPairCache = GenerateStrongNameKeyPair();
 
-        return new StrongNameKeyPair(keyPairCache);
+        return keyPairCache;
       }
     }
 
@@ -535,6 +562,31 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return sb.ToString();
+    }
+
+    // https://raw.githubusercontent.com/atykhyy/cecil/master/Mono.Security.Cryptography/CryptoService.cs
+    private static byte[] GetPublicKey(byte[] keyBlob)
+    {
+      using (var rsa = CryptoConvert.FromCapiKeyBlob(keyBlob))
+      {
+        var cspBlob = CryptoConvert.ToCapiPublicKeyBlob(rsa);
+        var publicKey = new byte[12 + cspBlob.Length];
+        Buffer.BlockCopy(cspBlob, 0, publicKey, 12, cspBlob.Length);
+        // The first 12 bytes are documented at:
+        // http://msdn.microsoft.com/library/en-us/cprefadd/html/grfungethashfromfile.asp
+        // ALG_ID - Signature
+        publicKey[1] = 36;
+        // ALG_ID - Hash
+        publicKey[4] = 4;
+        publicKey[5] = 128;
+        // Length of Public Key (in bytes)
+        publicKey[8] = (byte)(cspBlob.Length >> 0);
+        publicKey[9] = (byte)(cspBlob.Length >> 8);
+        publicKey[10] = (byte)(cspBlob.Length >> 16);
+        publicKey[11] = (byte)(cspBlob.Length >> 24);
+
+        return publicKey;
+      }
     }
   }
 }

@@ -5,7 +5,7 @@ using System.IO;
 namespace Brutal.Dev.StrongNameSigner
 {
   /// <summary>
-  /// Utility class that assists in the handling of temporary files during assembly signing. It will create 
+  /// Utility class that assists in the handling of temporary files during assembly signing. It will create
   /// a temporary directory to hold generated files during the signing process, and will move these to their
   /// final location upon calling <see cref="Commit"/>.  It also ensures that all temporary/intermediate files
   /// are deleted upon disposing the instance.
@@ -119,7 +119,7 @@ namespace Brutal.Dev.StrongNameSigner
     }
 
     /// <summary>
-    /// Directly copies <see cref="SourceAssemblyPath"/> and <see cref="SourcePdbPath"/> to <see cref="TargetAssemblyPath"/> 
+    /// Directly copies <see cref="SourceAssemblyPath"/> and <see cref="SourcePdbPath"/> to <see cref="TargetAssemblyPath"/>
     /// and <see cref="TargetPdbPath"/> (if the source files exists).
     /// </summary>
     public void CopySourceToFinalOutput()
@@ -133,7 +133,7 @@ namespace Brutal.Dev.StrongNameSigner
     }
 
     /// <summary>
-    /// Moves the intermediate files to the target locations if a temporary directory was used during generation. 
+    /// Moves the intermediate files to the target locations if a temporary directory was used during generation.
     /// Otherwise this method does nothing.
     /// </summary>
     public void Commit()
