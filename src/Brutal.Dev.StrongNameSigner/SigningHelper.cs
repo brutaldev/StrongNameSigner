@@ -19,9 +19,27 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
+    private static readonly IClrStrongName ClrStrongName;
     private static readonly ConcurrentDictionary<string, KeyValuePair<string, AssemblyInfo>> AssemblyInfoCache = new ConcurrentDictionary<string, KeyValuePair<string, AssemblyInfo>>(StringComparer.OrdinalIgnoreCase);
 
-    private static byte[] keyPairCache = null;
+    private static byte[] keyPairCache;
+
+    static SigningHelper()
+    {
+      try
+      {
+        var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
+
+        if (runtimeInterface != null)
+        {
+          ClrStrongName = runtimeInterface as IClrStrongName;
+        }
+      }
+      catch (InvalidCastException)
+      {
+        // Nothing to do here, cannot create the runtime interface (probably not Windows) so will skip verification.
+      }
+    }
 
     /// <summary>
     /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
@@ -29,7 +47,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <returns>A strong-name key pair array.</returns>
     public static byte[] GenerateStrongNameKeyPair()
     {
-      using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
+      using (var provider = new RSACryptoServiceProvider(4096))
       {
         return provider.ExportCspBlob(!provider.PublicOnly);
       }
@@ -196,13 +214,15 @@ namespace Brutal.Dev.StrongNameSigner
       {
         using (var definition = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
         {
-          bool wasVerified = false;
+          var strongNameVerified = false;
+          var strongNameVerificationResult = ClrStrongName?.StrongNameSignatureVerificationEx(assemblyPath, true, out var verificationForced);
+          strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
 
           var info = new AssemblyInfo()
           {
             FilePath = Path.GetFullPath(assemblyPath),
             DotNetVersion = GetDotNetVersion(definition.MainModule.Runtime),
-            SigningType = !definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned) ? StrongNameType.NotSigned : StrongNameSignatureVerificationEx(assemblyPath, true, ref wasVerified) ? StrongNameType.Signed : StrongNameType.DelaySigned,
+            SigningType = !definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned) ? StrongNameType.NotSigned : strongNameVerified ? StrongNameType.Signed : StrongNameType.DelaySigned,
             IsManagedAssembly = definition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
             Is64BitOnly = definition.MainModule.Architecture == TargetArchitecture.AMD64 || definition.MainModule.Architecture == TargetArchitecture.IA64,
             Is32BitOnly = definition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
@@ -516,8 +536,5 @@ namespace Brutal.Dev.StrongNameSigner
 
       return sb.ToString();
     }
-
-    [DllImport("mscoree.dll", CharSet = CharSet.Unicode)]
-    private static extern bool StrongNameSignatureVerificationEx(string filePath, bool forceVerification, ref bool wasVerified);
   }
 }

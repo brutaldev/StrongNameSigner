@@ -85,7 +85,6 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     ///   <c>true</c> if assembly targets any CPU; otherwise, <c>false</c>.
     /// </value>
-    [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Cpu", Justification = "Acronym")]
     public bool IsAnyCpu
     {
       get

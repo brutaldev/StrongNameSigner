@@ -19,7 +19,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     private string keyFile = string.Empty;
     private string outputPath = string.Empty;
     private string password = string.Empty;
-    
+
     public MainForm()
     {
       InitializeComponent();
@@ -37,10 +37,11 @@ namespace Brutal.Dev.StrongNameSigner.UI
         (info.IsAnyCpu ? "Any CPU" : info.Is32BitOnly ? "x86" : info.Is64BitOnly ? "x64" : "UNKNOWN") + (info.Is32BitPreferred ? " (x86 preferred)" : string.Empty),
         info.SigningType == StrongNameType.Signed ? "Yes" : info.SigningType == StrongNameType.DelaySigned ? "Delay" : "No",
         info.FilePath
-      });
-
-      item.Tag = info.FilePath;
-      item.UseItemStyleForSubItems = false;
+      })
+      {
+        Tag = info.FilePath,
+        UseItemStyleForSubItems = false
+      };
 
       // Update the color of the signed column.
       if (info.SigningType == StrongNameType.Signed)
@@ -368,7 +369,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
         // We go through assemblies three times and every assembly -1 for reference fixes.
         double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 3;
-        
+
         foreach (var filePath in assemblyPaths)
         {
           var assemblyPair = new AssemblyPair();
@@ -382,19 +383,19 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
             if (assemblyPair.NewInfo.SigningType == StrongNameType.DelaySigned)
             {
-              log.Append("Delay-signed assembly signing is not supported yet...").AppendLine();
+              log.AppendLine("Delay-signed assembly signing is not supported yet...");
             }
             else if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
             {
-              log.Append("Strong-name signed successfully.").AppendLine();
+              log.AppendLine("Strong-name signed successfully.");
               signedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
               signedFiles++;
             }
             else
             {
-              log.Append("Already strong-name signed...").AppendLine();
+              log.AppendLine("Already strong-name signed...");
             }
-            
+
             processedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
           }
           catch (Exception ex)
@@ -428,12 +429,12 @@ namespace Brutal.Dev.StrongNameSigner.UI
             log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
             if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password, probingPaths))
             {
-              log.Append("Reference was found and fixed.").AppendLine();
+              log.AppendLine("Reference was found and fixed.");
               referenceFixes++;
             }
             else
             {
-              log.Append("Nothing to fix.").AppendLine();
+              log.AppendLine("Nothing to fix.");
             }
           }
         }
@@ -452,12 +453,12 @@ namespace Brutal.Dev.StrongNameSigner.UI
           log.AppendFormat("Removing invalid friend references from '{0}'...", filePath).AppendLine();
           if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password, probingPaths))
           {
-            log.Append("Invalid friend assemblies removed.").AppendLine();
+            log.AppendLine("Invalid friend assemblies removed.");
             referenceFixes++;
           }
           else
           {
-            log.Append("Nothing to fix.").AppendLine();
+            log.AppendLine("Nothing to fix.");
           }
         }
 
@@ -498,7 +499,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
     private void CurrentDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-      MessageBox.Show((e.ExceptionObject as Exception).Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      MessageBox.Show((e.ExceptionObject as Exception)?.Message ?? "<Unknown Error>", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
       if (e.IsTerminating)
       {
@@ -533,7 +534,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
     private void UpdateAssemblyInList(AssemblyPair pair)
     {
-      if (pair != null && pair.OldInfo != null && pair.NewInfo != null)
+      if (pair?.OldInfo != null && pair?.NewInfo != null)
       {
         for (int i = 0; i < listViewAssemblies.Items.Count; i++)
         {
@@ -549,7 +550,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
     private void AddAssemblyToList(AssemblyInfo info)
     {
-      if (info != null && info.IsManagedAssembly)
+      if (info?.IsManagedAssembly == true)
       {
         bool foundDuplicate = false;
         for (int i = 0; i < listViewAssemblies.Items.Count; i++)
