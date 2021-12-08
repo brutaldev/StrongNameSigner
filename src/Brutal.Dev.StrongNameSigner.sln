@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26730.12
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner", "Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj", "{947EECC6-5EBC-4D2A-BAC4-8E88B5BAFE84}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brutal.Dev.StrongNameSigner", "Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj", "{947EECC6-5EBC-4D2A-BAC4-8E88B5BAFE84}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Brutal.Dev.StrongNameSigner.Tests", "Brutal.Dev.StrongNameSigner.Tests\Brutal.Dev.StrongNameSigner.Tests.csproj", "{3EA13C51-9A22-4045-8993-12391408A300}"
 EndProject
@@ -36,6 +36,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.nuspec = Brutal.Dev.StrongNameSigner.Setup\StrongNameSigner.nuspec
 		Brutal.Dev.StrongNameSigner\StrongNameSigner.targets = Brutal.Dev.StrongNameSigner\StrongNameSigner.targets
 	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Brutal.Dev.StrongNameSigner.TestAssembly.Core5", "Brutal.Dev.StrongNameSigner.TestAssembly.Core5\Brutal.Dev.StrongNameSigner.TestAssembly.Core5.csproj", "{93BD3735-66AD-4741-8F10-9B5367171FE4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -75,6 +77,10 @@ Global
 		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1DACFD7E-47BA-4B8E-83AF-5580E3EFC744}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93BD3735-66AD-4741-8F10-9B5367171FE4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93BD3735-66AD-4741-8F10-9B5367171FE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93BD3735-66AD-4741-8F10-9B5367171FE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93BD3735-66AD-4741-8F10-9B5367171FE4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

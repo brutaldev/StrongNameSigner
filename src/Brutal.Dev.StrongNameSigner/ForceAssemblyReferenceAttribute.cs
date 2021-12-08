@@ -1,4 +1,13 @@
 ﻿using System;
+using Brutal.Dev.StrongNameSigner;
+
+// These assemblies are used by Cecil, and reading assemblies with symbols without these DLL's present
+// will cause an error ("No Symbols Found"). So to ensure that these are actually referenced by 
+// StrongNameSigner and copied along to the output directory as well as the UnitTests when running 
+// them, we use this "hack".
+[assembly: ForceAssemblyReference(typeof(Mono.Cecil.Pdb.NativePdbReader))]
+[assembly: ForceAssemblyReference(typeof(Mono.Cecil.Mdb.MdbReader))]
+[assembly: ForceAssemblyReference(typeof(Mono.Cecil.Rocks.TypeDefinitionRocks))]
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -11,7 +20,7 @@ namespace Brutal.Dev.StrongNameSigner
     // https://stackoverflow.com/questions/15816769/dependent-dll-is-not-getting-copied-to-the-build-output-folder-in-visual-studio
     public ForceAssemblyReferenceAttribute(Type forcedType)
     {
-      Action<Type> noop = _ => { };
+      void noop(Type _) { }
       noop(forcedType);
     }
   }

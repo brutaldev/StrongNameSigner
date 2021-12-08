@@ -101,7 +101,7 @@ namespace Brutal.Dev.StrongNameSigner
               }
             }
 
-            if (signedAssembly != null && signedAssembly.IsSigned)
+            if (signedAssembly?.IsSigned == true)
             {
               signedAssemblyPaths.Add(signedAssembly.FilePath);
               processedAssemblyPaths.Add(signedAssembly.FilePath);
@@ -145,11 +145,12 @@ namespace Brutal.Dev.StrongNameSigner
           NewCopyLocalFiles = new ITaskItem[CopyLocalPaths.Length];
           for (int i = 0; i < CopyLocalPaths.Length; i++)
           {
-            string updatedPath;
-            if (updatedReferencePaths.TryGetValue(CopyLocalPaths[i].ItemSpec, out updatedPath))
+            if (updatedReferencePaths.TryGetValue(CopyLocalPaths[i].ItemSpec, out string updatedPath))
             {
-              NewCopyLocalFiles[i] = new TaskItem(CopyLocalPaths[i]);
-              NewCopyLocalFiles[i].ItemSpec = updatedPath;
+              NewCopyLocalFiles[i] = new TaskItem(CopyLocalPaths[i])
+              {
+                ItemSpec = updatedPath
+              };
             }
             else
             {

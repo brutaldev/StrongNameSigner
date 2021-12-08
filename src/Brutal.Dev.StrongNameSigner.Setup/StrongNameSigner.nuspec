@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>Brutal.Dev.StrongNameSigner</id>
-    <version>2.9.1</version>
+    <version>3.0.0-beta</version>
     <title>.NET Assembly Strong-Name Signer</title>
     <authors>Werner van Deventer</authors>
     <owners>Werner van Deventer</owners>
@@ -20,22 +20,22 @@ If you strong-name sign your own projects you may have noticed that if you refer
 The tool will also re-write the assembly references (as well as any InternalsVisibleTo references) to match the new signed versions of the assemblies you create.
     </description>
     <summary>Automatic strong-name signing of referenced assemblies. Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
-    <releaseNotes>- Update to the latest Mono Cecil which fixes a number of issues that can only make things better.
-- Fix issues #66.
-- Remove validation for missing key file (will generate one).
+    <releaseNotes>
+- Fix issue #52.
     </releaseNotes>
     <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
     <language>en-US</language>
     <tags>strongname assembly gac unsigned strong name automatic</tags>
   </metadata>
   <files>
-    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.dll" target="build" />
-    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.dll" target="build" />
-    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Mdb.dll" target="build" />
-    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Pdb.dll" target="build" />
-    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Rocks.dll" target="build" />
-    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\StrongNameSigner.targets" target="build\Brutal.Dev.StrongNameSigner.targets" />
+    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Brutal.Dev.StrongNameSigner.dll" target="build" />
+    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.dll" target="build" />
+    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.Mdb.dll" target="build" />
+    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.Pdb.dll" target="build" />
+    <file src="..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.Rocks.dll" target="build" />
+    <file src="..\Brutal.Dev.StrongNameSigner\StrongNameSigner.targets" target="build\Brutal.Dev.StrongNameSigner.targets" />
     <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\PowerArgs.dll" target="build" />
     <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe" target="build" />
+    <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe.config" target="build" />
   </files>
 </package>

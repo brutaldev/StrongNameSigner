@@ -145,6 +145,18 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
 
     [Test]
+    public void SignAssembly_Should_Reassemble_Core_5_Assembly_Correctly()
+    {
+      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.Core5.dll"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
+      info.DotNetVersion.ShouldBe("4.0.30319");
+      info.IsAnyCpu.ShouldBe(true);
+      info.Is32BitOnly.ShouldBe(false);
+      info.Is32BitPreferred.ShouldBe(false);
+      info.Is64BitOnly.ShouldBe(false);
+      info.IsSigned.ShouldBe(true);
+    }
+
+    [Test]
     public void SignAssembly_InPlaceWithPdb_Should_Succeed()
     {
       var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));

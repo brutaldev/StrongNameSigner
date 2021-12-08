@@ -29,9 +29,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <returns>A strong-name key pair array.</returns>
     public static byte[] GenerateStrongNameKeyPair()
     {
-#pragma warning disable S4426 // Cryptographic keys should not be too short
       using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
-#pragma warning restore S4426 // Cryptographic keys should not be too short
       {
         return provider.ExportCspBlob(!provider.PublicOnly);
       }
@@ -294,7 +292,7 @@ namespace Brutal.Dev.StrongNameSigner
           // Found a matching reference, let's set the public key token.
           if (assemblyReference != null && BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
           {
-            assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
+            assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? Array.Empty<byte>();
             assemblyReference.Version = b.Name.Version;
 
             if (!a.Name.IsRetargetable)

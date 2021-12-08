@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v5.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v5.0": {
+      "Brutal.Dev.StrongNameSigner.TestAssembly.Core5/1.0.0": {
+        "runtime": {
+          "Brutal.Dev.StrongNameSigner.TestAssembly.Core5.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Brutal.Dev.StrongNameSigner.TestAssembly.Core5/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}
