@@ -24,7 +24,7 @@ namespace Brutal.Dev.StrongNameSigner
     private static byte[] keyPairCache;
 
     /// <summary>
-    /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
+    /// Generates a 4096 bit the strong-name key pair that can be written to an SNK file.
     /// </summary>
     /// <returns>A strong-name key pair array.</returns>
     public static byte[] GenerateStrongNameKeyPair()

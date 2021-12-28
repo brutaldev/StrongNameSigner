@@ -69,13 +69,20 @@ namespace Brutal.Dev.StrongNameSigner
         for (int i = 0; i < References.Length; i++)
         {
           var ret = new TaskItem(References[i]);
+          var sep = Path.DirectorySeparatorChar;
 
-          if (References[i].ItemSpec.IndexOf("\\Reference Assemblies\\Microsoft\\", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf("\\Microsoft.NET\\Framework\\", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf("\\netstandard.library\\", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf("\\dotnet\\sdk\\", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf("\\dotnet\\packs\\", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf("\\dotnet\\shared\\Microsoft.", StringComparison.OrdinalIgnoreCase) > -1)
+          if (References[i].ItemSpec.IndexOf($"{sep}Reference Assemblies{sep}Microsoft{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}Microsoft.NET{sep}Framework{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}Microsoft{sep}NetFramework{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}NuGetScratch{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}Cache{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}v3-cache{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}plugins-cache{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}netstandard.library{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}.nuget{sep}packages{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}sdk{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}packs{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}shared{sep}Microsoft.", StringComparison.OrdinalIgnoreCase) > -1)
           {
             // Don't attempt to sign and process framework assemblies, they should be signed already, just add them to be copied.
             ret.ItemSpec = References[i].ItemSpec;
