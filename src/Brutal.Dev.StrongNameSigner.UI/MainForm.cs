@@ -381,11 +381,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
             assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, probingPaths);
 
-            if (assemblyPair.NewInfo.SigningType == StrongNameType.DelaySigned)
-            {
-              log.AppendLine("Delay-signed assembly signing is not supported yet...");
-            }
-            else if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
+            if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
             {
               log.AppendLine("Strong-name signed successfully.");
               signedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);

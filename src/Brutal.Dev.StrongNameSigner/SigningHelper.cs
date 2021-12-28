@@ -129,8 +129,7 @@ namespace Brutal.Dev.StrongNameSigner
         var info = GetAssemblyInfo(assemblyPath);
 
         // Don't sign assemblies with a strong-name signature.
-        // Also do not sign delay signed assemblies, need to figure out how to do this correctly: https://github.com/brutaldev/StrongNameSigner/issues/42
-        if (info.IsSigned || info.SigningType == StrongNameType.DelaySigned)
+        if (info.IsSigned)
         {
           // If the target directory is different from the input...
           if (!outputFileMgr.IsInPlaceReplace)

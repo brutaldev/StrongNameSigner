@@ -223,11 +223,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         var oldInfo = SigningHelper.GetAssemblyInfo(assemblyPath);
         var newInfo = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password, probingPaths);
 
-        if (newInfo.SigningType == StrongNameType.DelaySigned)
-        {
-          PrintMessage("Delay-signed assembly signing is not supported yet...", LogLevel.Verbose);
-        }
-        else if (!oldInfo.IsSigned && newInfo.IsSigned)
+        if (!oldInfo.IsSigned && newInfo.IsSigned)
         {
           PrintMessageColor(string.Format("'{0}' was strong-name signed successfully.", newInfo.FilePath), LogLevel.Changes, ConsoleColor.Green);
 
