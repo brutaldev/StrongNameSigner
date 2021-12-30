@@ -1,16 +1,15 @@
 ﻿using System;
-using System.Collections.Concurrent;
+using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Resources;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
+using System.Text.RegularExpressions;
 using Mono.Cecil;
+using Mono.Security.Cryptography;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -19,73 +18,57 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
-    private static readonly ConcurrentDictionary<string, KeyValuePair<string, AssemblyInfo>> AssemblyInfoCache = new ConcurrentDictionary<string, KeyValuePair<string, AssemblyInfo>>(StringComparer.OrdinalIgnoreCase);
+    private const string Size = @"[\u0080-\u00FF]{0,4}[\u0000-\u0079]";
 
-    private static byte[] keyPairCache = null;
+    private static readonly Regex BamlRegex = new(
+      @"(?<marker>\u001C)(?<totalsize>" + Size +
+      ")(?<id>..)(?<size>" + Size +
+      @")(?<name>(?:\w+\.)*\w+), Version=(?<version>(?:\d+\.){3}\d+), Culture=(?<culture>(?:\w|\-)+), PublicKeyToken=(?<token>null|(?:\d|[abcdef]){16})",
+      RegexOptions.CultureInvariant | RegexOptions.Singleline);
+
+    private static byte[] keyPairCache;
 
     /// <summary>
-    /// Generates a 1024 bit the strong-name key pair that can be written to an SNK file.
+    /// Provide a message logging method. If this is not set then the console will be used.
     /// </summary>
-    /// <returns>A strong-name key pair array.</returns>
-    public static byte[] GenerateStrongNameKeyPair()
-    {
-#pragma warning disable S4426 // Cryptographic keys should not be too short
-      using (var provider = new RSACryptoServiceProvider(1024, new CspParameters() { KeyNumber = 2 }))
-#pragma warning restore S4426 // Cryptographic keys should not be too short
-      {
-        return provider.ExportCspBlob(!provider.PublicOnly);
-      }
-    }
+    public static Action<string> Log { get; set; }
 
     /// <summary>
     /// Signs the assembly at the specified path.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath)
-    {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, string.Empty);
-    }
+    public static AssemblyInfo SignAssembly(string assemblyPath) => SignAssembly(assemblyPath, string.Empty, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or.pfx).</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or.pfx).</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath)
-    {
-      return SignAssembly(assemblyPath, keyPath, string.Empty, string.Empty);
-    }
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath) => SignAssembly(assemblyPath, keyFilePath, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    /// <exception cref="System.ArgumentNullException">
-    /// assemblyPath parameter was not provided.
-    /// </exception>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find provided assembly file.
+    /// <returns>
+    /// The assembly information of the new strong-name signed assembly.
+    /// </returns>
+    /// <exception cref="System.ArgumentNullException">assemblyPath parameter was not provided.</exception>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.
     /// or
-    /// Could not find provided strong-name key file.
-    /// </exception>
-    /// <exception cref="System.BadImageFormatException">
-    /// The file is not a .NET managed assembly.
-    /// </exception>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath)
-    {
-      return SignAssembly(assemblyPath, keyPath, outputPath, string.Empty);
-    }
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">The file is not a .NET managed assembly.</exception>
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath, string outputPath) => SignAssembly(assemblyPath, keyFilePath, outputPath, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
     /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
     /// <param name="probingPaths">Additional paths to probe for references.</param>
@@ -97,18 +80,12 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">The file is not a .NET managed assembly.</exception>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyPath, string outputPath, string keyFilePassword, params string[] probingPaths)
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath, string outputPath, string keyFilePassword, params string[] probingPaths)
     {
       // Verify assembly path was passed in.
       if (string.IsNullOrWhiteSpace(assemblyPath))
       {
         throw new ArgumentNullException(nameof(assemblyPath));
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
       }
 
       if (string.IsNullOrWhiteSpace(outputPath))
@@ -122,314 +99,319 @@ namespace Brutal.Dev.StrongNameSigner
         Directory.CreateDirectory(outputPath);
       }
 
-      string outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
-      using (var outputFileMgr = new OutputFileManager(assemblyPath, outputFile))
-      {
-        // Get the assembly info and go from there.
-        var info = GetAssemblyInfo(assemblyPath);
+      var outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
 
-        // Don't sign assemblies with a strong-name signature.
-        // Also do not sign delay signed assemblies, need to figure out how to do this correctly: https://github.com/brutaldev/StrongNameSigner/issues/42
-        if (info.IsSigned || info.SigningType == StrongNameType.DelaySigned)
-        {
-          // If the target directory is different from the input...
-          if (!outputFileMgr.IsInPlaceReplace)
-          {
-            // ...just copy the source file to the destination.
-            outputFileMgr.CopySourceToFinalOutput();
-          }
+      SignAssemblies(new[] { new InputOutputFilePair(assemblyPath, outputFile) }, keyFilePath, keyFilePassword, probingPaths);
 
-          return GetAssemblyInfo(outputFile);
-        }
-
-        if (outputFileMgr.IsInPlaceReplace)
-        {
-          outputFileMgr.CreateBackup();
-        }
-
-        using (var ad = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
-        {
-          ad.Write(outputFileMgr.IntermediateAssemblyPath, new WriterParameters() { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = outputFileMgr.HasSymbols });
-        }
-
-        AssemblyInfoCache.TryRemove(assemblyPath, out var _);
-
-        outputFileMgr.Commit();
-
-        return GetAssemblyInfo(outputFile);
-      }
+      return new AssemblyInfo(outputFile, probingPaths);
     }
 
     /// <summary>
-    /// Gets .NET assembly information.
+    /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
-    /// <param name="assemblyPath">The path to an assembly you want to get information from.</param>
-    /// <param name="probingPaths">Additional paths to probe for references.</param>
-    /// <returns>
-    /// The assembly information.
-    /// </returns>
-    /// <exception cref="System.ArgumentNullException">assemblyPath parameter was not provided.</exception>
-    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.</exception>
-    public static AssemblyInfo GetAssemblyInfo(string assemblyPath, params string[] probingPaths)
-    {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
-      {
-        throw new ArgumentNullException(nameof(assemblyPath));
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
-      }
-
-      var a = new KeyValuePair<string, AssemblyInfo>(null, null);
-      if (AssemblyInfoCache.ContainsKey(assemblyPath) && AssemblyInfoCache.TryGetValue(assemblyPath, out a) &&
-          !GetFileMD5Hash(assemblyPath).Equals(a.Key, StringComparison.OrdinalIgnoreCase))  // Check if the file contents have changed.
-      {
-        AssemblyInfoCache.TryRemove(assemblyPath, out var _);
-
-        // Overwrite with a blank version.
-        a = new KeyValuePair<string, AssemblyInfo>(null, null);
-      }
-
-      if (a.Value == null)
-      {
-        using (var definition = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
-        {
-          bool wasVerified = false;
-
-          var info = new AssemblyInfo()
-          {
-            FilePath = Path.GetFullPath(assemblyPath),
-            DotNetVersion = GetDotNetVersion(definition.MainModule.Runtime),
-            SigningType = !definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned) ? StrongNameType.NotSigned : StrongNameSignatureVerificationEx(assemblyPath, true, ref wasVerified) ? StrongNameType.Signed : StrongNameType.DelaySigned,
-            IsManagedAssembly = definition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly),
-            Is64BitOnly = definition.MainModule.Architecture == TargetArchitecture.AMD64 || definition.MainModule.Architecture == TargetArchitecture.IA64,
-            Is32BitOnly = definition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit),
-            Is32BitPreferred = definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit)
-          };
-
-          a = new KeyValuePair<string, AssemblyInfo>(GetFileMD5Hash(assemblyPath), info);
-          AssemblyInfoCache.TryAdd(assemblyPath, a);
-        }
-      }
-
-      return a.Value;
-    }
-
-    /// <summary>
-    /// Fixes an assembly reference.
-    /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>
-    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
-    /// <returns><c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.</returns>
-    /// <exception cref="System.ArgumentNullException">
-    /// assemblyPath was not provided.
+    /// <param name="assemblyPaths">The paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
     /// or
-    /// referenceAssemblyPath was not provided.
-    /// </exception>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find provided assembly file.
-    /// or
-    /// Could not find provided reference assembly file.
-    /// </exception>
-    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath)
-    {
-      return FixAssemblyReference(assemblyPath, referenceAssemblyPath, string.Empty, string.Empty);
-    }
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<string> assemblyPaths) => SignAssemblies(assemblyPaths, string.Empty, string.Empty);
 
     /// <summary>
-    /// Fixes an assembly reference.
+    /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to fix a reference for.</param>
-    /// <param name="referenceAssemblyPath">The path to the reference assembly path you want to fix in the first assembly.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="assemblyPaths">The paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath) => SignAssemblies(assemblyPaths, keyFilePath, string.Empty);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyPaths">The paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
     /// <param name="probingPaths">Additional paths to probe for references.</param>
-    /// <returns>
-    ///   <c>true</c> if an assembly reference was found and fixed, <c>false</c> if no reference was found.
-    /// </returns>
-    /// <exception cref="System.ArgumentNullException">assemblyPath was not provided.
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
     /// or
-    /// referenceAssemblyPath was not provided.</exception>
-    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.
-    /// or
-    /// Could not find provided reference assembly file.</exception>
-    public static bool FixAssemblyReference(string assemblyPath, string referenceAssemblyPath, string keyPath, string keyFilePassword, params string[] probingPaths)
-    {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
-      {
-        throw new ArgumentNullException(nameof(assemblyPath));
-      }
-
-      if (string.IsNullOrWhiteSpace(referenceAssemblyPath))
-      {
-        throw new ArgumentNullException(nameof(referenceAssemblyPath));
-      }
-
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
-      }
-
-      if (!File.Exists(referenceAssemblyPath))
-      {
-        throw new FileNotFoundException($"Could not find provided reference assembly file '{referenceAssemblyPath}'.", referenceAssemblyPath);
-      }
-
-      bool fixApplied = false;
-
-      using (var fileManagerA = new OutputFileManager(assemblyPath, assemblyPath))
-      using (var fileManagerB = new OutputFileManager(referenceAssemblyPath, referenceAssemblyPath))
-      {
-        using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
-        using (var b = AssemblyDefinition.ReadAssembly(referenceAssemblyPath, GetReadParameters(referenceAssemblyPath, probingPaths)))
-        {
-          var assemblyReference = a.MainModule.AssemblyReferences.FirstOrDefault(r => r.Name.Equals(b.Name.Name, StringComparison.OrdinalIgnoreCase));
-
-          // Found a matching reference, let's set the public key token.
-          if (assemblyReference != null && BitConverter.ToString(assemblyReference.PublicKeyToken) != BitConverter.ToString(b.Name.PublicKeyToken))
-          {
-            assemblyReference.PublicKeyToken = b.Name.PublicKeyToken ?? new byte[0];
-            assemblyReference.Version = b.Name.Version;
-
-            if (!a.Name.IsRetargetable)
-            {
-              a.Write(fileManagerA.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
-            }
-
-            AssemblyInfoCache.TryRemove(assemblyPath, out var _);
-
-            fixApplied = true;
-          }
-
-          var friendReference = b.CustomAttributes.SingleOrDefault(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
-            attr.ConstructorArguments[0].Value.ToString() == a.Name.Name);
-
-          if (friendReference != null && a.Name.HasPublicKey)
-          {
-            // Add the public key to the attribute.
-            var typeRef = friendReference.ConstructorArguments[0].Type;
-            friendReference.ConstructorArguments.Clear();
-            friendReference.ConstructorArguments.Add(new CustomAttributeArgument(typeRef, a.Name.Name + ", PublicKey=" + BitConverter.ToString(a.Name.PublicKey).Replace("-", string.Empty)));
-
-            if (!b.Name.IsRetargetable)
-            {
-              // Save and resign.
-              b.Write(fileManagerB.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(referenceAssemblyPath, ".pdb")) });
-            }
-
-            AssemblyInfoCache.TryRemove(assemblyPath, out var _);
-
-            fixApplied = true;
-          }
-        }
-
-        fileManagerA.Commit();
-        fileManagerB.Commit();
-      }
-
-      return fixApplied;
-    }
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
+      => SignAssemblies(assemblyPaths.Select(path => new InputOutputFilePair(path, path)), keyFilePath, keyFilePassword, probingPaths);
 
     /// <summary>
-    /// Removes any friend assembly references (InternalsVisibleTo attributes) that do not have public keys.
+    /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to remove friend references from.</param>
-    /// <returns><c>true</c> if any invalid friend references were found and fixed, <c>false</c> if no invalid friend references was found.</returns>
-    /// <exception cref="System.ArgumentNullException">
-    /// assemblyPath was not provided.
-    /// </exception>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find provided assembly file.
-    /// </exception>
-    public static bool RemoveInvalidFriendAssemblies(string assemblyPath)
-    {
-      return RemoveInvalidFriendAssemblies(assemblyPath, string.Empty, string.Empty);
-    }
+    /// <param name="assemblyInputOutputPaths">The input and output paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths) => SignAssemblies(assemblyInputOutputPaths, string.Empty, string.Empty);
 
     /// <summary>
-    /// Removes any friend assembly references (InternalsVisibleTo attributes) that do not have public keys.
+    /// Signs the assembly at the specified path with your own strong-name key file.
     /// </summary>
-    /// <param name="assemblyPath">The path to the assembly you want to remove friend references from.</param>
-    /// <param name="keyPath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="assemblyInputOutputPaths">The input and output paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath) => SignAssemblies(assemblyInputOutputPaths, keyFilePath, string.Empty);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyInputOutputPaths">The input and output paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
     /// <param name="probingPaths">Additional paths to probe for references.</param>
-    /// <returns>
-    ///   <c>true</c> if any invalid friend references were found and fixed, <c>false</c> if no invalid friend references was found.
-    /// </returns>
-    /// <exception cref="System.ArgumentNullException">assemblyPath was not provided.</exception>
-    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.</exception>
-    public static bool RemoveInvalidFriendAssemblies(string assemblyPath, string keyPath, string keyFilePassword, params string[] probingPaths)
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
     {
-      // Verify assembly path was passed in.
-      if (string.IsNullOrWhiteSpace(assemblyPath))
+      // If no logger has been set, just use the console.
+      if (Log == null)
       {
-        throw new ArgumentNullException(nameof(assemblyPath));
+        Log = message => Console.WriteLine(message);
       }
 
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
+      // Verify assembly paths were passed in.
+      if (assemblyInputOutputPaths?.Any() != true)
       {
-        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
+        Log("No assembly paths were provided.");
+        return;
       }
 
-      bool fixApplied = false;
-      using (var outFileMgr = new OutputFileManager(assemblyPath, assemblyPath))
+      // Make sure the files actually exist.
+      foreach (var assemblyInputPath in assemblyInputOutputPaths.Select(aio => aio.InputFilePath))
       {
-        using (var a = AssemblyDefinition.ReadAssembly(assemblyPath, GetReadParameters(assemblyPath, probingPaths)))
+        if (!File.Exists(assemblyInputPath))
         {
-          var ivtAttributes = a.CustomAttributes.Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName).ToList();
+          throw new FileNotFoundException($"Could not find provided input assembly file '{assemblyInputPath}'.", assemblyInputPath);
+        }
+      }
 
-          foreach (var friendReference in ivtAttributes)
+      // Convert all path into AssemblyInfo objects.
+      var allAssemblies = new HashSet<AssemblyInfo>();
+      foreach (var filePath in assemblyInputOutputPaths)
+      {
+        try
+        {
+          allAssemblies.Add(new AssemblyInfo(filePath.InputFilePath, probingPaths));
+        }
+        catch (Exception ex)
+        {
+          Log(ex.ToString());
+        }
+      }
+
+      try
+      {
+        // Start with assemblies that are not signed.
+        var assembliesToProcess = new HashSet<AssemblyInfo>(allAssemblies.Where(a => !a.IsSigned));
+
+        var keyPair = GetStrongNameKeyPair(keyFilePath, keyFilePassword);
+        var publicKey = GetPublicKey(keyPair);
+        var token = GetPublicKeyToken(publicKey);
+
+        // Add references that need to be updated and signed.
+        var set = new HashSet<string>(assembliesToProcess.Select(x => x.Definition.Name.Name));
+
+        foreach (var assembly in allAssemblies)
+        {
+          Log($"Checking assembly references in '{assembly.FilePath}'.");
+
+          foreach (var reference in assembly.Definition.MainModule.AssemblyReferences
+            .Where(reference => set.Contains(reference.Name)))
           {
-            // Find any without a public key defined.
-            if (friendReference.HasConstructorArguments && friendReference.ConstructorArguments.Any(ca => ca.Value?.ToString().IndexOf("PublicKey=", StringComparison.Ordinal) == -1))
-            {
-              a.CustomAttributes.Remove(friendReference);
-              fixApplied = true;
-            }
-          }
-
-          if (fixApplied)
-          {
-            if (!a.Name.IsRetargetable)
-            {
-              a.Write(outFileMgr.IntermediateAssemblyPath, new WriterParameters { StrongNameKeyPair = GetStrongNameKeyPair(keyPath, keyFilePassword), WriteSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) });
-            }
-
-            AssemblyInfoCache.TryRemove(assemblyPath, out var _);
+            reference.PublicKey = publicKey;
+            assembliesToProcess.Add(assembly);
           }
         }
 
-        outFileMgr.Commit();
-      }
+        // Strong-name sign all the unsigned assemblies.
+        foreach (var assembly in assembliesToProcess)
+        {
+          Log($"Signing assembly '{assembly.FilePath}'.");
 
-      return fixApplied;
+          var name = assembly.Definition.Name;
+          name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+          name.PublicKey = publicKey;
+          name.HasPublicKey = true;
+          name.Attributes |= AssemblyAttributes.PublicKey;
+        }
+
+        // Fix InternalVisibleToAttribute.
+        foreach (var assembly in allAssemblies)
+        {
+          foreach (var attribute in assembly.Definition.CustomAttributes
+            .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
+            .ToList())
+          {
+            var argument = attribute.ConstructorArguments[0];
+            if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
+            {
+              var originalAssemblyName = (string)argument.Value;
+              var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
+
+              if (signedAssembly == null)
+              {
+                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+
+                assembly.Definition.CustomAttributes.Remove(attribute);
+              }
+              else
+              {
+                var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
+                var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
+
+                attribute.ConstructorArguments.Clear();
+                attribute.ConstructorArguments.Add(updatedArgument);
+              }
+            }
+          }
+        }
+
+        // Fix BAML references.
+        foreach (var assembly in allAssemblies)
+        {
+          foreach (var resources in assembly.Definition.Modules.Select(module => module.Resources))
+          {
+            var resArray = resources.ToArray();
+            for (var resIndex = 0; resIndex < resArray.Length; resIndex++)
+            {
+              var resource = resArray[resIndex];
+              if (resource.ResourceType == ResourceType.Embedded)
+              {
+                if (!resource.Name.EndsWith(".g.resources"))
+                {
+                  continue;
+                }
+
+                var embededResource = (EmbeddedResource)resource;
+                var modifyResource = false;
+
+                using var memoryStream = new MemoryStream();
+                using var writer = new ResourceWriter(memoryStream);
+
+                using var resourceStream = embededResource.GetResourceStream();
+                using var reader = new ResourceReader(resourceStream);
+
+                foreach (var entry in reader.OfType<DictionaryEntry>().ToArray())
+                {
+                  var resourceName = entry.Key.ToString();
+
+                  if (resourceName.EndsWith(".baml", StringComparison.InvariantCulture) && entry.Value is Stream bamlStream)
+                  {
+                    var br = new BinaryReader(bamlStream);
+                    var datab = br.ReadBytes((int)br.BaseStream.Length);
+
+                    var charList = datab.Select(b => (char)b).ToList();
+                    var data = new string(charList.ToArray());
+                    var elementsToReplace = new List<Match>();
+
+                    foreach (Match match in BamlRegex.Matches(data))
+                    {
+                      var name = match.Groups["name"].Value;
+                      if (assembliesToProcess.Any(x => x.Definition.Name.Name == name))
+                      {
+                        elementsToReplace.Add(match);
+                      }
+                    }
+
+                    if (elementsToReplace.Count != 0)
+                    {
+                      assembliesToProcess.Add(assembly);
+                      modifyResource = true;
+
+                      FixBinaryBaml(token, writer, resourceName, charList, elementsToReplace);
+                    }
+                    else
+                    {
+                      bamlStream.Position = 0;
+                      writer.AddResource(resourceName, bamlStream);
+                    }
+                  }
+                  else
+                  {
+                    writer.AddResource(resourceName, entry.Value);
+                  }
+                }
+
+                if (modifyResource)
+                {
+                  Log($"Replacing BAML entry in assembly '{assembly.FilePath}'.");
+
+                  resources.RemoveAt(resIndex);
+                  writer.Generate();
+                  var array = memoryStream.ToArray();
+                  memoryStream.Position = 0;
+
+                  var newEmbeded = new EmbeddedResource(resource.Name, resource.Attributes, array);
+                  resources.Insert(resIndex, newEmbeded);
+                }
+              }
+            }
+          }
+        }
+
+        // Write all updated assemblies.
+        foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
+        {
+          using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
+
+          if (outputFileMgr.IsInPlaceReplace)
+          {
+            outputFileMgr.CreateBackup();
+          }
+
+          Log($"Saving changes to assembly '{assembly.FilePath}'.");
+
+          assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+          assembly.Dispose();
+
+          outputFileMgr.Commit();
+        }
+      }
+      finally
+      {
+        foreach (var assembly in allAssemblies)
+        {
+          assembly.Dispose();
+        }
+      }
     }
 
-    internal static StrongNameKeyPair GetStrongNameKeyPair(string keyPath, string keyFilePassword)
+    private static byte[] GenerateStrongNameKeyPair()
     {
-      if (!string.IsNullOrEmpty(keyPath))
+      using var provider = new RSACryptoServiceProvider(4096);
+      return provider.ExportCspBlob(!provider.PublicOnly);
+    }
+
+    private static byte[] GetStrongNameKeyPair(string keyFilePath, string keyFilePassword)
+    {
+      if (!string.IsNullOrEmpty(keyFilePath))
       {
         if (!string.IsNullOrEmpty(keyFilePassword))
         {
-          var cert = new X509Certificate2(keyPath, keyFilePassword, X509KeyStorageFlags.Exportable);
+          var cert = new X509Certificate2(keyFilePath, keyFilePassword, X509KeyStorageFlags.Exportable);
 
-          if (!(cert.PrivateKey is RSACryptoServiceProvider provider))
+          if (cert.PrivateKey is not RSACryptoServiceProvider provider)
           {
             throw new InvalidOperationException("The key file is not password protected or the incorrect password was provided.");
           }
 
-          return new StrongNameKeyPair(provider.ExportCspBlob(true));
+          return provider.ExportCspBlob(true);
         }
         else
         {
-          return new StrongNameKeyPair(File.ReadAllBytes(keyPath));
+          return File.ReadAllBytes(keyFilePath);
         }
       }
       else
@@ -437,89 +419,112 @@ namespace Brutal.Dev.StrongNameSigner
         // Only cache generated keys so all signed assemblies use the same public key.
         if (keyPairCache != null)
         {
-          return new StrongNameKeyPair(keyPairCache);
+          return keyPairCache;
         }
 
         keyPairCache = GenerateStrongNameKeyPair();
 
-        return new StrongNameKeyPair(keyPairCache);
+        return keyPairCache;
       }
     }
 
-    private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
+    // https://raw.githubusercontent.com/atykhyy/cecil/master/Mono.Security.Cryptography/CryptoService.cs
+    private static byte[] GetPublicKey(byte[] keyBlob)
     {
-      using (var resolver = new DefaultAssemblyResolver())
-      {
-        if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
-        {
-          resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
-        }
+      using var rsa = CryptoConvert.FromCapiKeyBlob(keyBlob);
+      var cspBlob = CryptoConvert.ToCapiPublicKeyBlob(rsa);
+      var publicKey = new byte[12 + cspBlob.Length];
+      Buffer.BlockCopy(cspBlob, 0, publicKey, 12, cspBlob.Length);
+      // The first 12 bytes are documented at:
+      // http://msdn.microsoft.com/library/en-us/cprefadd/html/grfungethashfromfile.asp
+      // ALG_ID - Signature
+      publicKey[1] = 36;
+      // ALG_ID - Hash
+      publicKey[4] = 4;
+      publicKey[5] = 128;
+      // Length of Public Key (in bytes)
+      publicKey[8] = (byte)(cspBlob.Length >> 0);
+      publicKey[9] = (byte)(cspBlob.Length >> 8);
+      publicKey[10] = (byte)(cspBlob.Length >> 16);
+      publicKey[11] = (byte)(cspBlob.Length >> 24);
 
-        if (probingPaths != null)
-        {
-          foreach (var searchDir in probingPaths)
-          {
-            if (Directory.Exists(searchDir))
-            {
-              resolver.AddSearchDirectory(searchDir);
-            }
-          }
-        }
-
-        ReaderParameters readParams;
-        try
-        {
-          readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
-        }
-        catch (InvalidOperationException)
-        {
-          readParams = new ReaderParameters() { AssemblyResolver = resolver };
-        }
-
-        return readParams;
-      }
+      return publicKey;
     }
 
-    private static string GetDotNetVersion(TargetRuntime runtime)
+    private static string GetPublicKeyToken(byte[] publicKey)
     {
-      switch (runtime)
+      using var csp = new SHA1CryptoServiceProvider();
+      var hash = csp.ComputeHash(publicKey);
+      var token = new byte[8];
+      for (var i = 0; i < 8; i++)
       {
-        case TargetRuntime.Net_1_0:
-          return "1.0.3705";
-        case TargetRuntime.Net_1_1:
-          return "1.1.4322";
-        case TargetRuntime.Net_2_0:
-          return "2.0.50727";
-        case TargetRuntime.Net_4_0:
-          return "4.0.30319";
+        token[i] = hash[hash.Length - (i + 1)];
       }
 
-      return "UNKNOWN";
+      return string.Concat(token.Select(x => x.ToString("x2")));
     }
 
-    private static string GetFileMD5Hash(string filePath)
+    private static void FixBinaryBaml(string publicKeyToken, ResourceWriter rw, string resourceName, List<char> charList, List<Match> elementsToReplace)
     {
-      if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
-      {
-        return string.Empty;
-      }
+      elementsToReplace = elementsToReplace.OrderBy(x => x.Index).ToList();
 
-      var sb = new StringBuilder();
-      using (var md5 = MD5.Create())
-      {
-        byte[] bytes = File.ReadAllBytes(filePath);
-        byte[] encoded = md5.ComputeHash(bytes);
+      using var buffer = new MemoryStream();
+      using var bufferWriter = new BinaryWriter(buffer);
 
-        for (int i = 0; i < encoded.Length; i++)
+      for (var i = 0; i < charList.Count; i++)
+      {
+        if (elementsToReplace.Count > 0 && elementsToReplace[0].Index == i)
         {
-          sb.Append(encoded[i].ToString("X2", CultureInfo.InvariantCulture));
+          var match = elementsToReplace[0];
+          bufferWriter.Write((byte)0x1C);
+
+          var newAssembly =
+            string.Format(
+              "{0}, Version={1}, Culture={2}, PublicKeyToken={3}",
+              match.Groups["name"].Value,
+              match.Groups["version"].Value,
+              match.Groups["culture"].Value,
+              publicKeyToken);
+
+          var length = Get7BitEncoded(newAssembly.Length).Length + newAssembly.Length + 3;
+          var totalLength = Get7BitEncoded(length);
+          bufferWriter.Write(totalLength);
+
+          var id = match.Groups["id"].Value;
+          bufferWriter.Write((byte)id[0]);
+          bufferWriter.Write((byte)id[1]);
+          bufferWriter.Write(newAssembly);
+
+          i += match.Length - 1;
+
+          elementsToReplace.RemoveAt(0);
+        }
+        else
+        {
+          var b = (byte)charList[i];
+          bufferWriter.Write(b);
         }
       }
 
-      return sb.ToString();
+      bufferWriter.Flush();
+
+      var mst = new MemoryStream(buffer.ToArray());
+      rw.AddResource(resourceName, mst);
     }
 
-    [DllImport("mscoree.dll", CharSet = CharSet.Unicode)]
-    private static extern bool StrongNameSignatureVerificationEx(string filePath, bool forceVerification, ref bool wasVerified);
+    private static byte[] Get7BitEncoded(int value)
+    {
+      var list = new List<byte>();
+      var num = (uint)value;
+
+      while (num >= 128U)
+      {
+        list.Add((byte)(num | 128U));
+        num >>= 7;
+      }
+
+      list.Add((byte)num);
+      return list.ToArray();
+    }
   }
 }

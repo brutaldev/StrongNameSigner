@@ -17,30 +17,35 @@ namespace Brutal.Dev.StrongNameSigner.UI
     private readonly StringBuilder log = new StringBuilder();
 
     private string keyFile = string.Empty;
-    private string outputPath = string.Empty;
+    private string outputDirectory = string.Empty;
     private string password = string.Empty;
-    
+
     public MainForm()
     {
       InitializeComponent();
 
+      SigningHelper.Log = message => log.AppendLine(message);
       Application.ThreadException += ApplicationThreadException;
       AppDomain.CurrentDomain.UnhandledException += CurrentDomainUnhandledException;
     }
 
     private static ListViewItem CreateListViewItem(AssemblyInfo info)
     {
+#pragma warning disable S3358 // Ternary operators should not be nested
       var item = new ListViewItem(new string[]
       {
         Path.GetFileName(info.FilePath),
         info.DotNetVersion,
         (info.IsAnyCpu ? "Any CPU" : info.Is32BitOnly ? "x86" : info.Is64BitOnly ? "x64" : "UNKNOWN") + (info.Is32BitPreferred ? " (x86 preferred)" : string.Empty),
+
         info.SigningType == StrongNameType.Signed ? "Yes" : info.SigningType == StrongNameType.DelaySigned ? "Delay" : "No",
         info.FilePath
-      });
-
-      item.Tag = info.FilePath;
-      item.UseItemStyleForSubItems = false;
+      })
+      {
+        Tag = info.FilePath,
+        UseItemStyleForSubItems = false
+      };
+#pragma warning restore S3358 // Ternary operators should not be nested
 
       // Update the color of the signed column.
       if (info.SigningType == StrongNameType.Signed)
@@ -170,24 +175,24 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       if (e.Data.GetData(DataFormats.FileDrop) is IEnumerable<string> data)
       {
-        var assemblies = data.Where(d => (Path.GetExtension(d).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
+        var files = data.Where(d => (Path.GetExtension(d).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
                                           Path.GetExtension(d).Equals(".dll", StringComparison.OrdinalIgnoreCase)) &&
                                           File.Exists(d)).ToList();
 
         // Add all files in directories.
         var directories = data.Where(d => Directory.Exists(d) && File.GetAttributes(d).HasFlag(FileAttributes.Directory)).ToList();
-        directories.ForEach(d => assemblies.AddRange(Directory.GetFiles(d, "*.exe", SearchOption.AllDirectories)));
-        directories.ForEach(d => assemblies.AddRange(Directory.GetFiles(d, "*.dll", SearchOption.AllDirectories)));
+        directories.ForEach(d => files.AddRange(Directory.GetFiles(d, "*.exe", SearchOption.AllDirectories)));
+        directories.ForEach(d => files.AddRange(Directory.GetFiles(d, "*.dll", SearchOption.AllDirectories)));
 
-        foreach (var assembly in assemblies)
+        foreach (var file in files)
         {
           try
           {
-            AddAssemblyToList(SigningHelper.GetAssemblyInfo(assembly));
+            AddAssemblyToList(new AssemblyInfo(file));
           }
           catch (BadImageFormatException)
           {
-            MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", assembly), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(string.Format(CultureInfo.CurrentCulture, "Could not get assembly info for '{0}'. This may not be a .NET assembly.", file), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
           }
         }
 
@@ -240,7 +245,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
             {
               try
               {
-                AddAssemblyToList(SigningHelper.GetAssemblyInfo(file));
+                AddAssemblyToList(new AssemblyInfo(file));
               }
               catch (BadImageFormatException)
               {
@@ -258,7 +263,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
           {
             try
             {
-              AddAssemblyToList(SigningHelper.GetAssemblyInfo(file));
+              AddAssemblyToList(new AssemblyInfo(file));
             }
             catch (BadImageFormatException)
             {
@@ -288,7 +293,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
     private void ButtonSignClick(object sender, EventArgs e)
     {
       keyFile = string.Empty;
-      outputPath = string.Empty;
+      outputDirectory = string.Empty;
       password = string.Empty;
       log.Clear();
 
@@ -319,10 +324,10 @@ namespace Brutal.Dev.StrongNameSigner.UI
       }
       else
       {
-        outputPath = textBoxOutput.Text.Trim();
+        outputDirectory = textBoxOutput.Text.Trim();
       }
 
-      var assemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var assemblies = new HashSet<string>();
       foreach (ListViewItem item in listViewAssemblies.Items)
       {
         assemblies.Add(item.Tag.ToString());
@@ -356,112 +361,28 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       e.Result = string.Empty;
 
-      int progress = 0;
-      int signedFiles = 0;
-      int referenceFixes = 0;
-      var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-      var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-      if (e.Argument is IEnumerable<string> assemblyPaths)
+      if (e.Argument is IEnumerable<string> filePaths)
       {
-        var probingPaths = assemblyPaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
+        var assemblyInputOutputPaths = filePaths.Select(filePath =>
+          new InputOutputFilePair(Path.GetFullPath(filePath),
+                                  Path.Combine(Path.GetFullPath(string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory), Path.GetFileName(filePath))));
 
-        // We go through assemblies three times and every assembly -1 for reference fixes.
-        double progressMax = (assemblyPaths.Count() + (assemblyPaths.Count() * (assemblyPaths.Count() - 1))) * 3;
-        
-        foreach (var filePath in assemblyPaths)
+        try
         {
-          var assemblyPair = new AssemblyPair();
+          var probingPaths = filePaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
+          SigningHelper.SignAssemblies(assemblyInputOutputPaths, keyFile, password, probingPaths);
 
-          try
-          {
-            log.AppendFormat("Strong-name signing {0}...", filePath).AppendLine();
-
-            assemblyPair.OldInfo = SigningHelper.GetAssemblyInfo(filePath);
-            assemblyPair.NewInfo = SigningHelper.SignAssembly(filePath, keyFile, outputPath, password, probingPaths);
-
-            if (assemblyPair.NewInfo.SigningType == StrongNameType.DelaySigned)
-            {
-              log.Append("Delay-signed assembly signing is not supported yet...").AppendLine();
-            }
-            else if (!assemblyPair.OldInfo.IsSigned && assemblyPair.NewInfo.IsSigned)
-            {
-              log.Append("Strong-name signed successfully.").AppendLine();
-              signedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
-              signedFiles++;
-            }
-            else
-            {
-              log.Append("Already strong-name signed...").AppendLine();
-            }
-            
-            processedAssemblyPaths.Add(assemblyPair.NewInfo.FilePath);
-          }
-          catch (Exception ex)
-          {
-            log.AppendFormat("Error strong-name signing {0}: {1}", filePath, ex.Message).AppendLine();
-          }
-
-          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100), assemblyPair);
-
-          if (backgroundWorker.CancellationPending)
-          {
-            e.Cancel = true;
-            break;
-          }
+          e.Result = string.Format(CultureInfo.CurrentCulture, "{0} assemblies were processed successfully.", filePaths.Count());
         }
-
-        var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
-        foreach (var filePath in processedAssemblyPaths)
+        catch (Exception ex)
         {
-          // Go through all the references excluding the file we are working on.
-          foreach (var reference in referencesToFix.Where(r => !r.Equals(filePath)))
-          {
-            backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
-
-            if (backgroundWorker.CancellationPending)
-            {
-              e.Cancel = true;
-              break;
-            }
-
-            log.AppendFormat("Fixing references to {1} in {0}...", filePath, reference).AppendLine();
-            if (SigningHelper.FixAssemblyReference(filePath, reference, keyFile, password, probingPaths))
-            {
-              log.Append("Reference was found and fixed.").AppendLine();
-              referenceFixes++;
-            }
-            else
-            {
-              log.Append("Nothing to fix.").AppendLine();
-            }
-          }
+          log.AppendFormat("Error strong-name signing: {0}", ex.Message).AppendLine();
+          throw;
         }
-
-        // Go through all processed assemblies and remove invalid friend references.
-        foreach (var filePath in signedAssemblyPaths)
+        finally
         {
-          backgroundWorker.ReportProgress(Convert.ToInt32((++progress / progressMax) * 100));
-
-          if (backgroundWorker.CancellationPending)
-          {
-            e.Cancel = true;
-            break;
-          }
-
-          log.AppendFormat("Removing invalid friend references from '{0}'...", filePath).AppendLine();
-          if (SigningHelper.RemoveInvalidFriendAssemblies(filePath, keyFile, password, probingPaths))
-          {
-            log.Append("Invalid friend assemblies removed.").AppendLine();
-            referenceFixes++;
-          }
-          else
-          {
-            log.Append("Nothing to fix.").AppendLine();
-          }
+          backgroundWorker.ReportProgress(100, assemblyInputOutputPaths.Select(io => io.OutFilePath));
         }
-
-        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} out of {1} assemblies were strong-name signed and {2} references were fixed.", signedFiles, assemblyPaths.Count(), referenceFixes);
       }
     }
 
@@ -469,25 +390,34 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       progressBar.Value = e.ProgressPercentage;
 
-      // Update the item in the list with it's new values.
-      UpdateAssemblyInList(e.UserState as AssemblyPair);
+      if (e.ProgressPercentage == 100)
+      {
+        listViewAssemblies.Items.Clear();
+
+        foreach (var file in e.UserState as IEnumerable<string>)
+        {
+          AddAssemblyToList(new AssemblyInfo(file));
+        }
+      }
     }
 
     private void BackgroundWorkerRunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
     {
       progressBar.Value = 0;
       labelInfo.Text = string.Empty;
+      labelInfo.ForeColor = Control.DefaultForeColor;
       linkLabelLog.Visible = true;
       EnableControls(true);
 
-      if (!e.Cancelled)
-      {
-        labelInfo.Text = e.Result.ToString();
-      }
-
       if (e.Error != null)
       {
+        labelInfo.Text = e.Error.Message;
+        labelInfo.ForeColor = Color.Red;
         MessageBox.Show("An error occurred trying to strong-name sign the assemblies: " + e.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
+      else if (!e.Cancelled)
+      {
+        labelInfo.Text = e.Result.ToString();
       }
     }
 
@@ -498,7 +428,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
     private void CurrentDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-      MessageBox.Show((e.ExceptionObject as Exception).Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      MessageBox.Show((e.ExceptionObject as Exception)?.Message ?? "<Unknown Error>", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
       if (e.IsTerminating)
       {
@@ -531,25 +461,9 @@ namespace Brutal.Dev.StrongNameSigner.UI
       buttonSign.Enabled = enabled;
     }
 
-    private void UpdateAssemblyInList(AssemblyPair pair)
-    {
-      if (pair != null && pair.OldInfo != null && pair.NewInfo != null)
-      {
-        for (int i = 0; i < listViewAssemblies.Items.Count; i++)
-        {
-          if (listViewAssemblies.Items[i].Tag.ToString().Equals(pair.OldInfo.FilePath, StringComparison.OrdinalIgnoreCase))
-          {
-            // Replace with new information.
-            listViewAssemblies.Items[i] = CreateListViewItem(pair.NewInfo);
-            break;
-          }
-        }
-      }
-    }
-
     private void AddAssemblyToList(AssemblyInfo info)
     {
-      if (info != null && info.IsManagedAssembly)
+      if (info?.IsManagedAssembly == true)
       {
         bool foundDuplicate = false;
         for (int i = 0; i < listViewAssemblies.Items.Count; i++)

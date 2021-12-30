@@ -13,8 +13,8 @@
     /// <summary>
     /// The assembly contains a public key but is not actually signed.
     /// </summary>
-    /// <remarks><see cref="https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/publicsign-compiler-option"/>
-    /// Additional documentation on delay-signing.
+    /// <remarks>
+    /// <see href="https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/publicsign-compiler-option"/> for additional documentation on delay-signing.
     /// </remarks>
     DelaySigned,
 

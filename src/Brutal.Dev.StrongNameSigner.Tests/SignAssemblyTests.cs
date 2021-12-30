@@ -28,25 +28,25 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     [Test]
     public void SignAssembly_Public_API_Invalid_Path_Should_Throw_Exception()
     {
-      Assert.Throws<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")));
+      Assert.Throws<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")).Dispose());
     }
 
     [Test]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Password_Not_Provided()
     {
-      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx")));
+      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx")).Dispose());
     }
 
     [Test]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Wrong_Password_Provided()
     {
-      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops"));
+      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops").Dispose());
     }
 
     [Test]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Work_With_Correct_Password()
     {
-      Assert.DoesNotThrow(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123"));
+      Assert.DoesNotThrow(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123").Dispose());
     }
 
     [Test]
@@ -64,84 +64,112 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     [Test]
     public void SignAssembly_Should_Reassemble_NET_20_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("2.0.50727");
-      info.IsAnyCpu.ShouldBe(true);
-      info.Is32BitOnly.ShouldBe(false);
-      info.Is32BitPreferred.ShouldBe(false);
-      info.Is64BitOnly.ShouldBe(false);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("2.0.50727");
+        info.IsAnyCpu.ShouldBe(true);
+        info.Is32BitOnly.ShouldBe(false);
+        info.Is32BitPreferred.ShouldBe(false);
+        info.Is64BitOnly.ShouldBe(false);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
     public void SignAssembly_Should_Reassemble_NET_40_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("4.0.30319");
-      info.IsAnyCpu.ShouldBe(true);
-      info.Is32BitOnly.ShouldBe(false);
-      info.Is32BitPreferred.ShouldBe(false);
-      info.Is64BitOnly.ShouldBe(false);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("4.0.30319");
+        info.IsAnyCpu.ShouldBe(true);
+        info.Is32BitOnly.ShouldBe(false);
+        info.Is32BitPreferred.ShouldBe(false);
+        info.Is64BitOnly.ShouldBe(false);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
     public void SignAssembly_Should_Reassemble_NET_45_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET45.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("4.0.30319");
-      info.IsAnyCpu.ShouldBe(true);
-      info.Is32BitOnly.ShouldBe(false);
-      info.Is32BitPreferred.ShouldBe(true);
-      info.Is64BitOnly.ShouldBe(false);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET45.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("4.0.30319");
+        info.IsAnyCpu.ShouldBe(true);
+        info.Is32BitOnly.ShouldBe(false);
+        info.Is32BitPreferred.ShouldBe(true);
+        info.Is64BitOnly.ShouldBe(false);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
     public void SignAssembly_Should_Reassemble_NET_20_x86_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("2.0.50727");
-      info.IsAnyCpu.ShouldBe(false);
-      info.Is32BitOnly.ShouldBe(true);
-      info.Is64BitOnly.ShouldBe(false);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("2.0.50727");
+        info.IsAnyCpu.ShouldBe(false);
+        info.Is32BitOnly.ShouldBe(true);
+        info.Is64BitOnly.ShouldBe(false);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
     public void SignAssembly_Should_Reassemble_NET_40_x86_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("4.0.30319");
-      info.IsAnyCpu.ShouldBe(false);
-      info.Is32BitOnly.ShouldBe(true);
-      info.Is32BitPreferred.ShouldBe(false);
-      info.Is64BitOnly.ShouldBe(false);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("4.0.30319");
+        info.IsAnyCpu.ShouldBe(false);
+        info.Is32BitOnly.ShouldBe(true);
+        info.Is32BitPreferred.ShouldBe(false);
+        info.Is64BitOnly.ShouldBe(false);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
     public void SignAssembly_Should_Reassemble_NET_20_x64_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("2.0.50727");
-      info.IsAnyCpu.ShouldBe(false);
-      info.Is32BitOnly.ShouldBe(false);
-      info.Is32BitPreferred.ShouldBe(false);
-      info.Is64BitOnly.ShouldBe(true);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("2.0.50727");
+        info.IsAnyCpu.ShouldBe(false);
+        info.Is32BitOnly.ShouldBe(false);
+        info.Is32BitPreferred.ShouldBe(false);
+        info.Is64BitOnly.ShouldBe(true);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
     public void SignAssembly_Should_Reassemble_NET_40_x64_Assembly_Correctly()
     {
-      var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
-      info.DotNetVersion.ShouldBe("4.0.30319");
-      info.IsAnyCpu.ShouldBe(false);
-      info.Is32BitOnly.ShouldBe(false);
-      info.Is32BitPreferred.ShouldBe(false);
-      info.Is64BitOnly.ShouldBe(true);
-      info.IsSigned.ShouldBe(true);
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("4.0.30319");
+        info.IsAnyCpu.ShouldBe(false);
+        info.Is32BitOnly.ShouldBe(false);
+        info.Is32BitPreferred.ShouldBe(false);
+        info.Is64BitOnly.ShouldBe(true);
+        info.IsSigned.ShouldBe(true);
+      }
+    }
+
+    [Test]
+    public void SignAssembly_Should_Reassemble_Core_5_Assembly_Correctly()
+    {
+      using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.Core5.dll"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
+      {
+        info.DotNetVersion.ShouldBe("4.0.30319");
+        info.IsAnyCpu.ShouldBe(true);
+        info.Is32BitOnly.ShouldBe(false);
+        info.Is32BitPreferred.ShouldBe(false);
+        info.Is64BitOnly.ShouldBe(false);
+        info.IsSigned.ShouldBe(true);
+      }
     }
 
     [Test]
@@ -155,9 +183,10 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), targetAssemblyPath);
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"), Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"));
 
-        SigningHelper.SignAssembly(targetAssemblyPath);
-        var info = SigningHelper.GetAssemblyInfo(targetAssemblyPath);
-        Assert.IsTrue(info.IsSigned);
+        using (var info = SigningHelper.SignAssembly(targetAssemblyPath))
+        {
+          Assert.IsTrue(info.IsSigned);
+        }
       }
       finally
       {
@@ -178,12 +207,13 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), sourceAssemblyPath);
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"), Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.pdb"));
 
-        SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir);
-        string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
-        Assert.IsTrue(File.Exists(outAssembly));
-        Assert.IsTrue(File.Exists(Path.ChangeExtension(outAssembly, ".pdb")));
-        var info = SigningHelper.GetAssemblyInfo(outAssembly);
-        Assert.IsTrue(info.IsSigned);
+        using (var info = SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir))
+        {
+          string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
+          Assert.IsTrue(File.Exists(outAssembly));
+          Assert.IsTrue(File.Exists(Path.ChangeExtension(outAssembly, ".pdb")));
+          Assert.IsTrue(info.IsSigned);
+        }
       }
       finally
       {
@@ -203,11 +233,12 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         string sourceAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), sourceAssemblyPath);
 
-        SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir);
-        string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
-        Assert.IsTrue(File.Exists(outAssembly));
-        var info = SigningHelper.GetAssemblyInfo(outAssembly);
-        Assert.IsTrue(info.IsSigned);
+        using (var info = SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir))
+        {
+          string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
+          Assert.IsTrue(File.Exists(outAssembly));
+          Assert.IsTrue(info.IsSigned);
+        }
       }
       finally
       {
@@ -225,9 +256,10 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         string targetAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), targetAssemblyPath);
 
-        SigningHelper.SignAssembly(targetAssemblyPath);
-        var info = SigningHelper.GetAssemblyInfo(targetAssemblyPath);
-        Assert.IsTrue(info.IsSigned);
+        using (var info = SigningHelper.SignAssembly(targetAssemblyPath))
+        {
+          Assert.IsTrue(info.IsSigned);
+        }
       }
       finally
       {

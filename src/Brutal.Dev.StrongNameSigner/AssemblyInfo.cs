@@ -1,21 +1,48 @@
 ﻿using System;
-using System.Diagnostics.CodeAnalysis;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
   /// <summary>
   /// Expose .NET assembly information.
   /// </summary>
+  /// <seealso cref="System.IDisposable" />
   [Serializable]
-  public sealed class AssemblyInfo
+  public sealed class AssemblyInfo : IEquatable<AssemblyInfo>, IDisposable
   {
+    private readonly Lazy<AssemblyDefinition> modifiedDefintion;
+
+    private bool isDisposed;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AssemblyInfo"/> class.
     /// </summary>
-    public AssemblyInfo()
+    /// <param name="assemblyPath">The path to the assembly to load information for.</param>
+    /// <param name="probingPaths">Additional paths to probe for references.</param>
+    public AssemblyInfo(string assemblyPath, params string[] probingPaths)
     {
-      FilePath = string.Empty;
-      DotNetVersion = string.Empty;
+      FilePath = Path.GetFullPath(assemblyPath);
+
+      using var currentDefinition = AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths));
+
+      DotNetVersion = GetDotNetVersion(currentDefinition.MainModule.Runtime);
+      IsManagedAssembly = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly);
+      Is64BitOnly = currentDefinition.MainModule.Architecture == TargetArchitecture.AMD64 || currentDefinition.MainModule.Architecture == TargetArchitecture.IA64;
+      Is32BitOnly = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
+      Is32BitPreferred = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
+
+      RefreshSigningType(currentDefinition);
+
+      modifiedDefintion = new Lazy<AssemblyDefinition>(() => AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths)));
+    }
+
+    /// <inheritdoc/>
+    ~AssemblyInfo()
+    {
+      Dispose(disposing: false);
     }
 
     /// <summary>
@@ -24,7 +51,15 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     /// The full file path of the assembly.
     /// </value>
-    public string FilePath { get; internal set; }
+    public string FilePath { get; }
+
+    /// <summary>
+    /// Gets the assembly definition.
+    /// </summary>
+    /// <value>
+    /// The assembly definition.
+    /// </value>
+    public AssemblyDefinition Definition => modifiedDefintion.Value;
 
     /// <summary>
     /// Gets the .NET version that this assembly was built for, this will be the version of the CLR that is targeted.
@@ -32,12 +67,12 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     /// The .NET version of the CLR this assembly will use.
     /// </value>
-    public string DotNetVersion { get; internal set; }
+    public string DotNetVersion { get; }
 
     /// <summary>
     /// Determine the type of signing that is in place in the assembly.
     /// </summary>
-    public StrongNameType SigningType { get; internal set; }
+    public StrongNameType SigningType { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether this assembly is strong-name signed.
@@ -85,12 +120,131 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     ///   <c>true</c> if assembly targets any CPU; otherwise, <c>false</c>.
     /// </value>
-    [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Cpu", Justification = "Acronym")]
-    public bool IsAnyCpu
+    public bool IsAnyCpu => IsManagedAssembly && !Is32BitOnly && !Is64BitOnly;
+
+    /// <summary>
+    /// Saves the assembly to disk with any modifications made.
+    /// </summary>
+    /// <param name="assemblyPath">The full file path to write the assembly information to.</param>
+    /// <param name="keyPair">The key pair.</param>
+    public void Save(string assemblyPath, byte[] keyPair)
     {
-      get
+      if (modifiedDefintion.IsValueCreated)
       {
-        return IsManagedAssembly && !Is32BitOnly && !Is64BitOnly;
+        modifiedDefintion.Value.Write(assemblyPath, new WriterParameters() { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
+        RefreshSigningType(modifiedDefintion.Value);
+      }
+    }
+
+    /// <inheritdoc/>
+    public bool Equals(AssemblyInfo other) => other?.FilePath.Equals(FilePath) == true;
+
+    /// <inheritdoc/>
+    public override bool Equals(object obj) => Equals(obj as AssemblyInfo);
+
+    /// <inheritdoc/>
+    public override int GetHashCode() => Tuple.Create(FilePath).GetHashCode();
+
+    /// <inheritdoc/>
+    public override string ToString() => FilePath;
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+      Dispose(disposing: true);
+      GC.SuppressFinalize(this);
+    }
+
+    private void RefreshSigningType(AssemblyDefinition defintion)
+    {
+      IClrStrongName clrStrongName = null;
+
+      try
+      {
+        var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
+
+        if (runtimeInterface != null)
+        {
+          clrStrongName = runtimeInterface as IClrStrongName;
+        }
+      }
+      catch (InvalidCastException)
+      {
+        // Nothing to do here, cannot create the runtime interface so will skip verification.
+      }
+      catch (PlatformNotSupportedException)
+      {
+        // Nothing to do here, this only works in Windows.
+      }
+
+      var strongNameVerificationResult = clrStrongName?.StrongNameSignatureVerificationEx(FilePath, true, out _);
+      bool strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
+
+      if (!defintion.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
+      {
+        SigningType = StrongNameType.NotSigned;
+      }
+      else if (strongNameVerified)
+      {
+        SigningType = StrongNameType.Signed;
+      }
+      else
+      {
+        SigningType = StrongNameType.DelaySigned;
+      }
+    }
+
+    private static string GetDotNetVersion(TargetRuntime runtime)
+    {
+      return runtime switch
+      {
+        TargetRuntime.Net_1_0 => "1.0.3705",
+        TargetRuntime.Net_1_1 => "1.1.4322",
+        TargetRuntime.Net_2_0 => "2.0.50727",
+        TargetRuntime.Net_4_0 => "4.0.30319",
+        _ => "UNKNOWN",
+      };
+    }
+
+    private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
+    {
+      using var resolver = new DefaultAssemblyResolver();
+      if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
+      {
+        resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
+      }
+
+      if (probingPaths != null)
+      {
+        foreach (var searchDir in probingPaths.Where(searchDir => Directory.Exists(searchDir)))
+        {
+          resolver.AddSearchDirectory(searchDir);
+        }
+      }
+
+      ReaderParameters readParams;
+      try
+      {
+        readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+      }
+      catch (InvalidOperationException)
+      {
+        readParams = new ReaderParameters() { AssemblyResolver = resolver };
+      }
+
+      return readParams;
+    }
+
+    private void Dispose(bool disposing)
+    {
+      if (!isDisposed)
+      {
+        if (disposing && modifiedDefintion.IsValueCreated)
+        {
+          modifiedDefintion.Value.Dispose();
+        }
+
+        isDisposed = true;
       }
     }
   }

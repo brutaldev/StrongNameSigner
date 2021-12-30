@@ -4,7 +4,7 @@
 #define MyAppID "{A89C23E7-A764-4F59-8EF3-5AB0A33E5849}"
 #define MyAppName ".NET Assembly Strong-Name Signer"
 #define MyAppNameNoSpaces "StrongNameSigner"
-#define MyAppVersion "2.9.1.0"
+#define MyAppVersion "3.1.0.0"
 #define MyAppPublisher "BrutalDev"
 #define MyAppURL "https://github.com/brutaldev/StrongNameSigner"
 #define MyAppExeName "StrongNameSigner.exe"
@@ -48,17 +48,19 @@ win_sp_title=Windows %1 Service Pack %2
 
 [Files]
 Source: "..\Brutal.Dev.StrongNameSigner.Docs\output\Help.chm"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
-Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
-Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Mdb.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
-Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Pdb.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
-Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Mono.Cecil.Rocks.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
-Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.XML"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
-Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.Mdb.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.Pdb.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Mono.Cecil.Rocks.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Brutal.Dev.StrongNameSigner.XML"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
+Source: "..\Brutal.Dev.StrongNameSigner\bin\Release\netstandard2.0\publish\Brutal.Dev.StrongNameSigner.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion
 Source: "..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: Console
+Source: "..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe.config"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: Console
 Source: "..\Brutal.Dev.StrongNameSigner.Console\bin\Release\PowerArgs.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: Console
 Source: "..\Brutal.Dev.StrongNameSigner.UI\bin\Release\Microsoft.WindowsAPICodePack.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: UserInterface
 Source: "..\Brutal.Dev.StrongNameSigner.UI\bin\Release\Microsoft.WindowsAPICodePack.Shell.dll"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: UserInterface
 Source: "..\Brutal.Dev.StrongNameSigner.UI\bin\Release\StrongNameSigner.exe"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: UserInterface
+Source: "..\Brutal.Dev.StrongNameSigner.UI\bin\Release\StrongNameSigner.exe.config"; DestDir: "{app}"; Flags: ignoreversion replacesameversion; Components: UserInterface
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Components: UserInterface
