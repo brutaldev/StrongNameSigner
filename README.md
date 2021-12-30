@@ -115,7 +115,7 @@ API Usage
 Reference **Brutal.Dev.StrongNameSigner.dll** in your project or include it in a PowerShell script.
 
 ```csharp
-var newInfo = Brutal.Dev.StrongNameSigner.SigningHelper.SignAssembly(@"C:\MyAssembly.dll");
+using var newInfo = Brutal.Dev.StrongNameSigner.SigningHelper.SignAssembly(@"C:\MyAssembly.dll");
 ```
 
 Build

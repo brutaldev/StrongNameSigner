@@ -27,10 +27,11 @@ namespace Brutal.Dev.StrongNameSigner
     public override bool Execute()
     {
       var timer = Stopwatch.StartNew();
-      bool chagesMade = false;
 
       try
       {
+        SigningHelper.Log = message => Log.LogMessage(MessageImportance.Normal, message);
+
         Log.LogMessage(MessageImportance.High, "-- Starting Brutal Developer .NET Assembly Strong-Name Signer Task --");
 
         if (References == null || References.Length == 0)
@@ -52,100 +53,41 @@ namespace Brutal.Dev.StrongNameSigner
           Directory.CreateDirectory(signedAssemblyFolder);
         }
 
-        string snkFilePath = Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "StrongNameSigner.snk");
-        if (!File.Exists(snkFilePath))
-        {
-          File.WriteAllBytes(snkFilePath, SigningHelper.GenerateStrongNameKeyPair());
-        }
-
-        Log.LogMessage(MessageImportance.Normal, "Signed Assembly Directory: {0}", signedAssemblyFolder);
-        Log.LogMessage(MessageImportance.Normal, "SNK File Path: {0}", snkFilePath);
+        Log.LogMessage(MessageImportance.Normal, $"Signed Assembly Directory: {signedAssemblyFolder}");
 
         var updatedReferencePaths = new Dictionary<string, string>();
-        var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var assembliesToSign = new HashSet<string>();
         var probingPaths = References.Select(r => Path.GetDirectoryName(r.ItemSpec)).Distinct().ToArray();
 
         for (int i = 0; i < References.Length; i++)
         {
-          var ret = new TaskItem(References[i]);
+          SignedAssembliesToReference[i] = new TaskItem(References[i]) { ItemSpec = References[i].ItemSpec };
+
+          if (SignedAssembliesToReference[i].ItemSpec != References[i].ItemSpec)
+          {
+            updatedReferencePaths[References[i].ItemSpec] = SignedAssembliesToReference[i].ItemSpec;
+          }
+
           var sep = Path.DirectorySeparatorChar;
 
-          if (References[i].ItemSpec.IndexOf($"{sep}Reference Assemblies{sep}Microsoft{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}Microsoft.NET{sep}Framework{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}Microsoft{sep}NetFramework{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}NuGetScratch{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}Cache{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}v3-cache{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}plugins-cache{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}netstandard.library{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}.nuget{sep}packages{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}sdk{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}packs{sep}", StringComparison.OrdinalIgnoreCase) > -1 ||
-              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}shared{sep}Microsoft.", StringComparison.OrdinalIgnoreCase) > -1)
+          if (References[i].ItemSpec.IndexOf($"{sep}Reference Assemblies{sep}Microsoft{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}Microsoft.NET{sep}Framework{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}Microsoft{sep}NetFramework{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}NuGetScratch{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}Cache{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}v3-cache{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}NuGet{sep}plugins-cache{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}netstandard.library{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}.nuget{sep}packages{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}sdk{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}packs{sep}", StringComparison.OrdinalIgnoreCase) != -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}shared{sep}Microsoft.", StringComparison.OrdinalIgnoreCase) != -1)
           {
-            // Don't attempt to sign and process framework assemblies, they should be signed already, just add them to be copied.
-            ret.ItemSpec = References[i].ItemSpec;
-            SignedAssembliesToReference[i] = ret;
-
-            if (SignedAssembliesToReference[i].ItemSpec != References[i].ItemSpec)
-            {
-              updatedReferencePaths[References[i].ItemSpec] = SignedAssembliesToReference[i].ItemSpec;
-            }
-          }
-          else
-          {
-            var signedAssembly = SigningHelper.GetAssemblyInfo(References[i].ItemSpec);
-
-            // Check if it is currently signed.
-            if (!signedAssembly.IsSigned)
-            {
-              signedAssembly = SignSingleAssembly(References[i].ItemSpec, snkFilePath, signedAssemblyFolder, probingPaths);
-
-              if (signedAssembly != null)
-              {
-                chagesMade = true;
-              }
-            }
-
-            if (signedAssembly?.IsSigned == true)
-            {
-              signedAssemblyPaths.Add(signedAssembly.FilePath);
-              processedAssemblyPaths.Add(signedAssembly.FilePath);
-              ret.ItemSpec = signedAssembly.FilePath;
-            }
-            else
-            {
-              processedAssemblyPaths.Add(References[i].ItemSpec);
-            }
-
-            SignedAssembliesToReference[i] = ret;
-
-            if (SignedAssembliesToReference[i].ItemSpec != References[i].ItemSpec)
-            {
-              updatedReferencePaths[References[i].ItemSpec] = SignedAssembliesToReference[i].ItemSpec;
-            }
+            assembliesToSign.Add(References[i].ItemSpec);
           }
         }
 
-        if (chagesMade)
-        {
-          var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
-          foreach (var filePath in processedAssemblyPaths)
-          {
-            // Go through all the references excluding the file we are working on.
-            foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
-            {
-              FixSingleAssemblyReference(filePath, referencePath, snkFilePath, probingPaths);
-            }
-          }
-
-          // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
-          foreach (var filePath in signedAssemblyPaths)
-          {
-            RemoveInvalidFriendAssemblyReferences(filePath, snkFilePath, probingPaths);
-          }
-        }
+        SigningHelper.SignAssemblies(assembliesToSign, string.Empty, string.Empty, probingPaths);
 
         if (CopyLocalPaths != null)
         {
@@ -154,10 +96,7 @@ namespace Brutal.Dev.StrongNameSigner
           {
             if (updatedReferencePaths.TryGetValue(CopyLocalPaths[i].ItemSpec, out string updatedPath))
             {
-              NewCopyLocalFiles[i] = new TaskItem(CopyLocalPaths[i])
-              {
-                ItemSpec = updatedPath
-              };
+              NewCopyLocalFiles[i] = new TaskItem(CopyLocalPaths[i]) { ItemSpec = updatedPath };
             }
             else
             {
@@ -166,7 +105,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        Log.LogMessage(MessageImportance.High, "-- Finished Brutal Developer .NET Assembly Strong-Name Signer Task -- {0}", timer.Elapsed);
+        Log.LogMessage(MessageImportance.High, $"-- Finished Brutal Developer .NET Assembly Strong-Name Signer Task -- {timer.Elapsed}");
 
         return true;
       }
@@ -176,104 +115,6 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return false;
-    }
-
-    private AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, params string[] probingPaths)
-    {
-      try
-      {
-        Log.LogMessage(MessageImportance.Low, string.Empty);
-        Log.LogMessage(MessageImportance.Low, "Strong-name signing '{0}'...", assemblyPath);
-
-        var oldInfo = SigningHelper.GetAssemblyInfo(assemblyPath);
-        var newInfo = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, null, probingPaths);
-
-        if (!oldInfo.IsSigned && newInfo.IsSigned)
-        {
-          Log.LogMessage(MessageImportance.High, "Strong-name signature applied to '{0}' successfully.", newInfo.FilePath);
-
-          return newInfo;
-        }
-        else
-        {
-          Log.LogMessage(MessageImportance.Low, "Strong-name signature already applied to '{0}'...", assemblyPath);
-          Log.LogMessage(MessageImportance.Low, "Original assembly IsSigned: {0}, After signing attempt IsSigned: {1}", oldInfo.IsSigned.ToString(), newInfo.IsSigned.ToString());
-        }
-      }
-      catch (BadImageFormatException ex)
-      {
-        Log.LogWarningFromException(ex, true);
-      }
-      catch (IOException ex)
-      {
-        Log.LogWarningFromException(ex, false);
-      }
-      catch (Exception ex)
-      {
-        Log.LogErrorFromException(ex, true, true, assemblyPath);
-      }
-
-      return null;
-    }
-
-    private void FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, params string[] probingPaths)
-    {
-      try
-      {
-        Log.LogMessage(MessageImportance.Low, string.Empty);
-        Log.LogMessage(MessageImportance.Low, "Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath);
-
-        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, null, probingPaths))
-        {
-          Log.LogMessage(MessageImportance.High, "References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath);
-        }
-        else
-        {
-          Log.LogMessage(MessageImportance.Low, "No assembly references to fix in '{0}'...", assemblyPath);
-        }
-      }
-      catch (BadImageFormatException ex)
-      {
-        Log.LogWarningFromException(ex, true);
-      }
-      catch (IOException ex)
-      {
-        Log.LogWarningFromException(ex, false);
-      }
-      catch (Exception ex)
-      {
-        Log.LogErrorFromException(ex, true, true, referencePath);
-      }
-    }
-
-    private void RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, params string[] probingPaths)
-    {
-      try
-      {
-        Log.LogMessage(MessageImportance.Low, string.Empty);
-        Log.LogMessage(MessageImportance.Low, "Removing invalid friend references from '{0}'...", assemblyPath);
-
-        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, null, probingPaths))
-        {
-          Log.LogMessage(MessageImportance.High, "Invalid friend assemblies removed successfully from '{0}'.", assemblyPath);
-        }
-        else
-        {
-          Log.LogMessage(MessageImportance.Low, "No friend references to fix in '{0}'...", assemblyPath);
-        }
-      }
-      catch (BadImageFormatException ex)
-      {
-        Log.LogWarningFromException(ex, true);
-      }
-      catch (IOException ex)
-      {
-        Log.LogWarningFromException(ex, false);
-      }
-      catch (Exception ex)
-      {
-        Log.LogErrorFromException(ex, true, true, assemblyPath);
-      }
     }
   }
 }

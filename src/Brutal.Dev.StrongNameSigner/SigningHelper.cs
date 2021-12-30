@@ -20,14 +20,16 @@ namespace Brutal.Dev.StrongNameSigner
     private static byte[] keyPairCache;
 
     /// <summary>
+    /// Provide a message logging method. If this is not set then the console will be used.
+    /// </summary>
+    public static Action<string> Log { get; set; }
+
+    /// <summary>
     /// Signs the assembly at the specified path.
     /// </summary>
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath)
-    {
-      return SignAssembly(assemblyPath, string.Empty, string.Empty, string.Empty);
-    }
+    public static AssemblyInfo SignAssembly(string assemblyPath) => SignAssembly(assemblyPath, string.Empty, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -35,10 +37,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or.pfx).</param>
     /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath)
-    {
-      return SignAssembly(assemblyPath, keyFilePath, string.Empty, string.Empty);
-    }
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath) => SignAssembly(assemblyPath, keyFilePath, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -46,22 +45,15 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="assemblyPath">The path to the assembly you want to strong-name sign.</param>
     /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
     /// <param name="outputPath">The directory path where the strong-name signed assembly will be copied to.</param>
-    /// <returns>The assembly information of the new strong-name signed assembly.</returns>
-    /// <exception cref="System.ArgumentNullException">
-    /// assemblyPath parameter was not provided.
-    /// </exception>
-    /// <exception cref="System.IO.FileNotFoundException">
-    /// Could not find provided assembly file.
+    /// <returns>
+    /// The assembly information of the new strong-name signed assembly.
+    /// </returns>
+    /// <exception cref="System.ArgumentNullException">assemblyPath parameter was not provided.</exception>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find provided assembly file.
     /// or
-    /// Could not find provided strong-name key file.
-    /// </exception>
-    /// <exception cref="System.BadImageFormatException">
-    /// The file is not a .NET managed assembly.
-    /// </exception>
-    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath, string outputPath)
-    {
-      return SignAssembly(assemblyPath, keyFilePath, outputPath, string.Empty);
-    }
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">The file is not a .NET managed assembly.</exception>
+    public static AssemblyInfo SignAssembly(string assemblyPath, string keyFilePath, string outputPath) => SignAssembly(assemblyPath, keyFilePath, outputPath, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -87,12 +79,6 @@ namespace Brutal.Dev.StrongNameSigner
         throw new ArgumentNullException(nameof(assemblyPath));
       }
 
-      // Make sure the file actually exists.
-      if (!File.Exists(assemblyPath))
-      {
-        throw new FileNotFoundException($"Could not find provided assembly file '{assemblyPath}'.", assemblyPath);
-      }
-
       if (string.IsNullOrWhiteSpace(outputPath))
       {
         // Overwrite the file if no output path is provided.
@@ -104,18 +90,130 @@ namespace Brutal.Dev.StrongNameSigner
         Directory.CreateDirectory(outputPath);
       }
 
+      var outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
+
+      SignAssemblies(new[] { new InputOutputPair(assemblyPath, outputFile) }, keyFilePath, keyFilePassword, probingPaths);
+
+      return new AssemblyInfo(outputFile, probingPaths);
+    }
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyPaths">The paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<string> assemblyPaths) => SignAssemblies(assemblyPaths, string.Empty, string.Empty);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyPaths">The paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath) => SignAssemblies(assemblyPaths, keyFilePath, string.Empty);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyPaths">The paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
+    /// <param name="probingPaths">Additional paths to probe for references.</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
+      => SignAssemblies(assemblyPaths.Select(path => new InputOutputPair(path, path)), keyFilePath, keyFilePassword, probingPaths);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyInputOutputPaths">The input and output paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<InputOutputPair> assemblyInputOutputPaths) => SignAssemblies(assemblyInputOutputPaths, string.Empty, string.Empty);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyInputOutputPaths">The input and output paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<InputOutputPair> assemblyInputOutputPaths, string keyFilePath) => SignAssemblies(assemblyInputOutputPaths, keyFilePath, string.Empty);
+
+    /// <summary>
+    /// Signs the assembly at the specified path with your own strong-name key file.
+    /// </summary>
+    /// <param name="assemblyInputOutputPaths">The input and output paths to all the assemblies you want to strong-name sign and their references to fix.</param>
+    /// <param name="keyFilePath">The path to the strong-name key file you want to use (.snk or .pfx).</param>
+    /// <param name="keyFilePassword">The password for the provided strong-name key file.</param>
+    /// <param name="probingPaths">Additional paths to probe for references.</param>
+    /// <exception cref="System.IO.FileNotFoundException">Could not find one of the provided assembly files.
+    /// or
+    /// Could not find provided strong-name key file.</exception>
+    /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
+    public static void SignAssemblies(IEnumerable<InputOutputPair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
+    {
+      // If no logger has been set, just use the console.
+      if (Log == null)
+      {
+        Log = message => Console.WriteLine($"SNS: {message}");
+      }
+
+      // Verify assembly paths were passed in.
+      if (assemblyInputOutputPaths?.Any() != true)
+      {
+        Log("No assembly paths were provided.");
+        return;
+      }
+
+      // Make sure the files actually exist.
+      foreach (var assemblyInputPath in assemblyInputOutputPaths.Select(aio => aio.InputFilePath))
+      {
+        if (!File.Exists(assemblyInputPath))
+        {
+          throw new FileNotFoundException($"Could not find provided input assembly file '{assemblyInputPath}'.", assemblyInputPath);
+        }
+      }
+
+      // Convert all path into AssemblyInfo objects.
+      var assemblies = new List<AssemblyInfo>();
+      foreach (var filePath in assemblyInputOutputPaths)
+      {
+        try
+        {
+          assemblies.Add(new AssemblyInfo(filePath.InputFilePath, probingPaths));
+        }
+        catch (Exception ex)
+        {
+          Log(ex.ToString());
+        }
+      }
+
+      var unignedAssemblies = assemblies.Where(a => !a.IsSigned).ToList();
+
       var keyPair = GetStrongNameKeyPair(keyFilePath, keyFilePassword);
       var publicKey = GetPublicKey(keyPair);
-
-      using var targetAssembly = new AssemblyInfo(assemblyPath, probingPaths);
-      var assemblies = new List<AssemblyInfo>(1) { targetAssembly };
-      var unignedAssemblies = assemblies.Where(a => !a.IsSigned).ToList();
 
       // Add references that need to be updated and signed.
       var set = new HashSet<string>(unignedAssemblies.Select(x => x.Definition.Name.Name));
 
       foreach (var assembly in assemblies)
       {
+        Log($"Checking assembly references in '{assembly.FilePath}'.");
+
         foreach (var reference in assembly.Definition.MainModule.AssemblyReferences
           .Where(reference => set.Contains(reference.Name)))
         {
@@ -125,30 +223,35 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       // Strong-name sign all the unsigned assemblies.
-      foreach (var assemblyInfo in unignedAssemblies)
+      foreach (var assembly in unignedAssemblies)
       {
-        var name = assemblyInfo.Definition.Name;
+        Log($"Signing assembly '{assembly.FilePath}'.");
+
+        var name = assembly.Definition.Name;
         name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
         name.PublicKey = publicKey;
         name.HasPublicKey = true;
-        name.Attributes &= AssemblyAttributes.PublicKey;
+        name.Attributes |= AssemblyAttributes.PublicKey;
       }
 
       // Fix InternalVisibleToAttribute.
-      foreach (var assemblyDefinition in unignedAssemblies.ConvertAll(a => a.Definition))
+      foreach (var assembly in unignedAssemblies)
       {
-        foreach (var attribute in assemblyDefinition.CustomAttributes
+        foreach (var attribute in assembly.Definition.CustomAttributes
           .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
           .ToList())
         {
           var argument = attribute.ConstructorArguments[0];
-          if (argument.Type == assemblyDefinition.MainModule.TypeSystem.String)
+          if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
           {
             var originalAssemblyName = (string)argument.Value;
             var signedAssembly = unignedAssemblies.Find(a => a.Definition.Name.Name == originalAssemblyName);
+
             if (signedAssembly == null)
             {
-              assemblyDefinition.CustomAttributes.Remove(attribute);
+              Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+
+              assembly.Definition.CustomAttributes.Remove(attribute);
             }
             else
             {
@@ -162,25 +265,23 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      var outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
-
       // Write all updated assemblies.
-      foreach (var assemblyInfo in unignedAssemblies.Where(a => !a.Definition.Name.IsRetargetable))
+      foreach (var assembly in unignedAssemblies.Where(a => !a.Definition.Name.IsRetargetable))
       {
-        using var outputFileMgr = new OutputFileManager(assemblyInfo.FilePath, outputFile);
+        using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
 
         if (outputFileMgr.IsInPlaceReplace)
         {
           outputFileMgr.CreateBackup();
         }
 
-        assemblyInfo.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
-        assemblyInfo.Dispose();
+        Log($"Saving changes to assembly '{assembly.FilePath}'...");
+
+        assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+        assembly.Dispose();
 
         outputFileMgr.Commit();
       }
-
-      return new AssemblyInfo(outputFile);
     }
 
     private static byte[] GenerateStrongNameKeyPair()
