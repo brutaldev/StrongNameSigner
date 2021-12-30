@@ -105,7 +105,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        Log.LogMessage(MessageImportance.High, $"-- Finished Brutal Developer .NET Assembly Strong-Name Signer Task -- {timer.Elapsed}");
+        Log.LogMessage(MessageImportance.High, $"-- Finished Brutal Developer .NET Assembly Strong-Name Signer Task in {timer.Elapsed} -- ");
 
         return true;
       }

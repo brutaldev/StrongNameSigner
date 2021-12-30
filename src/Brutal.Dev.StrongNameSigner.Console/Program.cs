@@ -24,6 +24,8 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
       try
       {
+        SigningHelper.Log = message => PrintMessage(message, LogLevel.Default);
+
         var parsed = Args.Parse<Options>(args);
 
         if (args.Length == 0 || parsed?.Help != false)
@@ -42,12 +44,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
             PrintHeader();
           }
 
-          var stats = SignAssemblies(parsed);
-
-          PrintMessage(null, LogLevel.Summary);
-          PrintMessage(".NET Assembly Strong-Name Signer Summary", LogLevel.Summary);
-          PrintMessage(string.Format("{0} file(s) were strong-name signed.", stats.NumberOfSignedFiles), LogLevel.Summary);
-          PrintMessage(string.Format("{0} references(s) were fixed.", stats.NumberOfFixedReferences), LogLevel.Summary);
+          SignAssemblies(parsed);
         }
       }
       catch (ArgException ex)
@@ -105,11 +102,8 @@ namespace Brutal.Dev.StrongNameSigner.Console
       C.ResetColor();
     }
 
-    private static Stats SignAssemblies(Options options)
+    private static void SignAssemblies(Options options)
     {
-      int signedFiles = 0;
-      int referenceFixes = 0;
-
       var filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
@@ -145,165 +139,37 @@ namespace Brutal.Dev.StrongNameSigner.Console
         filesToSign.Add(options.AssemblyFile);
       }
 
-      var processedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-      var signedAssemblyPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
       var probingPaths = filesToSign.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
+      var basePath = string.Empty;
 
+      if (options.KeepStructure)
+      {
+        if (!string.IsNullOrWhiteSpace(options.InputDirectory))
+        {
+          basePath = Path.GetFullPath(options.InputDirectory);
+        }
+        else
+        {
+          basePath = Path.GetDirectoryName(options.AssemblyFile);
+        }
+      }
+
+      var assemblyInputOutputPaths = new List<InputOutputPair>();
       foreach (var filePath in filesToSign)
       {
+        var fullFilePath = Path.GetFullPath(filePath);
         var outputDirectory = options.OutputDirectory;
+
         if (options.KeepStructure)
         {
-          var basePath = string.Empty;
-          if (!string.IsNullOrWhiteSpace(options.InputDirectory))
-          {
-            basePath = Path.GetFullPath(options.InputDirectory);
-          }
-          else
-          {
-            basePath = Path.GetDirectoryName(options.AssemblyFile);
-          }
-
-          var fullFilePath = Path.GetFullPath(filePath);
           outputDirectory = Path.GetDirectoryName(fullFilePath)?.Replace(basePath, outputDirectory);
         }
 
-        var signedAssembly = SignSingleAssembly(filePath, options.KeyFile, outputDirectory, options.Password, probingPaths);
-
-        // Check if it got signed.
-        if (signedAssembly?.IsSigned == true)
-        {
-          processedAssemblyPaths.Add(signedAssembly.FilePath);
-          signedAssemblyPaths.Add(signedAssembly.FilePath);
-          signedFiles++;
-        }
-        else
-        {
-          string outputFilePath = string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory;
-          processedAssemblyPaths.Add(Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath)));
-        }
+        string outputFilePath = string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory;
+        assemblyInputOutputPaths.Add(new InputOutputPair(fullFilePath, Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath))));
       }
 
-      var referencesToFix = new HashSet<string>(processedAssemblyPaths, StringComparer.OrdinalIgnoreCase);
-      foreach (var filePath in processedAssemblyPaths)
-      {
-        // Go through all the references excluding the file we are working on.
-        foreach (var referencePath in referencesToFix.Where(r => !r.Equals(filePath)))
-        {
-          if (FixSingleAssemblyReference(filePath, referencePath, options.KeyFile, options.Password, probingPaths))
-          {
-            referenceFixes++;
-          }
-        }
-      }
-
-      // Remove all InternalsVisibleTo attributes without public keys from the processed assemblies. Signed assemblies cannot have unsigned friend assemblies.
-      foreach (var filePath in signedAssemblyPaths)
-      {
-        if (RemoveInvalidFriendAssemblyReferences(filePath, options.KeyFile, options.Password, probingPaths))
-        {
-          referenceFixes++;
-        }
-      }
-
-      return new Stats()
-      {
-        NumberOfSignedFiles = signedFiles,
-        NumberOfFixedReferences = referenceFixes
-      };
-    }
-
-    private static AssemblyInfo SignSingleAssembly(string assemblyPath, string keyPath, string outputDirectory, string password, params string[] probingPaths)
-    {
-      try
-      {
-        PrintMessage(null, LogLevel.Verbose);
-        PrintMessage(string.Format("Strong-name signing '{0}'...", assemblyPath), LogLevel.Verbose);
-
-        var oldInfo = SigningHelper.GetAssemblyInfo(assemblyPath);
-        var newInfo = SigningHelper.SignAssembly(assemblyPath, keyPath, outputDirectory, password, probingPaths);
-
-        if (!oldInfo.IsSigned && newInfo.IsSigned)
-        {
-          PrintMessageColor(string.Format("'{0}' was strong-name signed successfully.", newInfo.FilePath), LogLevel.Changes, ConsoleColor.Green);
-
-          return newInfo;
-        }
-        else
-        {
-          PrintMessage("Already strong-name signed...", LogLevel.Verbose);
-        }
-      }
-      catch (BadImageFormatException bife)
-      {
-        PrintMessageColor(string.Format("Warning: {0}", bife.Message), LogLevel.Silent, ConsoleColor.Yellow);
-      }
-      catch (Exception ex)
-      {
-        PrintMessageColor(string.Format("Error: {0}", ex.Message), LogLevel.Silent, ConsoleColor.Red);
-      }
-
-      return null;
-    }
-
-    private static bool FixSingleAssemblyReference(string assemblyPath, string referencePath, string keyFile, string keyFilePassword, params string[] probingPaths)
-    {
-      try
-      {
-        PrintMessage(null, LogLevel.Verbose);
-        PrintMessage(string.Format("Fixing references to '{1}' in '{0}'...", assemblyPath, referencePath), LogLevel.Verbose);
-
-        if (SigningHelper.FixAssemblyReference(assemblyPath, referencePath, keyFile, keyFilePassword, probingPaths))
-        {
-          PrintMessageColor(string.Format("References to '{1}' in '{0}' were fixed successfully.", assemblyPath, referencePath), LogLevel.Changes, ConsoleColor.Green);
-
-          return true;
-        }
-        else
-        {
-          PrintMessage("No assembly references to fix...", LogLevel.Verbose);
-        }
-      }
-      catch (BadImageFormatException bife)
-      {
-        PrintMessageColor(string.Format("Warning: {0}", bife.Message), LogLevel.Silent, ConsoleColor.Yellow);
-      }
-      catch (Exception ex)
-      {
-        PrintMessageColor(string.Format("Error: {0}", ex.Message), LogLevel.Silent, ConsoleColor.Red);
-      }
-
-      return false;
-    }
-
-    private static bool RemoveInvalidFriendAssemblyReferences(string assemblyPath, string keyFile, string keyFilePassword, params string[] probingPaths)
-    {
-      try
-      {
-        PrintMessage(null, LogLevel.Verbose);
-        PrintMessage(string.Format("Removing invalid friend references from '{0}'...", assemblyPath), LogLevel.Verbose);
-
-        if (SigningHelper.RemoveInvalidFriendAssemblies(assemblyPath, keyFile, keyFilePassword, probingPaths))
-        {
-          PrintMessageColor(string.Format("Invalid friend assemblies removed successfully from '{0}'.", assemblyPath), LogLevel.Changes, ConsoleColor.Green);
-
-          return true;
-        }
-        else
-        {
-          PrintMessage("No friend references to fix...", LogLevel.Verbose);
-        }
-      }
-      catch (BadImageFormatException bife)
-      {
-        PrintMessageColor(string.Format("Warning: {0}", bife.Message), LogLevel.Silent, ConsoleColor.Yellow);
-      }
-      catch (Exception ex)
-      {
-        PrintMessageColor(string.Format("Error: {0}", ex.Message), LogLevel.Silent, ConsoleColor.Red);
-      }
-
-      return false;
+      SigningHelper.SignAssemblies(assemblyInputOutputPaths, options.KeyFile, options.Password, probingPaths);
     }
 
     private static IEnumerable<string> GetFilesToSign(string directory)
@@ -318,13 +184,6 @@ namespace Brutal.Dev.StrongNameSigner.Console
       }
 
       return filesToSign;
-    }
-
-    private struct Stats
-    {
-      public int NumberOfSignedFiles { get; set; }
-
-      public int NumberOfFixedReferences { get; set; }
     }
   }
 }
