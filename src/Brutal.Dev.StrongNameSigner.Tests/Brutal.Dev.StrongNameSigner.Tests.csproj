@@ -83,7 +83,6 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
-    <Compile Include="FixAssemblyReferenceTests.cs" />
     <Compile Include="GetAssemblyInfoTests.cs" />
     <Compile Include="SignAssemblyTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

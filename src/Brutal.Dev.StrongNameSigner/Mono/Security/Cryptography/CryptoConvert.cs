@@ -1,5 +1,5 @@
 ﻿//
-// CryptoConvert.cs - Crypto Convertion Routines
+// CryptoConvert.cs - Crypto Conversion Routines
 //
 // Author:
 //	Sebastien Pouliot  <sebastien@ximian.com>
@@ -65,7 +65,10 @@ namespace Mono.Security.Cryptography
           return result;
         }
       }
+
+#pragma warning disable S1168 // Empty arrays and collections should be returned instead of null
       return null;
+#pragma warning restore S1168 // Empty arrays and collections should be returned instead of null
     }
 
     private static RSA FromCapiPrivateKeyBlob(byte[] blob, int offset)
@@ -83,52 +86,52 @@ namespace Mono.Security.Cryptography
           throw new CryptographicException("Invalid blob header");
         }
 
-        // ALGID (CALG_RSA_SIGN, CALG_RSA_KEYX, ...)
-        // int algId = ToInt32LE (blob, offset+4);
+        //// ALGID (CALG_RSA_SIGN, CALG_RSA_KEYX, ...)
+        //// int algId = ToInt32LE (blob, offset+4);
 
-        // DWORD bitlen
+        //// DWORD bitlen
         int bitLen = ToInt32LE(blob, offset + 12);
 
-        // DWORD public exponent
+        //// DWORD public exponent
         byte[] exp = new byte[4];
         Buffer.BlockCopy(blob, offset + 16, exp, 0, 4);
         Array.Reverse(exp);
         rsap.Exponent = Trim(exp);
 
         int pos = offset + 20;
-        // BYTE modulus[rsapubkey.bitlen/8];
+        //// BYTE modulus[rsapubkey.bitlen/8];
         int byteLen = (bitLen >> 3);
         rsap.Modulus = new byte[byteLen];
         Buffer.BlockCopy(blob, pos, rsap.Modulus, 0, byteLen);
         Array.Reverse(rsap.Modulus);
         pos += byteLen;
 
-        // BYTE prime1[rsapubkey.bitlen/16];
+        //// BYTE prime1[rsapubkey.bitlen/16];
         int byteHalfLen = (byteLen >> 1);
         rsap.P = new byte[byteHalfLen];
         Buffer.BlockCopy(blob, pos, rsap.P, 0, byteHalfLen);
         Array.Reverse(rsap.P);
         pos += byteHalfLen;
 
-        // BYTE prime2[rsapubkey.bitlen/16];
+        //// BYTE prime2[rsapubkey.bitlen/16];
         rsap.Q = new byte[byteHalfLen];
         Buffer.BlockCopy(blob, pos, rsap.Q, 0, byteHalfLen);
         Array.Reverse(rsap.Q);
         pos += byteHalfLen;
 
-        // BYTE exponent1[rsapubkey.bitlen/16];
+        //// BYTE exponent1[rsapubkey.bitlen/16];
         rsap.DP = new byte[byteHalfLen];
         Buffer.BlockCopy(blob, pos, rsap.DP, 0, byteHalfLen);
         Array.Reverse(rsap.DP);
         pos += byteHalfLen;
 
-        // BYTE exponent2[rsapubkey.bitlen/16];
+        //// BYTE exponent2[rsapubkey.bitlen/16];
         rsap.DQ = new byte[byteHalfLen];
         Buffer.BlockCopy(blob, pos, rsap.DQ, 0, byteHalfLen);
         Array.Reverse(rsap.DQ);
         pos += byteHalfLen;
 
-        // BYTE coefficient[rsapubkey.bitlen/16];
+        //// BYTE coefficient[rsapubkey.bitlen/16];
         rsap.InverseQ = new byte[byteHalfLen];
         Buffer.BlockCopy(blob, pos, rsap.InverseQ, 0, byteHalfLen);
         Array.Reverse(rsap.InverseQ);
@@ -140,7 +143,7 @@ namespace Mono.Security.Cryptography
         rsap.D = new byte[byteLen]; // must be allocated
         if (pos + byteLen + offset <= blob.Length)
         {
-          // BYTE privateExponent[rsapubkey.bitlen/8];
+          //// BYTE privateExponent[rsapubkey.bitlen/8];
           Buffer.BlockCopy(blob, pos, rsap.D, 0, byteLen);
           Array.Reverse(rsap.D);
         }
@@ -169,7 +172,9 @@ namespace Mono.Security.Cryptography
             Flags = CspProviderFlags.UseMachineKeyStore
           };
 
+#pragma warning disable S4426 // Cryptographic keys should be robust
           rsa = new RSACryptoServiceProvider(csp);
+#pragma warning restore S4426 // Cryptographic keys should be robust
           rsa.ImportParameters(rsap);
         }
         catch
@@ -199,13 +204,13 @@ namespace Mono.Security.Cryptography
           throw new CryptographicException("Invalid blob header");
         }
 
-        // ALGID (CALG_RSA_SIGN, CALG_RSA_KEYX, ...)
-        // int algId = ToInt32LE (blob, offset+4);
+        //// ALGID (CALG_RSA_SIGN, CALG_RSA_KEYX, ...)
+        //// int algId = ToInt32LE (blob, offset+4);
 
         // DWORD bitlen
         int bitLen = ToInt32LE(blob, offset + 12);
 
-        // DWORD public exponent
+        //// DWORD public exponent
         var rsap = new RSAParameters
         {
           Exponent = new byte[3]
@@ -216,7 +221,7 @@ namespace Mono.Security.Cryptography
         rsap.Exponent[2] = blob[offset + 16];
 
         int pos = offset + 20;
-        // BYTE modulus[rsapubkey.bitlen/8];
+        //// BYTE modulus[rsapubkey.bitlen/8];
         int byteLen = bitLen >> 3;
         rsap.Modulus = new byte[byteLen];
         Buffer.BlockCopy(blob, pos, rsap.Modulus, 0, byteLen);
@@ -238,9 +243,12 @@ namespace Mono.Security.Cryptography
             Flags = CspProviderFlags.UseMachineKeyStore
           };
 
+#pragma warning disable S4426 // Cryptographic keys should be robust
           rsa = new RSACryptoServiceProvider(csp);
+#pragma warning restore S4426 // Cryptographic keys should be robust
           rsa.ImportParameters(rsap);
         }
+
         return rsa;
       }
       catch (Exception e)

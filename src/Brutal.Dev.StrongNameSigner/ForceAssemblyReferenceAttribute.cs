@@ -20,7 +20,11 @@ namespace Brutal.Dev.StrongNameSigner
     // https://stackoverflow.com/questions/15816769/dependent-dll-is-not-getting-copied-to-the-build-output-folder-in-visual-studio
     public ForceAssemblyReferenceAttribute(Type forcedType)
     {
+#pragma warning disable S1186 // Methods should not be empty
+#pragma warning disable S108 // Nested blocks of code should not be left empty
       void noop(Type _) { }
+#pragma warning restore S108 // Nested blocks of code should not be left empty
+#pragma warning restore S1186 // Methods should not be empty
       noop(forcedType);
     }
   }

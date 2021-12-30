@@ -7,7 +7,7 @@ namespace Brutal.Dev.StrongNameSigner
   /// <summary>
   /// Utility class that assists in the handling of temporary files during assembly signing. It will create
   /// a temporary directory to hold generated files during the signing process, and will move these to their
-  /// final location upon calling <see cref="Commit"/>.  It also ensures that all temporary/intermediate files
+  /// final location upon calling <see cref="Commit"/>. It also ensures that all temporary/intermediate files
   /// are deleted upon disposing the instance.
   /// </summary>
   /// <seealso cref="System.IDisposable" />
