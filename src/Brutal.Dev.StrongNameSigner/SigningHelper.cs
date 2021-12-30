@@ -211,170 +211,180 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      // Start with assemblies that are not signed.
-      var assembliesToProcess = new HashSet<AssemblyInfo>(allAssemblies.Where(a => !a.IsSigned));
-
-      var keyPair = GetStrongNameKeyPair(keyFilePath, keyFilePassword);
-      var publicKey = GetPublicKey(keyPair);
-      var token = GetPublicKeyToken(publicKey);
-
-      // Add references that need to be updated and signed.
-      var set = new HashSet<string>(assembliesToProcess.Select(x => x.Definition.Name.Name));
-
-      foreach (var assembly in allAssemblies)
+      try
       {
-        Log($"Checking assembly references in '{assembly.FilePath}'.");
+        // Start with assemblies that are not signed.
+        var assembliesToProcess = new HashSet<AssemblyInfo>(allAssemblies.Where(a => !a.IsSigned));
 
-        foreach (var reference in assembly.Definition.MainModule.AssemblyReferences
-          .Where(reference => set.Contains(reference.Name)))
+        var keyPair = GetStrongNameKeyPair(keyFilePath, keyFilePassword);
+        var publicKey = GetPublicKey(keyPair);
+        var token = GetPublicKeyToken(publicKey);
+
+        // Add references that need to be updated and signed.
+        var set = new HashSet<string>(assembliesToProcess.Select(x => x.Definition.Name.Name));
+
+        foreach (var assembly in allAssemblies)
         {
-          reference.PublicKey = publicKey;
-          assembliesToProcess.Add(assembly);
-        }
-      }
+          Log($"Checking assembly references in '{assembly.FilePath}'.");
 
-      // Strong-name sign all the unsigned assemblies.
-      foreach (var assembly in assembliesToProcess)
-      {
-        Log($"Signing assembly '{assembly.FilePath}'.");
-
-        var name = assembly.Definition.Name;
-        name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
-        name.PublicKey = publicKey;
-        name.HasPublicKey = true;
-        name.Attributes |= AssemblyAttributes.PublicKey;
-      }
-
-      // Fix InternalVisibleToAttribute.
-      foreach (var assembly in allAssemblies)
-      {
-        foreach (var attribute in assembly.Definition.CustomAttributes
-          .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
-          .ToList())
-        {
-          var argument = attribute.ConstructorArguments[0];
-          if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
+          foreach (var reference in assembly.Definition.MainModule.AssemblyReferences
+            .Where(reference => set.Contains(reference.Name)))
           {
-            var originalAssemblyName = (string)argument.Value;
-            var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
+            reference.PublicKey = publicKey;
+            assembliesToProcess.Add(assembly);
+          }
+        }
 
-            if (signedAssembly == null)
+        // Strong-name sign all the unsigned assemblies.
+        foreach (var assembly in assembliesToProcess)
+        {
+          Log($"Signing assembly '{assembly.FilePath}'.");
+
+          var name = assembly.Definition.Name;
+          name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
+          name.PublicKey = publicKey;
+          name.HasPublicKey = true;
+          name.Attributes |= AssemblyAttributes.PublicKey;
+        }
+
+        // Fix InternalVisibleToAttribute.
+        foreach (var assembly in allAssemblies)
+        {
+          foreach (var attribute in assembly.Definition.CustomAttributes
+            .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
+            .ToList())
+          {
+            var argument = attribute.ConstructorArguments[0];
+            if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
-              Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+              var originalAssemblyName = (string)argument.Value;
+              var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
 
-              assembly.Definition.CustomAttributes.Remove(attribute);
-            }
-            else
-            {
-              var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
-              var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
+              if (signedAssembly == null)
+              {
+                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
 
-              attribute.ConstructorArguments.Clear();
-              attribute.ConstructorArguments.Add(updatedArgument);
+                assembly.Definition.CustomAttributes.Remove(attribute);
+              }
+              else
+              {
+                var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
+                var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
+
+                attribute.ConstructorArguments.Clear();
+                attribute.ConstructorArguments.Add(updatedArgument);
+              }
             }
           }
         }
-      }
 
-      // Fix BAML references.
-      foreach (var assembly in allAssemblies)
-      {
-        foreach (var resources in assembly.Definition.Modules.Select(module => module.Resources))
+        // Fix BAML references.
+        foreach (var assembly in allAssemblies)
         {
-          var resArray = resources.ToArray();
-          for (var resIndex = 0; resIndex < resArray.Length; resIndex++)
+          foreach (var resources in assembly.Definition.Modules.Select(module => module.Resources))
           {
-            var resource = resArray[resIndex];
-            if (resource.ResourceType == ResourceType.Embedded)
+            var resArray = resources.ToArray();
+            for (var resIndex = 0; resIndex < resArray.Length; resIndex++)
             {
-              if (!resource.Name.EndsWith(".g.resources"))
+              var resource = resArray[resIndex];
+              if (resource.ResourceType == ResourceType.Embedded)
               {
-                continue;
-              }
-
-              var embededResource = (EmbeddedResource)resource;
-              var modifyResource = false;
-
-              using var memoryStream = new MemoryStream();
-              using var writer = new ResourceWriter(memoryStream);
-
-              using var resourceStream = embededResource.GetResourceStream();
-              using var reader = new ResourceReader(resourceStream);
-
-              foreach (var entry in reader.OfType<DictionaryEntry>().ToArray())
-              {
-                var resourceName = entry.Key.ToString();
-
-                if (resourceName.EndsWith(".baml", StringComparison.InvariantCulture) && entry.Value is Stream bamlStream)
+                if (!resource.Name.EndsWith(".g.resources"))
                 {
-                  using var br = new BinaryReader(bamlStream);
-                  var datab = br.ReadBytes((int)br.BaseStream.Length);
+                  continue;
+                }
 
-                  var charList = datab.Select(b => (char)b).ToList();
-                  var data = new string(charList.ToArray());
-                  var elementsToReplace = new List<Match>();
+                var embededResource = (EmbeddedResource)resource;
+                var modifyResource = false;
 
-                  foreach (Match match in BamlRegex.Matches(data))
+                using var memoryStream = new MemoryStream();
+                using var writer = new ResourceWriter(memoryStream);
+
+                using var resourceStream = embededResource.GetResourceStream();
+                using var reader = new ResourceReader(resourceStream);
+
+                foreach (var entry in reader.OfType<DictionaryEntry>().ToArray())
+                {
+                  var resourceName = entry.Key.ToString();
+
+                  if (resourceName.EndsWith(".baml", StringComparison.InvariantCulture) && entry.Value is Stream bamlStream)
                   {
-                    var name = match.Groups["name"].Value;
-                    if (assembliesToProcess.Any(x => x.Definition.Name.Name == name))
+                    var br = new BinaryReader(bamlStream);
+                    var datab = br.ReadBytes((int)br.BaseStream.Length);
+
+                    var charList = datab.Select(b => (char)b).ToList();
+                    var data = new string(charList.ToArray());
+                    var elementsToReplace = new List<Match>();
+
+                    foreach (Match match in BamlRegex.Matches(data))
                     {
-                      elementsToReplace.Add(match);
+                      var name = match.Groups["name"].Value;
+                      if (assembliesToProcess.Any(x => x.Definition.Name.Name == name))
+                      {
+                        elementsToReplace.Add(match);
+                      }
                     }
-                  }
 
-                  if (elementsToReplace.Count != 0)
-                  {
-                    assembliesToProcess.Add(assembly);
-                    modifyResource = true;
+                    if (elementsToReplace.Count != 0)
+                    {
+                      assembliesToProcess.Add(assembly);
+                      modifyResource = true;
 
-                    FixBinaryBaml(token, writer, resourceName, charList, elementsToReplace);
+                      FixBinaryBaml(token, writer, resourceName, charList, elementsToReplace);
+                    }
+                    else
+                    {
+                      bamlStream.Position = 0;
+                      writer.AddResource(resourceName, bamlStream);
+                    }
                   }
                   else
                   {
-                    bamlStream.Position = 0;
-                    writer.AddResource(resourceName, bamlStream);
+                    writer.AddResource(resourceName, entry.Value);
                   }
                 }
-                else
+
+                if (modifyResource)
                 {
-                  writer.AddResource(resourceName, entry.Value);
+                  Log($"Replacing BAML entry in assembly '{assembly.FilePath}'.");
+
+                  resources.RemoveAt(resIndex);
+                  writer.Generate();
+                  var array = memoryStream.ToArray();
+                  memoryStream.Position = 0;
+
+                  var newEmbeded = new EmbeddedResource(resource.Name, resource.Attributes, array);
+                  resources.Insert(resIndex, newEmbeded);
                 }
-              }
-
-              if (modifyResource)
-              {
-                Log($"Replacing BAML entry in assembly '{assembly.FilePath}'.");
-
-                resources.RemoveAt(resIndex);
-                writer.Generate();
-                var array = memoryStream.ToArray();
-                memoryStream.Position = 0;
-
-                var newEmbeded = new EmbeddedResource(resource.Name, resource.Attributes, array);
-                resources.Insert(resIndex, newEmbeded);
               }
             }
           }
         }
-      }
 
-      // Write all updated assemblies.
-      foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
-      {
-        using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
-
-        if (outputFileMgr.IsInPlaceReplace)
+        // Write all updated assemblies.
+        foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
         {
-          outputFileMgr.CreateBackup();
+          using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
+
+          if (outputFileMgr.IsInPlaceReplace)
+          {
+            outputFileMgr.CreateBackup();
+          }
+
+          Log($"Saving changes to assembly '{assembly.FilePath}'.");
+
+          assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+          assembly.Dispose();
+
+          outputFileMgr.Commit();
         }
-
-        Log($"Saving changes to assembly '{assembly.FilePath}'...");
-
-        assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
-        assembly.Dispose();
-
-        outputFileMgr.Commit();
+      }
+      finally
+      {
+        foreach (var assembly in allAssemblies)
+        {
+          assembly.Dispose();
+        }
       }
     }
 

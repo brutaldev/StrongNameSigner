@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
   <metadata>
     <id>Brutal.Dev.StrongNameSigner</id>
-    <version>3.0.5-beta</version>
+    <version>3.1.0</version>
     <title>.NET Assembly Strong-Name Signer</title>
     <authors>Werner van Deventer</authors>
     <owners>Werner van Deventer</owners>
@@ -21,7 +21,10 @@ The tool will also re-write the assembly references (as well as any InternalsVis
     </description>
     <summary>Automatic strong-name signing of referenced assemblies. Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
     <releaseNotes>
-- Fix issue #52.
+- Fix issue #31, BAML rewriting has been added.
+- Fix issue #42, mixed-mode assembly signing working.
+- Fix issue #52, cross-platform signing working.
+- Fix issue #62, automated build task ignores cached NuGet package locations.
     </releaseNotes>
     <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
     <language>en-US</language>

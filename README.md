@@ -20,6 +20,7 @@ Build Process
 -------------
 By default all unsigned referenced assemblies in your project can automatically be signed just by installing the [NuGet package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/).
 This will change the references to your assemblies to strong-name signed ones allowing you to sign your own projects and reference unsigned assemblies. All assemblies that are found (including signed ones) will have their references corrected if they were using any files that now have public key tokens.
+In version 3.x, BAML resources are also updated with the correct references if assemblies are signed.
 
 If you need to be more specific about what to sign you can call the console version in your Visual Studio project files to sign assemblies before it gets built.
 
@@ -57,7 +58,7 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="BeforeBuild">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.3.1.0&quot;" />
+        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.2&quot;" />
 </Target>
 ```
 
