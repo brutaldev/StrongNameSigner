@@ -31,11 +31,13 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
     private static ListViewItem CreateListViewItem(AssemblyInfo info)
     {
+#pragma warning disable S3358 // Ternary operators should not be nested
       var item = new ListViewItem(new string[]
       {
         Path.GetFileName(info.FilePath),
         info.DotNetVersion,
         (info.IsAnyCpu ? "Any CPU" : info.Is32BitOnly ? "x86" : info.Is64BitOnly ? "x64" : "UNKNOWN") + (info.Is32BitPreferred ? " (x86 preferred)" : string.Empty),
+
         info.SigningType == StrongNameType.Signed ? "Yes" : info.SigningType == StrongNameType.DelaySigned ? "Delay" : "No",
         info.FilePath
       })
@@ -43,6 +45,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
         Tag = info.FilePath,
         UseItemStyleForSubItems = false
       };
+#pragma warning restore S3358 // Ternary operators should not be nested
 
       // Update the color of the signed column.
       if (info.SigningType == StrongNameType.Signed)
@@ -360,26 +363,26 @@ namespace Brutal.Dev.StrongNameSigner.UI
 
       if (e.Argument is IEnumerable<string> filePaths)
       {
-        var probingPaths = filePaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
-        
+        var assemblyInputOutputPaths = filePaths.Select(filePath =>
+          new InputOutputFilePair(Path.GetFullPath(filePath),
+                                  Path.Combine(Path.GetFullPath(string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory), Path.GetFileName(filePath))));
+
         try
         {
-          SigningHelper.SignAssemblies(
-            filePaths.Select(filePath =>
-            new InputOutputPair(Path.GetFullPath(filePath),
-                                Path.Combine(Path.GetFullPath(string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory), Path.GetFileName(filePath)))),
-            keyFile,
-            password,
-            probingPaths);
+          var probingPaths = filePaths.Select(f => Path.GetDirectoryName(f)).Distinct().ToArray();
+          SigningHelper.SignAssemblies(assemblyInputOutputPaths, keyFile, password, probingPaths);
+
+          e.Result = string.Format(CultureInfo.CurrentCulture, "{0} assemblies were processed successfully.", filePaths.Count());
         }
         catch (Exception ex)
         {
           log.AppendFormat("Error strong-name signing: {0}", ex.Message).AppendLine();
+          throw;
         }
-
-        backgroundWorker.ReportProgress(100, filePaths);
-
-        e.Result = string.Format(CultureInfo.CurrentCulture, "{0} assemblies were processed successfully.", filePaths.Count());
+        finally
+        {
+          backgroundWorker.ReportProgress(100, assemblyInputOutputPaths.Select(io => io.OutFilePath));
+        }
       }
     }
 
@@ -402,17 +405,19 @@ namespace Brutal.Dev.StrongNameSigner.UI
     {
       progressBar.Value = 0;
       labelInfo.Text = string.Empty;
+      labelInfo.ForeColor = Control.DefaultForeColor;
       linkLabelLog.Visible = true;
       EnableControls(true);
 
-      if (!e.Cancelled)
-      {
-        labelInfo.Text = e.Result.ToString();
-      }
-
       if (e.Error != null)
       {
+        labelInfo.Text = e.Error.Message;
+        labelInfo.ForeColor = Color.Red;
         MessageBox.Show("An error occurred trying to strong-name sign the assemblies: " + e.Error.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+      }
+      else if (!e.Cancelled)
+      {
+        labelInfo.Text = e.Result.ToString();
       }
     }
 

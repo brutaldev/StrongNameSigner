@@ -154,7 +154,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
       }
 
-      var assemblyInputOutputPaths = new List<InputOutputPair>();
+      var assemblyInputOutputPaths = new List<InputOutputFilePair>();
       foreach (var filePath in filesToSign)
       {
         var fullFilePath = Path.GetFullPath(filePath);
@@ -166,7 +166,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         }
 
         string outputFilePath = string.IsNullOrWhiteSpace(outputDirectory) ? Path.GetDirectoryName(filePath) : outputDirectory;
-        assemblyInputOutputPaths.Add(new InputOutputPair(fullFilePath, Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath))));
+        assemblyInputOutputPaths.Add(new InputOutputFilePair(fullFilePath, Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath))));
       }
 
       SigningHelper.SignAssemblies(assemblyInputOutputPaths, options.KeyFile, options.Password, probingPaths);

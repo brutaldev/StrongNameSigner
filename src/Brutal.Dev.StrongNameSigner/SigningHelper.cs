@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,14 @@ namespace Brutal.Dev.StrongNameSigner
   /// </summary>
   public static class SigningHelper
   {
+    private const string Size = @"[\u0080-\u00FF]{0,4}[\u0000-\u0079]";
+
+    private static readonly Regex BamlRegex = new(
+      @"(?<marker>\u001C)(?<totalsize>" + Size +
+      ")(?<id>..)(?<size>" + Size +
+      @")(?<name>(?:\w+\.)*\w+), Version=(?<version>(?:\d+\.){3}\d+), Culture=(?<culture>(?:\w|\-)+), PublicKeyToken=(?<token>null|(?:\d|[abcdef]){16})",
+      RegexOptions.CultureInvariant | RegexOptions.Singleline);
+
     private static byte[] keyPairCache;
 
     /// <summary>
@@ -92,7 +101,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       var outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
 
-      SignAssemblies(new[] { new InputOutputPair(assemblyPath, outputFile) }, keyFilePath, keyFilePassword, probingPaths);
+      SignAssemblies(new[] { new InputOutputFilePair(assemblyPath, outputFile) }, keyFilePath, keyFilePassword, probingPaths);
 
       return new AssemblyInfo(outputFile, probingPaths);
     }
@@ -130,7 +139,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
     public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
-      => SignAssemblies(assemblyPaths.Select(path => new InputOutputPair(path, path)), keyFilePath, keyFilePassword, probingPaths);
+      => SignAssemblies(assemblyPaths.Select(path => new InputOutputFilePair(path, path)), keyFilePath, keyFilePassword, probingPaths);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -140,7 +149,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<InputOutputPair> assemblyInputOutputPaths) => SignAssemblies(assemblyInputOutputPaths, string.Empty, string.Empty);
+    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths) => SignAssemblies(assemblyInputOutputPaths, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -151,7 +160,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<InputOutputPair> assemblyInputOutputPaths, string keyFilePath) => SignAssemblies(assemblyInputOutputPaths, keyFilePath, string.Empty);
+    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath) => SignAssemblies(assemblyInputOutputPaths, keyFilePath, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -164,12 +173,12 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<InputOutputPair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
+    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
     {
       // If no logger has been set, just use the console.
       if (Log == null)
       {
-        Log = message => Console.WriteLine($"SNS: {message}");
+        Log = message => Console.WriteLine(message);
       }
 
       // Verify assembly paths were passed in.
@@ -189,12 +198,12 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       // Convert all path into AssemblyInfo objects.
-      var assemblies = new List<AssemblyInfo>();
+      var allAssemblies = new HashSet<AssemblyInfo>();
       foreach (var filePath in assemblyInputOutputPaths)
       {
         try
         {
-          assemblies.Add(new AssemblyInfo(filePath.InputFilePath, probingPaths));
+          allAssemblies.Add(new AssemblyInfo(filePath.InputFilePath, probingPaths));
         }
         catch (Exception ex)
         {
@@ -202,15 +211,17 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      var unignedAssemblies = assemblies.Where(a => !a.IsSigned).ToList();
+      // Start with assemblies that are not signed.
+      var assembliesToProcess = new HashSet<AssemblyInfo>(allAssemblies.Where(a => !a.IsSigned));
 
       var keyPair = GetStrongNameKeyPair(keyFilePath, keyFilePassword);
       var publicKey = GetPublicKey(keyPair);
+      var token = GetPublicKeyToken(publicKey);
 
       // Add references that need to be updated and signed.
-      var set = new HashSet<string>(unignedAssemblies.Select(x => x.Definition.Name.Name));
+      var set = new HashSet<string>(assembliesToProcess.Select(x => x.Definition.Name.Name));
 
-      foreach (var assembly in assemblies)
+      foreach (var assembly in allAssemblies)
       {
         Log($"Checking assembly references in '{assembly.FilePath}'.");
 
@@ -218,12 +229,12 @@ namespace Brutal.Dev.StrongNameSigner
           .Where(reference => set.Contains(reference.Name)))
         {
           reference.PublicKey = publicKey;
-          unignedAssemblies.Add(assembly);
+          assembliesToProcess.Add(assembly);
         }
       }
 
       // Strong-name sign all the unsigned assemblies.
-      foreach (var assembly in unignedAssemblies)
+      foreach (var assembly in assembliesToProcess)
       {
         Log($"Signing assembly '{assembly.FilePath}'.");
 
@@ -235,7 +246,7 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       // Fix InternalVisibleToAttribute.
-      foreach (var assembly in unignedAssemblies)
+      foreach (var assembly in allAssemblies)
       {
         foreach (var attribute in assembly.Definition.CustomAttributes
           .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
@@ -245,7 +256,7 @@ namespace Brutal.Dev.StrongNameSigner
           if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
           {
             var originalAssemblyName = (string)argument.Value;
-            var signedAssembly = unignedAssemblies.Find(a => a.Definition.Name.Name == originalAssemblyName);
+            var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
 
             if (signedAssembly == null)
             {
@@ -266,10 +277,90 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       // Fix BAML references.
-      
+      foreach (var assembly in allAssemblies)
+      {
+        foreach (var resources in assembly.Definition.Modules.Select(module => module.Resources))
+        {
+          var resArray = resources.ToArray();
+          for (var resIndex = 0; resIndex < resArray.Length; resIndex++)
+          {
+            var resource = resArray[resIndex];
+            if (resource.ResourceType == ResourceType.Embedded)
+            {
+              if (!resource.Name.EndsWith(".g.resources"))
+              {
+                continue;
+              }
+
+              var embededResource = (EmbeddedResource)resource;
+              var modifyResource = false;
+
+              using var memoryStream = new MemoryStream();
+              using var writer = new ResourceWriter(memoryStream);
+
+              using var resourceStream = embededResource.GetResourceStream();
+              using var reader = new ResourceReader(resourceStream);
+
+              foreach (var entry in reader.OfType<DictionaryEntry>().ToArray())
+              {
+                var resourceName = entry.Key.ToString();
+
+                if (resourceName.EndsWith(".baml", StringComparison.InvariantCulture) && entry.Value is Stream bamlStream)
+                {
+                  using var br = new BinaryReader(bamlStream);
+                  var datab = br.ReadBytes((int)br.BaseStream.Length);
+
+                  var charList = datab.Select(b => (char)b).ToList();
+                  var data = new string(charList.ToArray());
+                  var elementsToReplace = new List<Match>();
+
+                  foreach (Match match in BamlRegex.Matches(data))
+                  {
+                    var name = match.Groups["name"].Value;
+                    if (assembliesToProcess.Any(x => x.Definition.Name.Name == name))
+                    {
+                      elementsToReplace.Add(match);
+                    }
+                  }
+
+                  if (elementsToReplace.Count != 0)
+                  {
+                    assembliesToProcess.Add(assembly);
+                    modifyResource = true;
+
+                    FixBinaryBaml(token, writer, resourceName, charList, elementsToReplace);
+                  }
+                  else
+                  {
+                    bamlStream.Position = 0;
+                    writer.AddResource(resourceName, bamlStream);
+                  }
+                }
+                else
+                {
+                  writer.AddResource(resourceName, entry.Value);
+                }
+              }
+
+              if (modifyResource)
+              {
+                Log($"Replacing BAML entry in assembly '{assembly.FilePath}'.");
+
+                resources.RemoveAt(resIndex);
+                writer.Generate();
+                var array = memoryStream.ToArray();
+                memoryStream.Position = 0;
+
+                var newEmbeded = new EmbeddedResource(resource.Name, resource.Attributes, array);
+                resources.Insert(resIndex, newEmbeded);
+              }
+            }
+          }
+        }
+      }
 
       // Write all updated assemblies.
-      foreach (var assembly in unignedAssemblies.Where(a => !a.Definition.Name.IsRetargetable))
+      foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
       {
         using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
 
@@ -350,12 +441,26 @@ namespace Brutal.Dev.StrongNameSigner
       return publicKey;
     }
 
-    private static void FixBaml(string publicKeyToken, ResourceWriter rw, string resourceName, List<char> charList, List<Match> elementsToReplace)
+    private static string GetPublicKeyToken(byte[] publicKey)
+    {
+      using var csp = new SHA1CryptoServiceProvider();
+      var hash = csp.ComputeHash(publicKey);
+      var token = new byte[8];
+      for (var i = 0; i < 8; i++)
+      {
+        token[i] = hash[hash.Length - (i + 1)];
+      }
+
+      return string.Concat(token.Select(x => x.ToString("x2")));
+    }
+
+    private static void FixBinaryBaml(string publicKeyToken, ResourceWriter rw, string resourceName, List<char> charList, List<Match> elementsToReplace)
     {
       elementsToReplace = elementsToReplace.OrderBy(x => x.Index).ToList();
 
       using var buffer = new MemoryStream();
       using var bufferWriter = new BinaryWriter(buffer);
+
       for (var i = 0; i < charList.Count; i++)
       {
         if (elementsToReplace.Count > 0 && elementsToReplace[0].Index == i)
@@ -393,7 +498,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       bufferWriter.Flush();
 
-      using var mst = new MemoryStream(buffer.ToArray());
+      var mst = new MemoryStream(buffer.ToArray());
       rw.AddResource(resourceName, mst);
     }
 

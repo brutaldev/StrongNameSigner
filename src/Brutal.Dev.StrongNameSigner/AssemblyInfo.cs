@@ -146,6 +146,9 @@ namespace Brutal.Dev.StrongNameSigner
     public override int GetHashCode() => Tuple.Create(FilePath).GetHashCode();
 
     /// <inheritdoc/>
+    public override string ToString() => FilePath;
+
+    /// <inheritdoc/>
     public void Dispose()
     {
       Dispose(disposing: true);

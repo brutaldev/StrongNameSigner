@@ -3,14 +3,14 @@
   /// <summary>
   /// An input/output pair of file paths used for providing the option to write files to another location.
   /// </summary>
-  public class InputOutputPair
+  public class InputOutputFilePair
   {
     /// <summary>
     /// Initializes a new instance of the InputOutputPair class.
     /// </summary>
     /// <param name="inputFilePath">Full file path of the input file.</param>
     /// <param name="outputFilePath">Full file path of the output file.</param>
-    public InputOutputPair(string inputFilePath, string outputFilePath)
+    public InputOutputFilePair(string inputFilePath, string outputFilePath)
     {
       InputFilePath = inputFilePath;
       OutFilePath = outputFilePath;
