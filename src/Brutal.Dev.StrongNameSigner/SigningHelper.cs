@@ -265,6 +265,9 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
+      // Fix BAML references.
+      
+
       // Write all updated assemblies.
       foreach (var assembly in unignedAssemblies.Where(a => !a.Definition.Name.IsRetargetable))
       {

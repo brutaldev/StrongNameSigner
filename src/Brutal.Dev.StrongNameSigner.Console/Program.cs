@@ -104,7 +104,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
     private static void SignAssemblies(Options options)
     {
-      var filesToSign = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+      var filesToSign = new HashSet<string>();
 
       if (!string.IsNullOrWhiteSpace(options.InputDirectory))
       {

@@ -169,7 +169,6 @@ namespace Brutal.Dev.StrongNameSigner
 
     public void Dispose()
     {
-      GC.SuppressFinalize(this);
       if (tempDir != null)
       {
         try
@@ -182,6 +181,8 @@ namespace Brutal.Dev.StrongNameSigner
           // Ignore errors when attempting to clean up temporary directory.
         }
       }
+
+      GC.SuppressFinalize(this);
     }
 
     /// <summary>

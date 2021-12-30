@@ -13,6 +13,10 @@ namespace Brutal.Dev.StrongNameSigner
   [Serializable]
   public sealed class AssemblyInfo : IEquatable<AssemblyInfo>, IDisposable
   {
+    private readonly Lazy<AssemblyDefinition> modifiedDefintion;
+
+    private bool isDisposed;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AssemblyInfo"/> class.
     /// </summary>
@@ -21,49 +25,24 @@ namespace Brutal.Dev.StrongNameSigner
     public AssemblyInfo(string assemblyPath, params string[] probingPaths)
     {
       FilePath = Path.GetFullPath(assemblyPath);
-      Definition = AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths));
 
-      IClrStrongName clrStrongName = null;
+      using var currentDefinition = AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths));
 
-      try
-      {
-        var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
+      DotNetVersion = GetDotNetVersion(currentDefinition.MainModule.Runtime);
+      IsManagedAssembly = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly);
+      Is64BitOnly = currentDefinition.MainModule.Architecture == TargetArchitecture.AMD64 || currentDefinition.MainModule.Architecture == TargetArchitecture.IA64;
+      Is32BitOnly = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
+      Is32BitPreferred = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
 
-        if (runtimeInterface != null)
-        {
-          clrStrongName = runtimeInterface as IClrStrongName;
-        }
-      }
-      catch (InvalidCastException)
-      {
-        // Nothing to do here, cannot create the runtime interface so will skip verification.
-      }
-      catch (PlatformNotSupportedException)
-      {
-        // Nothing to do here, this only works in Windows.
-      }
+      RefreshSigningType(currentDefinition);
 
-      var strongNameVerificationResult = clrStrongName?.StrongNameSignatureVerificationEx(FilePath, true, out _);
-      bool strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
+      modifiedDefintion = new Lazy<AssemblyDefinition>(() => AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths)));
+    }
 
-      DotNetVersion = GetDotNetVersion(Definition.MainModule.Runtime);
-      IsManagedAssembly = Definition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly);
-      Is64BitOnly = Definition.MainModule.Architecture == TargetArchitecture.AMD64 || Definition.MainModule.Architecture == TargetArchitecture.IA64;
-      Is32BitOnly = Definition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !Definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
-      Is32BitPreferred = Definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
-
-      if (!Definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
-      {
-        SigningType = StrongNameType.NotSigned;
-      }
-      else if (strongNameVerified)
-      {
-        SigningType = StrongNameType.Signed;
-      }
-      else
-      {
-        SigningType = StrongNameType.DelaySigned;
-      }
+    /// <inheritdoc/>
+    ~AssemblyInfo()
+    {
+      Dispose(disposing: false);
     }
 
     /// <summary>
@@ -80,7 +59,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     /// The assembly definition.
     /// </value>
-    public AssemblyDefinition Definition { get; private set; }
+    public AssemblyDefinition Definition => modifiedDefintion.Value;
 
     /// <summary>
     /// Gets the .NET version that this assembly was built for, this will be the version of the CLR that is targeted.
@@ -93,7 +72,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <summary>
     /// Determine the type of signing that is in place in the assembly.
     /// </summary>
-    public StrongNameType SigningType { get; }
+    public StrongNameType SigningType { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether this assembly is strong-name signed.
@@ -150,7 +129,11 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="keyPair">The key pair.</param>
     public void Save(string assemblyPath, byte[] keyPair)
     {
-      Definition?.Write(assemblyPath, new WriterParameters() { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
+      if (modifiedDefintion.IsValueCreated)
+      {
+        modifiedDefintion.Value.Write(assemblyPath, new WriterParameters() { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
+        RefreshSigningType(modifiedDefintion.Value);
+      }
     }
 
     /// <inheritdoc/>
@@ -165,8 +148,47 @@ namespace Brutal.Dev.StrongNameSigner
     /// <inheritdoc/>
     public void Dispose()
     {
-      Definition?.Dispose();
-      Definition = null;
+      Dispose(disposing: true);
+      GC.SuppressFinalize(this);
+    }
+
+    private void RefreshSigningType(AssemblyDefinition defintion)
+    {
+      IClrStrongName clrStrongName = null;
+
+      try
+      {
+        var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
+
+        if (runtimeInterface != null)
+        {
+          clrStrongName = runtimeInterface as IClrStrongName;
+        }
+      }
+      catch (InvalidCastException)
+      {
+        // Nothing to do here, cannot create the runtime interface so will skip verification.
+      }
+      catch (PlatformNotSupportedException)
+      {
+        // Nothing to do here, this only works in Windows.
+      }
+
+      var strongNameVerificationResult = clrStrongName?.StrongNameSignatureVerificationEx(FilePath, true, out _);
+      bool strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
+
+      if (!defintion.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
+      {
+        SigningType = StrongNameType.NotSigned;
+      }
+      else if (strongNameVerified)
+      {
+        SigningType = StrongNameType.Signed;
+      }
+      else
+      {
+        SigningType = StrongNameType.DelaySigned;
+      }
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
@@ -208,6 +230,19 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       return readParams;
+    }
+
+    private void Dispose(bool disposing)
+    {
+      if (!isDisposed)
+      {
+        if (disposing && modifiedDefintion.IsValueCreated)
+        {
+          modifiedDefintion.Value.Dispose();
+        }
+
+        isDisposed = true;
+      }
     }
   }
 }
