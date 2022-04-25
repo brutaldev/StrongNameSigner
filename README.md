@@ -26,24 +26,16 @@ If you need to be more specific about what to sign you can call the console vers
 For example, if you want to strong-name sign and fix references to all the NuGet packages that your project uses, you can add this to you Visual Studio project file:
 
 ```xml
-<Target Name="BeforeBuild">
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
-        Command="&quot;C:\Program Files\BrutalDev\.NET Assembly Strong-Name Signer\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
+        Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
 ```
 
 If you are making use of the [NuGet package](https://www.nuget.org/packages/Brutal.Dev.StrongNameSigner/), you can make the call from the `packages` directory like this instead (replace with you own `packages` path):
 
 ```xml
-<Target Name="BeforeBuild">
-  <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
-</Target>
-```
-
-You can also provide specify a value for the `$(StrongNameSignerDirectory)` variable to avoid having to update your project files when a new version is released.
-```xml
-<Target Name="BeforeBuild">
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
         Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages&quot;" />
 </Target>
@@ -57,7 +49,7 @@ To add multiple directories to process at the same time (similar to how the UI c
 ```xml
 <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.2&quot;" />
+        Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.2&quot;" />
 </Target>
 ```
 
@@ -69,7 +61,7 @@ You can also use wildcards for each of your input directories. The above example
 ```xml
 <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
+        Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
 </Target>
 ```
 
@@ -78,7 +70,7 @@ Wildcards can also be complex and placed anywhere in the path. This is useful if
 ```xml
 <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
+        Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
 </Target>
 ```
 
@@ -102,9 +94,9 @@ The type 'XYZ' is defined in an assembly that is not referenced. You must add a 
 For example, ServiceStack's PostgreSQL NuGet package is not signed but other dependent assemblies are. Furthermore, these dependent assembly versions don't match what is referenced in `ServiceStack.OrmLite.PostgreSQL`. To correct the reference versions as well as ensuring the correct signed assemblies are referenced, simply include all the files that need to be processed in a single command to the strong-name signer.
 
 ```xml
-<Target Name="BeforeBuild">
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
-        Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
+        Command="&quot;$(StrongNameSignerDirectory)StrongNameSigner.Console.exe&quot; -in &quot;..\packages\ServiceStack.OrmLite.PostgreSQL.4.0.40\lib\net40|..\packages\ServiceStack.Text.Signed.4.0.40\lib\net40|..\packages\ServiceStack.OrmLite.Signed.4.0.40&quot;" />
 </Target>
 ```
 
