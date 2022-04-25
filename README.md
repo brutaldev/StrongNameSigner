@@ -55,7 +55,7 @@ Elmah is a good example of this. Additional Elmah libraries reference Elmah core
 To add multiple directories to process at the same time (similar to how the UI can process a number of assemblies at once in the grid) just pipe **|** delimit your input directory list.
 
 ```xml
-<Target Name="BeforeBuild">
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
         Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.corelibrary.1.2.2|..\packages\Elmah.MVC.2.1.2&quot;" />
 </Target>
@@ -67,7 +67,7 @@ As a rule of thumb, always include all libraries that will be affected by any si
 You can also use wildcards for each of your input directories. The above example could also be written using a wildcard that will match all directories and versions.
 
 ```xml
-<Target Name="BeforeBuild">
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
         Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\elmah.*&quot;" />
 </Target>
@@ -76,7 +76,7 @@ You can also use wildcards for each of your input directories. The above example
 Wildcards can also be complex and placed anywhere in the path. This is useful if you only want a subset of directories as well as only certain framework specific lib directories to be signed.
 
 ```xml
-<Target Name="BeforeBuild">
+<Target Name="PreBuild" BeforeTargets="PreBuildEvent">
   <Exec ContinueOnError="false"
         Command="&quot;..\packages\Brutal.Dev.StrongNameSigner.3.1.0\build\StrongNameSigner.Console.exe&quot; -in &quot;..\packages\Microsoft.*.Security*\*\net45&quot;" />
 </Target>
