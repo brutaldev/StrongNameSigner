@@ -258,21 +258,28 @@ namespace Brutal.Dev.StrongNameSigner
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
               var originalAssemblyName = (string)argument.Value;
-              var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
-
-              if (signedAssembly == null)
+              if (originalAssemblyName.Contains(", PublicKey="))
               {
-                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
-
-                assembly.Definition.CustomAttributes.Remove(attribute);
+                //friend has a strong name
               }
               else
               {
-                var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
-                var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
+                var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
 
-                attribute.ConstructorArguments.Clear();
-                attribute.ConstructorArguments.Add(updatedArgument);
+                if (signedAssembly == null)
+                {
+                  Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+
+                  assembly.Definition.CustomAttributes.Remove(attribute);
+                }
+                else
+                {
+                  var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
+                  var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
+
+                  attribute.ConstructorArguments.Clear();
+                  attribute.ConstructorArguments.Add(updatedArgument);
+                }
               }
             }
           }
