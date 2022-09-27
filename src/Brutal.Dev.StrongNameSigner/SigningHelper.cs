@@ -176,10 +176,7 @@ namespace Brutal.Dev.StrongNameSigner
     public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
     {
       // If no logger has been set, just use the console.
-      if (Log == null)
-      {
-        Log = message => Console.WriteLine(message);
-      }
+      Log ??= message => Console.WriteLine(message);
 
       // Verify assembly paths were passed in.
       if (assemblyInputOutputPaths?.Any() != true)
