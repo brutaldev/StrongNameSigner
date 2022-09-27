@@ -373,7 +373,15 @@ namespace Brutal.Dev.StrongNameSigner
 
           Log($"Saving changes to assembly '{assembly.FilePath}'.");
 
-          assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+          try
+          {
+            assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+          }
+          catch (NotSupportedException ex)
+          {
+            Log($"Failed to save assembly '{assembly.FilePath}': {ex.Message}");
+          }
+
           assembly.Dispose();
 
           outputFileMgr.Commit();
