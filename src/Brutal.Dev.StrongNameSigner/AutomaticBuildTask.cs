@@ -18,6 +18,10 @@ namespace Brutal.Dev.StrongNameSigner
 
     public ITaskItem[] CopyLocalPaths { get; set; }
 
+    public string KeyFile { get; set; }
+
+    public string Password { get; set; }
+
     [Output]
     public ITaskItem[] SignedAssembliesToReference { get; set; }
 
@@ -42,6 +46,12 @@ namespace Brutal.Dev.StrongNameSigner
         if (OutputPath == null || string.IsNullOrEmpty(OutputPath.ItemSpec))
         {
           Log.LogError("Task parameter 'OutputPath' not provided.");
+          return false;
+        }
+
+        if (!string.IsNullOrEmpty(KeyFile) && !File.Exists(KeyFile))
+        {
+          Log.LogError($"The Key File '{KeyFile}' does not exist.");
           return false;
         }
 
@@ -84,7 +94,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        SigningHelper.SignAssemblies(assembliesToSign, string.Empty, string.Empty, probingPaths);
+        SigningHelper.SignAssemblies(assembliesToSign, KeyFile, Password, probingPaths);
 
         if (CopyLocalPaths != null)
         {
