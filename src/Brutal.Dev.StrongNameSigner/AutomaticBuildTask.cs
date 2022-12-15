@@ -43,12 +43,6 @@ namespace Brutal.Dev.StrongNameSigner
           return true;
         }
 
-        if (OutputPath == null || string.IsNullOrEmpty(OutputPath.ItemSpec))
-        {
-          Log.LogError("Task parameter 'OutputPath' not provided.");
-          return false;
-        }
-
         if (!string.IsNullOrEmpty(KeyFile) && !File.Exists(KeyFile))
         {
           Log.LogError($"The Key File '{KeyFile}' does not exist.");
@@ -94,7 +88,21 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        SigningHelper.SignAssemblies(assembliesToSign, KeyFile, Password, probingPaths);
+        if (string.IsNullOrEmpty(OutputPath?.ItemSpec))
+        {
+          Log.LogMessage("Task parameter 'OutputPath' not provided - signed files will overwrite source files.");
+          SigningHelper.SignAssemblies(assembliesToSign, KeyFile, Password, probingPaths);
+        }
+        else
+        {
+          if(!Directory.Exists(OutputPath.ItemSpec))
+          {
+            Directory.CreateDirectory(OutputPath.ItemSpec);
+          }
+          var inoutassemblies = assembliesToSign.Select(assm => new InputOutputFilePair(assm, Path.Combine(OutputPath.ItemSpec, Path.GetFileName(assm))));                                
+          SigningHelper.SignAssemblies(inoutassemblies, KeyFile, Password, probingPaths);
+          Log.LogMessage(MessageImportance.Normal, $"Signing files to output folder '{OutputPath.ItemSpec}'");
+        }
 
         if (CopyLocalPaths != null)
         {

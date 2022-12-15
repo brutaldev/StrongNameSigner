@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -216,7 +219,40 @@ namespace Brutal.Dev.StrongNameSigner
       }
       catch
       {
+        try
+        {
+          var dir = Path.Combine(Path.GetDirectoryName(target), "tmp");
+          Directory.CreateDirectory(dir);
+          var tmptarget = Path.Combine(dir, Path.GetFileName(target));
+
+          File.Copy(source, tmptarget,true);
+          FailedCopies.Enqueue(tmptarget);
+        }
+        catch
+        {
+
+        }
         // Ignore file operation failures.
+      }
+    }
+
+    private static Queue<string> FailedCopies = new Queue<string>();
+
+    public static void FixFailedCopies()
+    {
+      while (FailedCopies.Count>0)
+      {
+        var failed = FailedCopies.Dequeue();
+        try
+        {
+          var target = failed.Replace(".tmp","");
+          File.Copy(failed, target,true);
+        }
+        catch
+        {
+
+        }
+
       }
     }
   }
