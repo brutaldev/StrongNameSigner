@@ -13,7 +13,6 @@ namespace Brutal.Dev.StrongNameSigner
     [Required]
     public ITaskItem[] References { get; set; }
 
-    [Required]
     public ITaskItem OutputPath { get; set; }
 
     public ITaskItem[] CopyLocalPaths { get; set; }

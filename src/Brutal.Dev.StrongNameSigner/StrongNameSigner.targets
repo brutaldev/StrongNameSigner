@@ -21,6 +21,5 @@
     <!-- Declare a variable that contains the path to the StrongNameSigner directory for pre and post build steps with the following syntax: $(StrongNameSignerDirectory) -->
     <StrongNameSignerDirectory>$(MSBuildThisFileDirectory)</StrongNameSignerDirectory>
     <EnableStrongNameSigner Condition="'$(EnableStrongNameSigner)' == ''">true</EnableStrongNameSigner>
-    <!--<SignerOutputDirectory Condition="'$(SignerOutputDirectory)' == ''">$(IntermediateOutputPath)</SignerOutputDirectory>-->
   </PropertyGroup>
 </Project>
