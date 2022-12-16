@@ -390,6 +390,7 @@ namespace Brutal.Dev.StrongNameSigner
         {
           assembly.Dispose();
         }
+        OutputFileManager.FixFailedCopies();
       }
     }
 
