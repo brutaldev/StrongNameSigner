@@ -21,7 +21,9 @@ The tool will also re-write the assembly references (as well as any InternalsVis
     </description>
     <summary>Automatic strong-name signing of referenced assemblies. Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
     <releaseNotes>
-- Fix issue #72, Skip mixed-mode assemblies because Mono Cecil does not support them.
+#78: Optional OutputPath and recover from locked file copy failures..
+#77: Provide KeyFile and Password parameters.
+#76: Add condition to disable automatic signing.
     </releaseNotes>
     <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
     <language>en-US</language>
