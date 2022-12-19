@@ -9,7 +9,7 @@ namespace Brutal.Dev.StrongNameSigner
   /// <summary>
   /// Expose .NET assembly information.
   /// </summary>
-  /// <seealso cref="System.IDisposable" />
+  /// <seealso cref="IDisposable" />
   [Serializable]
   public sealed class AssemblyInfo : IEquatable<AssemblyInfo>, IDisposable
   {
@@ -129,10 +129,14 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="keyPair">The key pair.</param>
     public void Save(string assemblyPath, byte[] keyPair)
     {
-      if (modifiedDefintion.IsValueCreated)
+      if (modifiedDefintion.IsValueCreated && !isDisposed)
       {
-        modifiedDefintion.Value.Write(assemblyPath, new WriterParameters() { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
-        RefreshSigningType(modifiedDefintion.Value);
+        modifiedDefintion.Value.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
+
+        if (assemblyPath == FilePath)
+        {
+          RefreshSigningType(modifiedDefintion.Value);
+        }
       }
     }
 
@@ -157,40 +161,43 @@ namespace Brutal.Dev.StrongNameSigner
 
     private void RefreshSigningType(AssemblyDefinition defintion)
     {
-      IClrStrongName clrStrongName = null;
-
-      try
-      {
-        var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
-
-        if (runtimeInterface != null)
-        {
-          clrStrongName = runtimeInterface as IClrStrongName;
-        }
-      }
-      catch (InvalidCastException)
-      {
-        // Nothing to do here, cannot create the runtime interface so will skip verification.
-      }
-      catch (PlatformNotSupportedException)
-      {
-        // Nothing to do here, this only works in Windows.
-      }
-
-      var strongNameVerificationResult = clrStrongName?.StrongNameSignatureVerificationEx(FilePath, true, out _);
-      bool strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
-
       if (!defintion.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
       {
         SigningType = StrongNameType.NotSigned;
       }
-      else if (strongNameVerified)
-      {
-        SigningType = StrongNameType.Signed;
-      }
       else
       {
-        SigningType = StrongNameType.DelaySigned;
+        IClrStrongName clrStrongName = null;
+
+        try
+        {
+          var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
+
+          if (runtimeInterface != null)
+          {
+            clrStrongName = runtimeInterface as IClrStrongName;
+          }
+        }
+        catch (InvalidCastException)
+        {
+          // Nothing to do here, cannot create the runtime interface so will skip verification.
+        }
+        catch (PlatformNotSupportedException)
+        {
+          // Nothing to do here, this only works in Windows.
+        }
+
+        var strongNameVerificationResult = clrStrongName?.StrongNameSignatureVerificationEx(FilePath, true, out _);
+        bool strongNameVerified = !strongNameVerificationResult.HasValue || strongNameVerificationResult == 0;
+
+        if (strongNameVerified)
+        {
+          SigningType = StrongNameType.Signed;
+        }
+        else
+        {
+          SigningType = StrongNameType.DelaySigned;
+        }
       }
     }
 
@@ -216,20 +223,32 @@ namespace Brutal.Dev.StrongNameSigner
 
       if (probingPaths != null)
       {
-        foreach (var searchDir in probingPaths.Where(searchDir => Directory.Exists(searchDir)))
+        foreach (var searchDir in probingPaths.Where(Directory.Exists))
         {
           resolver.AddSearchDirectory(searchDir);
         }
       }
 
       ReaderParameters readParams;
+
       try
       {
-        readParams = new ReaderParameters() { AssemblyResolver = resolver, ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")) };
+        readParams = new ReaderParameters
+        {
+          InMemory = true,
+          ReadingMode = ReadingMode.Immediate,
+          AssemblyResolver = resolver,
+          ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb"))
+        };
       }
       catch (InvalidOperationException)
       {
-        readParams = new ReaderParameters() { AssemblyResolver = resolver };
+        readParams = new ReaderParameters
+        {
+          InMemory = true,
+          ReadingMode = ReadingMode.Immediate,
+          AssemblyResolver = resolver
+        };
       }
 
       return readParams;

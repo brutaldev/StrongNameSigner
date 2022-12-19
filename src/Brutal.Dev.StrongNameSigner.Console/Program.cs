@@ -65,6 +65,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       {
         if (Debugger.IsAttached)
         {
+          C.WriteLine("Press any key to exit...");
           C.ReadKey(true);
         }
       }

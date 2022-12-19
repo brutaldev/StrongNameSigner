@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Resources;
@@ -176,7 +177,7 @@ namespace Brutal.Dev.StrongNameSigner
     public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
     {
       // If no logger has been set, just use the console.
-      Log ??= message => Console.WriteLine(message);
+      Log ??= Console.WriteLine;
 
       // Verify assembly paths were passed in.
       if (assemblyInputOutputPaths?.Any() != true)
@@ -194,7 +195,7 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      // Convert all path into AssemblyInfo objects.
+      // Convert all paths into AssemblyInfo objects.
       var allAssemblies = new HashSet<AssemblyInfo>();
       foreach (var filePath in assemblyInputOutputPaths)
       {
@@ -245,31 +246,32 @@ namespace Brutal.Dev.StrongNameSigner
         }
 
         // Fix InternalVisibleToAttribute.
+        var friedReferenceFixes = new HashSet<AssemblyInfo>();
         foreach (var assembly in allAssemblies)
         {
-          foreach (var attribute in assembly.Definition.CustomAttributes
+          foreach (var constructorArguments in assembly.Definition.CustomAttributes
             .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
+            .Select(attr => attr.ConstructorArguments)
             .ToList())
           {
-            var argument = attribute.ConstructorArguments[0];
+            var argument = constructorArguments[0];
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
               var originalAssemblyName = (string)argument.Value;
               var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
 
-              if (signedAssembly == null)
+              if (signedAssembly != null)
               {
-                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+                Log($"Fixing {signedAssembly.Definition.Name.Name} friend reference in assembly '{assembly.FilePath}'.");
 
-                assembly.Definition.CustomAttributes.Remove(attribute);
-              }
-              else
-              {
                 var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
                 var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
 
-                attribute.ConstructorArguments.Clear();
-                attribute.ConstructorArguments.Add(updatedArgument);
+                constructorArguments.Clear();
+                constructorArguments.Add(updatedArgument);
+
+                // Keep these because referenced assemblies should be saved first
+                friedReferenceFixes.Add(signedAssembly);
               }
             }
           }
@@ -358,8 +360,34 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
+        // Write all friend reference assemblies first.
+        foreach (var assembly in friedReferenceFixes.Where(a => !a.Definition.Name.IsRetargetable))
+        {
+          using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
+
+          if (outputFileMgr.IsInPlaceReplace)
+          {
+            outputFileMgr.CreateBackup();
+          }
+
+          Log($"Saving changes to assembly '{assembly.FilePath}'.");
+
+          try
+          {
+            assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+          }
+          catch (NotSupportedException ex)
+          {
+            Log($"Failed to save assembly '{assembly.FilePath}': {ex.Message}");
+          }
+
+          assembly.Dispose();
+
+          outputFileMgr.Commit();
+        }
+
         // Write all updated assemblies.
-        foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
+        foreach (var assembly in assembliesToProcess.Except(friedReferenceFixes).Where(a => !a.Definition.Name.IsRetargetable))
         {
           using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
 
@@ -390,7 +418,6 @@ namespace Brutal.Dev.StrongNameSigner
         {
           assembly.Dispose();
         }
-        OutputFileManager.FixFailedCopies();
       }
     }
 

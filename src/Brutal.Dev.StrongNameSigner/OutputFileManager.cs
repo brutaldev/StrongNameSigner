@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using Mono.Cecil;
 
 namespace Brutal.Dev.StrongNameSigner
 {
@@ -111,11 +108,11 @@ namespace Brutal.Dev.StrongNameSigner
     /// </summary>
     public void CreateBackup()
     {
-      CopyFile(SourceAssemblyPath, BackupAssemblyPath, false);
+      CopyFile(SourceAssemblyPath, BackupAssemblyPath);
 
       if (HasSymbols)
       {
-        CopyFile(SourcePdbPath, BackupPdbPath, false);
+        CopyFile(SourcePdbPath, BackupPdbPath);
       }
 
       HasBackup = true;
@@ -127,11 +124,11 @@ namespace Brutal.Dev.StrongNameSigner
     /// </summary>
     public void CopySourceToFinalOutput()
     {
-      CopyFile(SourceAssemblyPath, TargetAssemblyPath, false);
+      CopyFile(SourceAssemblyPath, TargetAssemblyPath);
 
       if (HasSymbols)
       {
-        CopyFile(SourcePdbPath, TargetPdbPath, false);
+        CopyFile(SourcePdbPath, TargetPdbPath);
       }
     }
 
@@ -145,28 +142,41 @@ namespace Brutal.Dev.StrongNameSigner
       {
         try
         {
-          // Only move files if the target assembly to move actually was created.
-          CopyFile(IntermediateAssemblyPath, TargetAssemblyPath, true);
+          CopyFile(IntermediateAssemblyPath, TargetAssemblyPath);
+
           if (HasSymbols)
           {
-            CopyFile(IntermediatePdbPath, TargetPdbPath, true);
+            CopyFile(IntermediatePdbPath, TargetPdbPath);
+          }
+
+          if (File.Exists(IntermediateAssemblyPath))
+          {
+            File.Delete(IntermediateAssemblyPath);
           }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+          SigningHelper.Log(ex.ToString());
+
           if (HasBackup)
           {
             // Restore backup
-            CopyFile(BackupAssemblyPath, SourceAssemblyPath, true);
-            CopyFile(BackupPdbPath, SourcePdbPath, true);
+            CopyFile(BackupAssemblyPath, SourceAssemblyPath);
+            CopyFile(BackupPdbPath, SourcePdbPath);
+
+            if (File.Exists(BackupAssemblyPath))
+            {
+              File.Delete(BackupAssemblyPath);
+            }
+
+            if (File.Exists(BackupPdbPath))
+            {
+              File.Delete(BackupPdbPath);
+            }
           }
 
           throw;
         }
-      }
-      else
-      {
-        // Nothing to commit if we didn't use a temporary directory.
       }
     }
 
@@ -179,9 +189,10 @@ namespace Brutal.Dev.StrongNameSigner
           Directory.Delete(tempDir, true);
           tempDir = null;
         }
-        catch
+        catch (Exception ex)
         {
           // Ignore errors when attempting to clean up temporary directory.
+          SigningHelper.Log(ex.ToString());
         }
       }
 
@@ -194,8 +205,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// </summary>
     /// <param name="source">The source file to copy/move if it exists.</param>
     /// <param name="target">The target file to write to.</param>
-    /// <param name="move">if set to <see langword="true" /> the file is moved, otherwise it is copied.</param>
-    private static void CopyFile(string source, string target, bool move)
+    private static void CopyFile(string source, string target)
     {
       try
       {
@@ -204,55 +214,15 @@ namespace Brutal.Dev.StrongNameSigner
           if (File.Exists(target))
           {
             File.SetAttributes(target, FileAttributes.Normal);
-            File.Delete(target);
           }
 
-          if (move)
-          {
-            File.Move(source, target);
-          }
-          else
-          {
-            File.Copy(source, target);
-          }
+          File.Copy(source, target, true);
         }
       }
-      catch
+      catch (Exception ex)
       {
-        try
-        {
-          var dir = Path.Combine(Path.GetDirectoryName(target), "tmp");
-          Directory.CreateDirectory(dir);
-          var tmptarget = Path.Combine(dir, Path.GetFileName(target));
-
-          File.Copy(source, tmptarget,true);
-          FailedCopies.Enqueue(tmptarget);
-        }
-        catch
-        {
-
-        }
         // Ignore file operation failures.
-      }
-    }
-
-    private static Queue<string> FailedCopies = new Queue<string>();
-
-    public static void FixFailedCopies()
-    {
-      while (FailedCopies.Count>0)
-      {
-        var failed = FailedCopies.Dequeue();
-        try
-        {
-          var target = failed.Replace(".tmp","");
-          File.Copy(failed, target,true);
-        }
-        catch
-        {
-
-        }
-
+        SigningHelper.Log(ex.ToString());
       }
     }
   }
