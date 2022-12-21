@@ -251,10 +251,10 @@ namespace Brutal.Dev.StrongNameSigner
         {
           foreach (var constructorArguments in assembly.Definition.CustomAttributes
             .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
-            .Select(attr => attr.ConstructorArguments)
+            .Select(attr => new{Attribute = attr, Constructor = attr.ConstructorArguments})
             .ToList())
           {
-            var argument = constructorArguments[0];
+            var argument = constructorArguments.Constructor[0];
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
               var originalAssemblyName = (string)argument.Value;
@@ -267,11 +267,17 @@ namespace Brutal.Dev.StrongNameSigner
                 var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
                 var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
 
-                constructorArguments.Clear();
-                constructorArguments.Add(updatedArgument);
+                constructorArguments.Constructor.Clear();
+                constructorArguments.Constructor.Add(updatedArgument);
 
                 // Keep these because referenced assemblies should be saved first
                 friedReferenceFixes.Add(signedAssembly);
+              }
+              else
+              {
+                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+
+                assembly.Definition.CustomAttributes.Remove(constructorArguments.Attribute);
               }
             }
           }
