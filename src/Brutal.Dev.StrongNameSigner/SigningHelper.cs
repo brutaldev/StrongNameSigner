@@ -196,6 +196,8 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
+      Log("1. Loading assemblies...");
+
       // Convert all paths into AssemblyInfo objects.
       var allAssemblies = new HashSet<AssemblyInfo>();
 
@@ -208,23 +210,29 @@ namespace Brutal.Dev.StrongNameSigner
       {
         try
         {
-          var tempFilePath = Path.Combine(tempPath, Path.GetFileName(inputOutpuFilePair.InputFilePath));
+          var tempFilePath = Path.Combine(tempPath, $"{Path.GetFileNameWithoutExtension(inputOutpuFilePair.InputFilePath)}.{Guid.NewGuid()}{Path.GetExtension(inputOutpuFilePair.InputFilePath)}");
           File.Copy(inputOutpuFilePair.InputFilePath, tempFilePath, true);
 
-          if (File.Exists(Path.ChangeExtension(inputOutpuFilePair.InputFilePath, ".pdb")))
+          if (inputOutpuFilePair.HasSymbols)
           {
-            File.Copy(Path.ChangeExtension(inputOutpuFilePair.InputFilePath, ".pdb"), Path.ChangeExtension(tempFilePath, ".pdb"), true);
+            File.Copy(inputOutpuFilePair.InputPdbPath, Path.ChangeExtension(tempFilePath, ".pdb"), true);
           }
 
           tempFilePathToInputOutputFilePairMap.Add(tempFilePath, inputOutpuFilePair);
 
           allAssemblies.Add(new AssemblyInfo(tempFilePath, probingPaths));
         }
+        catch (BadImageFormatException ex)
+        {
+          Log($"   Unsupported assembly '{inputOutpuFilePair.InputFilePath}': {ex.Message}");
+        }
         catch (Exception ex)
         {
-          Log(ex.ToString());
+          Log($"   Failed to load assembly '{inputOutpuFilePair.InputFilePath}': {ex.Message}");
         }
       }
+
+      Log("2. Checking assembly references...");
 
       try
       {
@@ -240,7 +248,7 @@ namespace Brutal.Dev.StrongNameSigner
 
         foreach (var assembly in allAssemblies)
         {
-          Log($"Checking assembly references in '{assembly.FilePath}'.");
+          Log($"   Checking assembly references in '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
           foreach (var reference in assembly.Definition.MainModule.AssemblyReferences
             .Where(reference => set.Contains(reference.Name)))
@@ -250,10 +258,12 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
+        Log("3. Strong-name unsigned assemblies...");
+
         // Strong-name sign all the unsigned assemblies.
         foreach (var assembly in assembliesToProcess)
         {
-          Log($"Signing assembly '{assembly.FilePath}'.");
+          Log($"   Signing assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
           var name = assembly.Definition.Name;
           name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
@@ -261,6 +271,8 @@ namespace Brutal.Dev.StrongNameSigner
           name.HasPublicKey = true;
           name.Attributes |= AssemblyAttributes.PublicKey;
         }
+
+        Log("4. Fix InternalVisibleToAttribute references...");
 
         // Fix InternalVisibleToAttribute.
         foreach (var assembly in allAssemblies)
@@ -278,7 +290,7 @@ namespace Brutal.Dev.StrongNameSigner
 
               if (signedAssembly != null)
               {
-                Log($"Fixing {signedAssembly.Definition.Name.Name} friend reference in assembly '{assembly.FilePath}'.");
+                Log($"   Fixing {signedAssembly.Definition.Name.Name} friend reference in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
                 var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
                 var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
@@ -289,6 +301,8 @@ namespace Brutal.Dev.StrongNameSigner
             }
           }
         }
+
+        Log("5. Fix BAML references...");
 
         // Fix BAML references.
         foreach (var assembly in allAssemblies)
@@ -358,7 +372,7 @@ namespace Brutal.Dev.StrongNameSigner
 
                 if (modifyResource)
                 {
-                  Log($"Replacing BAML entry in assembly '{assembly.FilePath}'.");
+                  Log($"   Replacing BAML entry in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
                   resources.RemoveAt(resIndex);
                   writer.Generate();
@@ -372,6 +386,8 @@ namespace Brutal.Dev.StrongNameSigner
             }
           }
         }
+
+        Log("6. Save assembly changes...");
 
         // Write all updated assemblies.
         foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
@@ -388,7 +404,7 @@ namespace Brutal.Dev.StrongNameSigner
             }
           }
 
-          Log($"Saving changes to assembly '{inputOutpuFilePair.OutputFilePath}'.");
+          Log($"   Saving changes to assembly '{inputOutpuFilePair.OutputFilePath}'.");
 
           try
           {
@@ -396,7 +412,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
           catch (NotSupportedException ex)
           {
-            Log($"Failed to save assembly '{inputOutpuFilePair.OutputFilePath}': {ex.Message}");
+            Log($"   Failed to save assembly '{inputOutpuFilePair.OutputFilePath}': {ex.Message}");
 
             if (inputOutpuFilePair.IsSameFile)
             {
@@ -419,6 +435,8 @@ namespace Brutal.Dev.StrongNameSigner
       }
       finally
       {
+        Log("7. Cleanup...");
+
         tempFilePathToInputOutputFilePairMap.Clear();
 
         foreach (var assembly in allAssemblies)
@@ -432,7 +450,7 @@ namespace Brutal.Dev.StrongNameSigner
         }
         catch (Exception ex)
         {
-          Log($"Failed to delete temp working directory '{tempPath}': {ex.Message}");
+          Log($"   Failed to delete temp working directory '{tempPath}': {ex.Message}");
         }
       }
     }

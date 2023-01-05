@@ -236,7 +236,7 @@ namespace Brutal.Dev.StrongNameSigner
         readParams = new ReaderParameters
         {
           InMemory = true,
-          ReadingMode = ReadingMode.Immediate,
+          ReadingMode = ReadingMode.Deferred,
           AssemblyResolver = resolver,
           ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb"))
         };
@@ -246,7 +246,7 @@ namespace Brutal.Dev.StrongNameSigner
         readParams = new ReaderParameters
         {
           InMemory = true,
-          ReadingMode = ReadingMode.Immediate,
+          ReadingMode = ReadingMode.Deferred,
           AssemblyResolver = resolver
         };
       }

@@ -16,6 +16,11 @@ namespace Brutal.Dev.StrongNameSigner
     {
       InputFilePath = inputFilePath;
       OutputFilePath = outputFilePath;
+      IsSameFile = InputFilePath == OutputFilePath;
+      InputPdbPath = Path.ChangeExtension(InputFilePath, ".pdb");
+      BackupAssemblyPath = InputFilePath + ".unsigned";
+      BackupPdbPath = InputPdbPath + ".unsigned";
+      HasSymbols = File.Exists(InputPdbPath);
     }
 
     /// <summary>
@@ -40,7 +45,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <remarks>
     /// Does not check for existence of the file, use <see cref="HasSymbols"/> for existence check.
     /// </remarks>
-    public string InputPdbPath => Path.ChangeExtension(InputFilePath, ".pdb");
+    public string InputPdbPath { get; }
 
     /// <summary>
     /// Gets if both input and output file paths are the same file.
@@ -48,21 +53,21 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     /// <c>true</c> if the paths are the same, <c>false</c> if they are not.
     /// </value>
-    public bool IsSameFile => InputFilePath == OutputFilePath;
+    public bool IsSameFile { get; }
 
     /// <summary>
     /// Gets the path to an unsigned backup of the input assembly.
     /// </summary>
-    public string BackupAssemblyPath => InputFilePath + ".unsigned";
+    public string BackupAssemblyPath { get; }
 
     /// <summary>
     /// Gets the path to where a backup of the source .PDB file.
     /// </summary>
-    public string BackupPdbPath => InputPdbPath + ".unsigned";
+    public string BackupPdbPath { get; }
 
     /// <summary>
     /// Gets a value indicating whether the input assembly has a matching PDB file.
     /// </summary>
-    public bool HasSymbols => File.Exists(InputPdbPath);
+    public bool HasSymbols { get; }
   }
 }
