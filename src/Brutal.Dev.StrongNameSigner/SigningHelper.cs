@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -197,11 +198,27 @@ namespace Brutal.Dev.StrongNameSigner
 
       // Convert all paths into AssemblyInfo objects.
       var allAssemblies = new HashSet<AssemblyInfo>();
-      foreach (var filePath in assemblyInputOutputPaths)
+
+      // File locking issues in Mono.Cecil are a real pain in the ass so let's create a working directory of files to process, then copy them back when we're done.
+      var tempFilePathToInputOutputFilePairMap = new Dictionary<string, InputOutputFilePair>();
+      var tempPath = Path.Combine(Path.GetTempPath(), "StrongNameSigner");
+      Directory.CreateDirectory(tempPath);
+
+      foreach (var inputOutpuFilePair in assemblyInputOutputPaths)
       {
         try
         {
-          allAssemblies.Add(new AssemblyInfo(filePath.InputFilePath, probingPaths));
+          var tempFilePath = Path.Combine(tempPath, Path.GetFileName(inputOutpuFilePair.InputFilePath));
+          File.Copy(inputOutpuFilePair.InputFilePath, tempFilePath, true);
+
+          if (File.Exists(Path.ChangeExtension(inputOutpuFilePair.InputFilePath, ".pdb")))
+          {
+            File.Copy(Path.ChangeExtension(inputOutpuFilePair.InputFilePath, ".pdb"), Path.ChangeExtension(tempFilePath, ".pdb"), true);
+          }
+
+          tempFilePathToInputOutputFilePairMap.Add(tempFilePath, inputOutpuFilePair);
+
+          allAssemblies.Add(new AssemblyInfo(tempFilePath, probingPaths));
         }
         catch (Exception ex)
         {
@@ -246,15 +263,14 @@ namespace Brutal.Dev.StrongNameSigner
         }
 
         // Fix InternalVisibleToAttribute.
-        var friedReferenceFixes = new HashSet<AssemblyInfo>();
         foreach (var assembly in allAssemblies)
         {
           foreach (var constructorArguments in assembly.Definition.CustomAttributes
             .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
-            .Select(attr => new { Attribute = attr, Constructor = attr.ConstructorArguments })
+            .Select(attr => attr.ConstructorArguments)
             .ToList())
           {
-            var argument = constructorArguments.Constructor[0];
+            var argument = constructorArguments[0];
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
               var originalAssemblyName = (string)argument.Value;
@@ -267,17 +283,8 @@ namespace Brutal.Dev.StrongNameSigner
                 var assemblyName = signedAssembly.Definition.Name.Name + ", PublicKey=" + BitConverter.ToString(signedAssembly.Definition.Name.PublicKey).Replace("-", string.Empty);
                 var updatedArgument = new CustomAttributeArgument(argument.Type, assemblyName);
 
-                constructorArguments.Constructor.Clear();
-                constructorArguments.Constructor.Add(updatedArgument);
-
-                // Keep these because referenced assemblies should be saved first
-                friedReferenceFixes.Add(signedAssembly);
-              }
-              else
-              {
-                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
-
-                assembly.Definition.CustomAttributes.Remove(constructorArguments.Attribute);
+                constructorArguments.Clear();
+                constructorArguments.Add(updatedArgument);
               }
             }
           }
@@ -366,63 +373,66 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        // Write all friend reference assemblies first.
-        foreach (var assembly in friedReferenceFixes.Where(a => !a.Definition.Name.IsRetargetable))
-        {
-          using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
-
-          if (outputFileMgr.IsInPlaceReplace)
-          {
-            outputFileMgr.CreateBackup();
-          }
-
-          Log($"Saving changes to assembly '{assembly.FilePath}'.");
-
-          try
-          {
-            assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
-          }
-          catch (NotSupportedException ex)
-          {
-            Log($"Failed to save assembly '{assembly.FilePath}': {ex.Message}");
-          }
-
-          assembly.Dispose();
-
-          outputFileMgr.Commit();
-        }
-
         // Write all updated assemblies.
-        foreach (var assembly in assembliesToProcess.Except(friedReferenceFixes).Where(a => !a.Definition.Name.IsRetargetable))
+        foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
         {
-          using var outputFileMgr = new OutputFileManager(assembly.FilePath, assemblyInputOutputPaths.First(a => Path.GetFullPath(a.InputFilePath) == assembly.FilePath).OutFilePath);
+          var inputOutpuFilePair = tempFilePathToInputOutputFilePairMap[assembly.FilePath];
 
-          if (outputFileMgr.IsInPlaceReplace)
+          if (inputOutpuFilePair.IsSameFile)
           {
-            outputFileMgr.CreateBackup();
+            File.Copy(inputOutpuFilePair.InputFilePath, inputOutpuFilePair.BackupAssemblyPath, true);
+
+            if (inputOutpuFilePair.HasSymbols)
+            {
+              File.Copy(inputOutpuFilePair.InputPdbPath, inputOutpuFilePair.BackupPdbPath, true);
+            }
           }
 
-          Log($"Saving changes to assembly '{assembly.FilePath}'.");
+          Log($"Saving changes to assembly '{inputOutpuFilePair.OutputFilePath}'.");
 
           try
           {
-            assembly.Save(outputFileMgr.IntermediateAssemblyPath, keyPair);
+            assembly.Save(inputOutpuFilePair.OutputFilePath, keyPair);
           }
           catch (NotSupportedException ex)
           {
-            Log($"Failed to save assembly '{assembly.FilePath}': {ex.Message}");
+            Log($"Failed to save assembly '{inputOutpuFilePair.OutputFilePath}': {ex.Message}");
+
+            if (inputOutpuFilePair.IsSameFile)
+            {
+              // Restore the backup that would have been created above.
+              File.Copy(inputOutpuFilePair.BackupAssemblyPath, inputOutpuFilePair.InputFilePath, true);
+              File.Delete(inputOutpuFilePair.BackupAssemblyPath);
+
+              if (inputOutpuFilePair.HasSymbols)
+              {
+                File.Copy(inputOutpuFilePair.BackupPdbPath, inputOutpuFilePair.InputPdbPath, true);
+                File.Delete(inputOutpuFilePair.BackupPdbPath);
+              }
+            }
           }
-
-          assembly.Dispose();
-
-          outputFileMgr.Commit();
+          finally
+          {
+            assembly.Dispose();
+          }
         }
       }
       finally
       {
+        tempFilePathToInputOutputFilePairMap.Clear();
+
         foreach (var assembly in allAssemblies)
         {
           assembly.Dispose();
+        }
+
+        try
+        {
+          Directory.Delete(tempPath, true);
+        }
+        catch (Exception ex)
+        {
+          Log($"Failed to delete temp working directory '{tempPath}': {ex.Message}");
         }
       }
     }

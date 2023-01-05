@@ -268,4 +268,3 @@ namespace Brutal.Dev.StrongNameSigner.Tests
     }
   }
 }
-

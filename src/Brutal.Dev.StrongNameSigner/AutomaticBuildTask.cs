@@ -8,6 +8,7 @@ using Microsoft.Build.Utilities;
 
 namespace Brutal.Dev.StrongNameSigner
 {
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
   public class AutomaticBuildTask : Microsoft.Build.Utilities.Task
   {
     [Required]
@@ -131,4 +132,5 @@ namespace Brutal.Dev.StrongNameSigner
       return false;
     }
   }
+#pragma warning restore CS1591 // Missing XML comment for publicly visible type or member
 }

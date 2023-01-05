@@ -381,7 +381,7 @@ namespace Brutal.Dev.StrongNameSigner.UI
         }
         finally
         {
-          backgroundWorker.ReportProgress(100, assemblyInputOutputPaths.Select(io => io.OutFilePath));
+          backgroundWorker.ReportProgress(100, assemblyInputOutputPaths.Select(io => io.OutputFilePath));
         }
       }
     }
