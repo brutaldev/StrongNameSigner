@@ -251,7 +251,7 @@ namespace Brutal.Dev.StrongNameSigner
         {
           foreach (var constructorArguments in assembly.Definition.CustomAttributes
             .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
-            .Select(attr => new{Attribute = attr, Constructor = attr.ConstructorArguments})
+            .Select(attr => new { Attribute = attr, Constructor = attr.ConstructorArguments })
             .ToList())
           {
             var argument = constructorArguments.Constructor[0];

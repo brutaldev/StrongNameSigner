@@ -75,9 +75,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
 
     private static void PrintHeader()
     {
-      C.WriteLine("-----------------------------------------------------------");
-      C.WriteLine("---- Brutal Developer .NET Assembly Strong-Name Signer ----");
-      C.WriteLine("-----------------------------------------------------------");
+      var version = Assembly.GetEntryAssembly().GetName().Version.ToString();
+      C.WriteLine("-------------------------------------------------------------------");
+      C.WriteLine($"---- Brutal Developer .NET Assembly Strong-Name Signer {version} ----");
+      C.WriteLine("-------------------------------------------------------------------");
       C.WriteLine(((AssemblyDescriptionAttribute)Assembly.GetEntryAssembly().GetCustomAttributes(typeof(AssemblyDescriptionAttribute), false)[0]).Description);
     }
 

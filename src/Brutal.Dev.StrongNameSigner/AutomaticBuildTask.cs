@@ -94,11 +94,11 @@ namespace Brutal.Dev.StrongNameSigner
         }
         else
         {
-          if(!Directory.Exists(OutputPath.ItemSpec))
+          if (!Directory.Exists(OutputPath.ItemSpec))
           {
             Directory.CreateDirectory(OutputPath.ItemSpec);
           }
-          var inoutassemblies = assembliesToSign.Select(assm => new InputOutputFilePair(assm, Path.Combine(OutputPath.ItemSpec, Path.GetFileName(assm))));                                
+          var inoutassemblies = assembliesToSign.Select(assm => new InputOutputFilePair(assm, Path.Combine(OutputPath.ItemSpec, Path.GetFileName(assm))));
           SigningHelper.SignAssemblies(inoutassemblies, KeyFile, Password, probingPaths);
           Log.LogMessage(MessageImportance.Normal, $"Signing files to output folder '{OutputPath.ItemSpec}'");
         }
