@@ -24,11 +24,11 @@
     <!-- Declare a variable that contains the path to the StrongNameSigner directory for pre and post build steps with the following syntax: $(StrongNameSignerDirectory) -->
     <StrongNameSignerDirectory>$(MSBuildThisFileDirectory)</StrongNameSignerDirectory>
     <EnableStrongNameSigner Condition="'$(EnableStrongNameSigner)' == ''">true</EnableStrongNameSigner>
-    <!-- Signing should be done sometime after references are resolved - define StrongNameSignerAfterTargets to add other tasks that
+    <!-- Signing should be done sometime after references are resolved - define StrongNameSignerAfterTargets to define other tasks that
         signing should run after -->
-    <StrongNameSignerAfterTargets>$(StrongNameSignerAfterTargets);AfterResolveReferences</StrongNameSignerAfterTargets>
-    <!-- Signing should be done sometime before compile - define StrongNameSignerAfterTargets to add other tasks that signing
+    <StrongNameSignerAfterTargets Condition="'$(StrongNameSignerAfterTargets)' == ''">AfterResolveReferences</StrongNameSignerAfterTargets>
+    <!-- Signing should be done sometime before compile - define StrongNameSignerAfterTargets to define other tasks that signing
         should be done before-->
-    <StrongNameSignerBeforeTargets>$(StrongNameSignerBeforeTargets);BeforeCompile</StrongNameSignerBeforeTargets>
+    <StrongNameSignerBeforeTargets Condition="'$(StrongNameSignerBeforeTargets)' == ''">BeforeCompile</StrongNameSignerBeforeTargets>
   </PropertyGroup>
 </Project>
