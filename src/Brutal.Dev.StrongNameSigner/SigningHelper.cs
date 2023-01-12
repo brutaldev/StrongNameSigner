@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -278,12 +276,11 @@ namespace Brutal.Dev.StrongNameSigner
         foreach (var assembly in allAssemblies)
         {
           foreach (var internalVisibleArg in assembly.Definition.CustomAttributes
-            .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
-                  attr.HasConstructorArguments)
+            .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName && attr.HasConstructorArguments)
             .Select(attr => new { Attribute = attr, Arguments = attr.ConstructorArguments })
             .ToList())
           {
-            var constructorArguments= internalVisibleArg.Arguments;
+            var constructorArguments = internalVisibleArg.Arguments;
             var argument = constructorArguments[0];
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
@@ -302,9 +299,8 @@ namespace Brutal.Dev.StrongNameSigner
               }
               else if (!originalAssemblyName.Contains("PublicKey"))
               {
-                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+                Log($"   Removing invalid friend reference from assembly '{assembly.FilePath}'.");
                 assembly.Definition.CustomAttributes.Remove(internalVisibleArg.Attribute);
-
               }
             }
           }
@@ -322,10 +318,8 @@ namespace Brutal.Dev.StrongNameSigner
           {
             foreach (var argument in constructorArguments.ToArray())
             {
-              if (argument.Type.FullName == "System.Type" &&
-                argument.Value is TypeReference typeRef)
+              if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef)
               {
-
                 var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
 
                 if (signedAssembly != null)
@@ -339,7 +333,6 @@ namespace Brutal.Dev.StrongNameSigner
                   constructorArguments.RemoveAt(idx);
                   constructorArguments.Insert(idx, updatedArgument);
                 }
-
               }
             }
           }
