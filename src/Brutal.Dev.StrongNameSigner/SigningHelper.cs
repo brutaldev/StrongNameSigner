@@ -179,7 +179,7 @@ namespace Brutal.Dev.StrongNameSigner
     {
       // If no logger has been set, just use the console.
       Log ??= Console.WriteLine;
-
+      var step = 1;
       // Verify assembly paths were passed in.
       if (assemblyInputOutputPaths?.Any() != true)
       {
@@ -196,7 +196,7 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      Log("1. Loading assemblies...");
+      Log($"{step++}. Loading assemblies...");
 
       // Convert all paths into AssemblyInfo objects.
       var allAssemblies = new HashSet<AssemblyInfo>();
@@ -232,7 +232,7 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      Log("2. Checking assembly references...");
+      Log($"{step++}. Checking assembly references...");
 
       try
       {
@@ -258,7 +258,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        Log("3. Strong-name unsigned assemblies...");
+        Log($"{step++}. Strong-name unsigned assemblies...");
 
         // Strong-name sign all the unsigned assemblies.
         foreach (var assembly in assembliesToProcess)
@@ -272,16 +272,18 @@ namespace Brutal.Dev.StrongNameSigner
           name.Attributes |= AssemblyAttributes.PublicKey;
         }
 
-        Log("4. Fix InternalVisibleToAttribute references...");
+        Log($"{step++}. Fix InternalVisibleToAttribute references...");
 
         // Fix InternalVisibleToAttribute.
         foreach (var assembly in allAssemblies)
         {
-          foreach (var constructorArguments in assembly.Definition.CustomAttributes
-            .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName)
-            .Select(attr => attr.ConstructorArguments)
+          foreach (var internalVisibleArg in assembly.Definition.CustomAttributes
+            .Where(attr => attr.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName &&
+                  attr.HasConstructorArguments)
+            .Select(attr => new { Attribute = attr, Arguments = attr.ConstructorArguments })
             .ToList())
           {
+            var constructorArguments= internalVisibleArg.Arguments;
             var argument = constructorArguments[0];
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
@@ -298,11 +300,52 @@ namespace Brutal.Dev.StrongNameSigner
                 constructorArguments.Clear();
                 constructorArguments.Add(updatedArgument);
               }
+              else if (!originalAssemblyName.Contains("PublicKey"))
+              {
+                Log($"Removing invalid friend reference from assembly '{assembly.FilePath}'.");
+                assembly.Definition.CustomAttributes.Remove(internalVisibleArg.Attribute);
+
+              }
             }
           }
         }
 
-        Log("5. Fix BAML references...");
+        Log($"{step++}. Fix CustomAttributes with Type references...");
+
+        // Fix CustomAttributes with Type references.
+        foreach (var assembly in allAssemblies)
+        {
+          foreach (var constructorArguments in assembly.Definition.CustomAttributes
+            .Where(attr => attr.HasConstructorArguments)
+            .Select(attr => attr.ConstructorArguments)
+            .ToList())
+          {
+            foreach (var argument in constructorArguments.ToArray())
+            {
+              if (argument.Type.FullName == "System.Type" &&
+                argument.Value is TypeReference typeRef)
+              {
+
+                var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
+
+                if (signedAssembly != null)
+                {
+                  Log($"   Fixing {signedAssembly.Definition.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
+
+                  var updatedTypeRef = signedAssembly.Definition.MainModule.GetType(typeRef.FullName);
+
+                  var updatedArgument = new CustomAttributeArgument(argument.Type, updatedTypeRef);
+                  var idx = constructorArguments.IndexOf(argument);
+                  constructorArguments.RemoveAt(idx);
+                  constructorArguments.Insert(idx, updatedArgument);
+                }
+
+              }
+            }
+          }
+        }
+
+        Log($"{step++}. Fix BAML references...");
 
         // Fix BAML references.
         foreach (var assembly in allAssemblies)
@@ -387,7 +430,7 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
-        Log("6. Save assembly changes...");
+        Log($"{step++}. Save assembly changes...");
 
         // Write all updated assemblies.
         foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
@@ -435,7 +478,7 @@ namespace Brutal.Dev.StrongNameSigner
       }
       finally
       {
-        Log("7. Cleanup...");
+        Log($"{step++}. Cleanup...");
 
         tempFilePathToInputOutputFilePairMap.Clear();
 
