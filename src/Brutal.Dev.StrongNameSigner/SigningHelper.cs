@@ -302,6 +302,42 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
 
+        Log("4a. Fix CustomAttributes with Type references...");
+
+        // Fix CustomAttributes with Type references.
+        foreach (var assembly in allAssemblies)
+        {
+          foreach (var constructorArguments in assembly.Definition.CustomAttributes
+            .Select(attr => attr.ConstructorArguments)
+            .ToList())
+          {
+            foreach (var argument in constructorArguments.ToArray())
+            {
+              if (argument.Type.FullName == "System.Type" &&
+                argument.Value is TypeReference typeRef)
+              {
+                
+                var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
+
+                if (signedAssembly != null)
+                {
+                  Log($"   Fixing {signedAssembly.Definition.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
+
+                  var updatedTypeRef = signedAssembly.Definition.MainModule.GetType(typeRef.FullName);
+
+                  var updatedArgument = new CustomAttributeArgument(argument.Type, updatedTypeRef);
+                  var idx = constructorArguments.IndexOf(argument);
+                  constructorArguments.RemoveAt(idx);
+                  constructorArguments.Insert(idx, updatedArgument);
+                }
+
+              }
+            }
+          }
+        }
+
+
+
         Log("5. Fix BAML references...");
 
         // Fix BAML references.
