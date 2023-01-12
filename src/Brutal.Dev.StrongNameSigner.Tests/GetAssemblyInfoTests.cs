@@ -1,8 +1,7 @@
-﻿using Xunit;
-using Shouldly;
-using System;
+﻿using System;
 using System.IO;
-using System.Reflection;
+using Shouldly;
+using Xunit;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
