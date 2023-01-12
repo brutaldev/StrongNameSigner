@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+﻿using Xunit;
 using Shouldly;
 using System;
 using System.IO;
@@ -7,12 +7,11 @@ using System.Reflection;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
-  [TestFixture]
   public class SignAssemblyTests
   {
-    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "TestAssemblies");
+    private static readonly string TestAssemblyDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestAssemblies");
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Test()
     {
       var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed"));
@@ -25,43 +24,43 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.IsSigned.ShouldBe(true);
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Invalid_Path_Should_Throw_Exception()
     {
-      Assert.Throws<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")).Dispose());
+      Should.Throw<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")).Dispose());
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Password_Not_Provided()
     {
-      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx")).Dispose());
+      Should.Throw<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx")).Dispose());
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Throw_Exception_When_Wrong_Password_Provided()
     {
-      Assert.Throws<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops").Dispose());
+      Should.Throw<CryptographicException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "oops").Dispose());
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Password_Protected_Key_Path_Should_Work_With_Correct_Password()
     {
-      Assert.DoesNotThrow(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123").Dispose());
+      Should.NotThrow(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), Path.Combine(TestAssemblyDirectory, "PasswordTest.pfx"), Path.Combine(TestAssemblyDirectory, "Signed"), "password123").Dispose());
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_Directory()
     {
-      Assert.Throws<DirectoryNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), "C:\\DoesNotExist\\KeyFile.snk"));
+      Should.Throw<DirectoryNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), "C:\\DoesNotExist\\KeyFile.snk"));
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Public_API_Invalid_Key_Path_Should_Throw_Exception_For_Missing_File()
     {
-      Assert.Throws<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\KeyFileThatDoesNotExist.snk"));
+      Should.Throw<FileNotFoundException>(() => SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), "C:\\KeyFileThatDoesNotExist.snk"));
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_20_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -75,7 +74,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_40_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -89,7 +88,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_45_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET45.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -103,7 +102,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_20_x86_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -116,7 +115,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_40_x86_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x86.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -130,7 +129,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_20_x64_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -144,7 +143,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_NET_40_x64_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x64.exe"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -158,7 +157,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_Should_Reassemble_Core_5_Assembly_Correctly()
     {
       using (var info = SigningHelper.SignAssembly(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.Core5.dll"), string.Empty, Path.Combine(TestAssemblyDirectory, "Signed")))
@@ -172,7 +171,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_InPlaceWithPdb_Should_Succeed()
     {
       var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
@@ -185,7 +184,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
 
         using (var info = SigningHelper.SignAssembly(targetAssemblyPath))
         {
-          Assert.IsTrue(info.IsSigned);
+          info.IsSigned.ShouldBeTrue();
         }
       }
       finally
@@ -194,7 +193,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_NewLocationWithPdb_Should_Succeed()
     {
       var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
@@ -210,9 +209,9 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         using (var info = SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir))
         {
           string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
-          Assert.IsTrue(File.Exists(outAssembly));
-          Assert.IsTrue(File.Exists(Path.ChangeExtension(outAssembly, ".pdb")));
-          Assert.IsTrue(info.IsSigned);
+          File.Exists(outAssembly).ShouldBeTrue();
+          File.Exists(Path.ChangeExtension(outAssembly, ".pdb")).ShouldBeTrue();
+          info.IsSigned.ShouldBeTrue();
         }
       }
       finally
@@ -221,7 +220,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_NewLocationWithoutPdb_Should_Succeed()
     {
       var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
@@ -236,8 +235,8 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         using (var info = SigningHelper.SignAssembly(sourceAssemblyPath, null, outDir))
         {
           string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
-          Assert.IsTrue(File.Exists(outAssembly));
-          Assert.IsTrue(info.IsSigned);
+          File.Exists(outAssembly).ShouldBeTrue();
+          info.IsSigned.ShouldBeTrue();
         }
       }
       finally
@@ -246,7 +245,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       }
     }
 
-    [Test]
+    [Fact]
     public void SignAssembly_InPlaceWithoutPdb_Should_Succeed()
     {
       var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
@@ -258,7 +257,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
 
         using (var info = SigningHelper.SignAssembly(targetAssemblyPath))
         {
-          Assert.IsTrue(info.IsSigned);
+          info.IsSigned.ShouldBeTrue();
         }
       }
       finally

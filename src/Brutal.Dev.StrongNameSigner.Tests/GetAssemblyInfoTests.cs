@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+﻿using Xunit;
 using Shouldly;
 using System;
 using System.IO;
@@ -6,12 +6,11 @@ using System.Reflection;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
-  [TestFixture]
   public class GetAssemblyInfoTests
   {
-    private static readonly string TestAssemblyDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "TestAssemblies");
+    private static readonly string TestAssemblyDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestAssemblies");
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Public_API_Test()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"));
@@ -24,19 +23,19 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.IsSigned.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Public_API_Invalid_Path_Should_Throw_Exception()
     {
-      Assert.Throws<FileNotFoundException>(() => new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")));
+      Should.Throw<FileNotFoundException>(() => new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.doesnotexist")));
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Public_API_Invalid_File_Should_Throw_Exception()
     {
-      Assert.Throws<BadImageFormatException>(() => new AssemblyInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "calc.exe")));
+      Should.Throw<BadImageFormatException>(() => new AssemblyInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "calc.exe")));
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_Signed_20_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-Signed.exe"));
@@ -45,7 +44,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.IsAnyCpu.ShouldBe(true);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_Signed_40_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Signed.exe"));
@@ -53,7 +52,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.IsAnyCpu.ShouldBe(true);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_AnyCPU_20_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"));
@@ -64,7 +63,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_AnyCPU_40_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"));
@@ -75,7 +74,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_AnyCPU_45_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET45.exe"));
@@ -86,7 +85,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_64bit_20_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x64.exe"));
@@ -97,7 +96,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(true);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_64bit_40_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x64.exe"));
@@ -108,7 +107,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(true);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_32bit_20_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20-x86.exe"));
@@ -119,7 +118,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_32bit_40_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-x86.exe"));
@@ -130,7 +129,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_Obfuscated_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Obfuscated.exe")); info.IsSigned.ShouldBe(false);
@@ -140,7 +139,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.Is64BitOnly.ShouldBe(false);
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_Correct_Version_20_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"));
@@ -148,7 +147,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       info.DotNetVersion.ShouldBe("2.0.50727");
     }
 
-    [Test]
+    [Fact]
     public void GetAssemblyInfo_Detects_Correct_Version_40_Assembly()
     {
       var info = new AssemblyInfo(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40.exe"));
