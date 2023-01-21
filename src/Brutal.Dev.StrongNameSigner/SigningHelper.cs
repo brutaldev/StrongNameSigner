@@ -311,29 +311,36 @@ namespace Brutal.Dev.StrongNameSigner
         // Fix CustomAttributes with Type references.
         foreach (var assembly in allAssemblies)
         {
-          foreach (var constructorArguments in assembly.Definition.CustomAttributes
-            .Where(attr => attr.HasConstructorArguments)
-            .Select(attr => attr.ConstructorArguments)
-            .ToList())
+          foreach (var customAttribute in assembly.Definition.CustomAttributes.ToList())
           {
-            foreach (var argument in constructorArguments.ToArray())
+            try
             {
-              if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef)
+              if (customAttribute.HasConstructorArguments)
               {
-                var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
-
-                if (signedAssembly != null)
+                foreach (var argument in customAttribute.ConstructorArguments.ToArray())
                 {
-                  Log($"   Fixing {signedAssembly.Definition.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
+                  if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef)
+                  {
+                    var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
 
-                  var updatedTypeRef = signedAssembly.Definition.MainModule.GetType(typeRef.FullName);
+                    if (signedAssembly != null)
+                    {
+                      Log($"   Fixing {signedAssembly.Definition.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
-                  var updatedArgument = new CustomAttributeArgument(argument.Type, updatedTypeRef);
-                  var idx = constructorArguments.IndexOf(argument);
-                  constructorArguments.RemoveAt(idx);
-                  constructorArguments.Insert(idx, updatedArgument);
+                      var updatedTypeRef = signedAssembly.Definition.MainModule.GetType(typeRef.FullName);
+
+                      var updatedArgument = new CustomAttributeArgument(argument.Type, updatedTypeRef);
+                      var idx = customAttribute.ConstructorArguments.IndexOf(argument);
+                      customAttribute.ConstructorArguments.RemoveAt(idx);
+                      customAttribute.ConstructorArguments.Insert(idx, updatedArgument);
+                    }
+                  }
                 }
               }
+            }
+            catch (AssemblyResolutionException ex)
+            {
+              Log($"   Failed to check custom attribute '{customAttribute.AttributeType.FullName}': {ex.Message}");
             }
           }
         }
@@ -464,7 +471,6 @@ namespace Brutal.Dev.StrongNameSigner
                 // Restore the backup that would have been created above.
                 File.Copy(inputOutpuFilePair.BackupAssemblyPath, inputOutpuFilePair.InputFilePath, true);
                 File.Delete(inputOutpuFilePair.BackupAssemblyPath);
-
               }
               catch (IOException ioex)
               {
