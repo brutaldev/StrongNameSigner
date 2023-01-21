@@ -64,7 +64,7 @@
       // 
       this.progressBar.Dock = System.Windows.Forms.DockStyle.Bottom;
       this.progressBar.Location = new System.Drawing.Point(0, 678);
-      this.progressBar.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.progressBar.Margin = new System.Windows.Forms.Padding(4);
       this.progressBar.Name = "progressBar";
       this.progressBar.Size = new System.Drawing.Size(1045, 12);
       this.progressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous;
@@ -85,7 +85,7 @@
       this.textBoxOutput.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Suggest;
       this.textBoxOutput.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.FileSystemDirectories;
       this.textBoxOutput.Location = new System.Drawing.Point(111, 181);
-      this.textBoxOutput.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.textBoxOutput.Margin = new System.Windows.Forms.Padding(4);
       this.textBoxOutput.Name = "textBoxOutput";
       this.textBoxOutput.Size = new System.Drawing.Size(853, 22);
       this.textBoxOutput.TabIndex = 9;
@@ -97,7 +97,7 @@
       this.textBoxKey.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Suggest;
       this.textBoxKey.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.FileSystem;
       this.textBoxKey.Location = new System.Drawing.Point(111, 47);
-      this.textBoxKey.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.textBoxKey.Margin = new System.Windows.Forms.Padding(4);
       this.textBoxKey.Name = "textBoxKey";
       this.textBoxKey.Size = new System.Drawing.Size(853, 22);
       this.textBoxKey.TabIndex = 2;
@@ -147,7 +147,7 @@
       this.listViewAssemblies.HeaderStyle = System.Windows.Forms.ColumnHeaderStyle.Nonclickable;
       this.listViewAssemblies.HideSelection = false;
       this.listViewAssemblies.Location = new System.Drawing.Point(16, 246);
-      this.listViewAssemblies.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.listViewAssemblies.Margin = new System.Windows.Forms.Padding(4);
       this.listViewAssemblies.Name = "listViewAssemblies";
       this.listViewAssemblies.Size = new System.Drawing.Size(948, 368);
       this.listViewAssemblies.TabIndex = 12;
@@ -172,7 +172,7 @@
       // 
       // columnHeaderIsSigned
       // 
-      this.columnHeaderIsSigned.Text = "Signed";
+      this.columnHeaderIsSigned.Text = "Strong-named";
       // 
       // columnHeaderPath
       // 
@@ -183,7 +183,7 @@
       this.buttonAdd.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
       this.buttonAdd.Image = global::Brutal.Dev.StrongNameSigner.UI.Properties.Resources.Add;
       this.buttonAdd.Location = new System.Drawing.Point(973, 246);
-      this.buttonAdd.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.buttonAdd.Margin = new System.Windows.Forms.Padding(4);
       this.buttonAdd.Name = "buttonAdd";
       this.buttonAdd.Size = new System.Drawing.Size(53, 49);
       this.buttonAdd.TabIndex = 13;
@@ -196,7 +196,7 @@
       this.buttonRemove.Enabled = false;
       this.buttonRemove.Image = global::Brutal.Dev.StrongNameSigner.UI.Properties.Resources.Remove;
       this.buttonRemove.Location = new System.Drawing.Point(973, 303);
-      this.buttonRemove.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.buttonRemove.Margin = new System.Windows.Forms.Padding(4);
       this.buttonRemove.Name = "buttonRemove";
       this.buttonRemove.Size = new System.Drawing.Size(53, 49);
       this.buttonRemove.TabIndex = 14;
@@ -209,7 +209,7 @@
       this.buttonSign.Enabled = false;
       this.buttonSign.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.buttonSign.Location = new System.Drawing.Point(16, 623);
-      this.buttonSign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.buttonSign.Margin = new System.Windows.Forms.Padding(4);
       this.buttonSign.Name = "buttonSign";
       this.buttonSign.Size = new System.Drawing.Size(239, 47);
       this.buttonSign.TabIndex = 12;
@@ -243,7 +243,7 @@
       // 
       this.buttonKey.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
       this.buttonKey.Location = new System.Drawing.Point(973, 44);
-      this.buttonKey.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.buttonKey.Margin = new System.Windows.Forms.Padding(4);
       this.buttonKey.Name = "buttonKey";
       this.buttonKey.Size = new System.Drawing.Size(53, 28);
       this.buttonKey.TabIndex = 3;
@@ -255,7 +255,7 @@
       // 
       this.buttonOutput.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
       this.buttonOutput.Location = new System.Drawing.Point(973, 178);
-      this.buttonOutput.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.buttonOutput.Margin = new System.Windows.Forms.Padding(4);
       this.buttonOutput.Name = "buttonOutput";
       this.buttonOutput.Size = new System.Drawing.Size(53, 28);
       this.buttonOutput.TabIndex = 10;
@@ -301,7 +301,7 @@
       this.buttonCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
       this.buttonCancel.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
       this.buttonCancel.Location = new System.Drawing.Point(16, 623);
-      this.buttonCancel.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.buttonCancel.Margin = new System.Windows.Forms.Padding(4);
       this.buttonCancel.Name = "buttonCancel";
       this.buttonCancel.Size = new System.Drawing.Size(239, 47);
       this.buttonCancel.TabIndex = 15;
@@ -342,7 +342,7 @@
       this.textBoxPassword.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.Suggest;
       this.textBoxPassword.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.FileSystem;
       this.textBoxPassword.Location = new System.Drawing.Point(111, 114);
-      this.textBoxPassword.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.textBoxPassword.Margin = new System.Windows.Forms.Padding(4);
       this.textBoxPassword.Name = "textBoxPassword";
       this.textBoxPassword.Size = new System.Drawing.Size(853, 22);
       this.textBoxPassword.TabIndex = 6;
@@ -385,7 +385,7 @@
       this.Controls.Add(this.progressBar);
       this.Controls.Add(this.labelPassword);
       this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-      this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+      this.Margin = new System.Windows.Forms.Padding(4);
       this.MinimumSize = new System.Drawing.Size(1034, 500);
       this.Name = "MainForm";
       this.Text = "Brutal Developer .NET Assembly Strong-Name Signer";
