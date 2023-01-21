@@ -229,6 +229,13 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
+      // Add well known locations.
+      resolver.RemoveSearchDirectory("C:\\Windows\\Microsoft.NET\\assembly");
+      resolver.RemoveSearchDirectory("C:\\Windows\\assembly");
+      
+      resolver.AddSearchDirectory("C:\\Windows\\Microsoft.NET\\assembly");
+      resolver.AddSearchDirectory("C:\\Windows\\assembly");
+
       ReaderParameters readParams;
 
       try
