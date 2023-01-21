@@ -432,11 +432,18 @@ namespace Brutal.Dev.StrongNameSigner
 
           if (inputOutpuFilePair.IsSameFile)
           {
-            File.Copy(inputOutpuFilePair.InputFilePath, inputOutpuFilePair.BackupAssemblyPath, true);
-
-            if (inputOutpuFilePair.HasSymbols)
+            try
             {
-              File.Copy(inputOutpuFilePair.InputPdbPath, inputOutpuFilePair.BackupPdbPath, true);
+              File.Copy(inputOutpuFilePair.InputFilePath, inputOutpuFilePair.BackupAssemblyPath, true);
+
+              if (inputOutpuFilePair.HasSymbols)
+              {
+                File.Copy(inputOutpuFilePair.InputPdbPath, inputOutpuFilePair.BackupPdbPath, true);
+              }
+            }
+            catch (IOException ioex)
+            {
+              Log($"   Failed to backup assembly '{inputOutpuFilePair.InputFilePath}': {ioex.Message}");
             }
           }
 
@@ -446,20 +453,35 @@ namespace Brutal.Dev.StrongNameSigner
           {
             assembly.Save(inputOutpuFilePair.OutputFilePath, keyPair);
           }
-          catch (NotSupportedException ex)
+          catch (Exception ex)
           {
             Log($"   Failed to save assembly '{inputOutpuFilePair.OutputFilePath}': {ex.Message}");
 
             if (inputOutpuFilePair.IsSameFile)
             {
-              // Restore the backup that would have been created above.
-              File.Copy(inputOutpuFilePair.BackupAssemblyPath, inputOutpuFilePair.InputFilePath, true);
-              File.Delete(inputOutpuFilePair.BackupAssemblyPath);
+              try
+              {
+                // Restore the backup that would have been created above.
+                File.Copy(inputOutpuFilePair.BackupAssemblyPath, inputOutpuFilePair.InputFilePath, true);
+                File.Delete(inputOutpuFilePair.BackupAssemblyPath);
+
+              }
+              catch (IOException ioex)
+              {
+                Log($"   Failed to restore assembly '{inputOutpuFilePair.InputFilePath} from backup '{inputOutpuFilePair.BackupAssemblyPath}': {ioex.Message}");
+              }
 
               if (inputOutpuFilePair.HasSymbols)
               {
-                File.Copy(inputOutpuFilePair.BackupPdbPath, inputOutpuFilePair.InputPdbPath, true);
-                File.Delete(inputOutpuFilePair.BackupPdbPath);
+                try
+                {
+                  File.Copy(inputOutpuFilePair.BackupPdbPath, inputOutpuFilePair.InputPdbPath, true);
+                  File.Delete(inputOutpuFilePair.BackupPdbPath);
+                }
+                catch (IOException ioex)
+                {
+                  Log($"   Failed to restore PDB '{inputOutpuFilePair.InputPdbPath} from backup '{inputOutpuFilePair.BackupPdbPath}': {ioex.Message}");
+                }
               }
             }
           }
@@ -484,9 +506,9 @@ namespace Brutal.Dev.StrongNameSigner
         {
           Directory.Delete(tempPath, true);
         }
-        catch (Exception ex)
+        catch (IOException ioex)
         {
-          Log($"   Failed to delete temp working directory '{tempPath}': {ex.Message}");
+          Log($"   Failed to delete temp working directory '{tempPath}': {ioex.Message}");
         }
       }
     }
