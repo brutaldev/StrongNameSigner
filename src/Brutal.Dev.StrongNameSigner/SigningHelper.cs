@@ -177,13 +177,15 @@ namespace Brutal.Dev.StrongNameSigner
     {
       // If no logger has been set, just use the console.
       Log ??= Console.WriteLine;
-      var step = 1;
+      
       // Verify assembly paths were passed in.
       if (assemblyInputOutputPaths?.Any() != true)
       {
         Log("No assembly paths were provided.");
         return;
       }
+
+      var step = 1;
 
       // Make sure the files actually exist.
       foreach (var assemblyInputPath in assemblyInputOutputPaths.Select(aio => aio.InputFilePath))
@@ -340,7 +342,7 @@ namespace Brutal.Dev.StrongNameSigner
             }
             catch (AssemblyResolutionException ex)
             {
-              Log($"   Failed to check custom attribute '{customAttribute.AttributeType.FullName}': {ex.Message}");
+              Log($"   Failed to check custom attribute '{customAttribute.AttributeType.FullName}' in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}': {ex.Message}");
             }
           }
         }

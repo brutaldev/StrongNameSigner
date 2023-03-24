@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.Windows.Forms;
+
+[assembly: System.Windows.ThemeInfo(System.Windows.ResourceDictionaryLocation.None, System.Windows.ResourceDictionaryLocation.None)]
+[assembly: Debuggable(DebuggableAttribute.DebuggingModes.Default)]
 
 namespace Brutal.Dev.StrongNameSigner.TestAssembly
 {
@@ -29,12 +33,15 @@ namespace Brutal.Dev.StrongNameSigner.TestAssembly
     [STAThread]
     static void Main()
     {
-      Check c = new Check();
-      MyValues defValue = c.Value;  // get default value
+      var c = new Check();
+      var defValue = c.Value;  // get default value
 
-      Application.EnableVisualStyles();
-      Application.SetCompatibleTextRenderingDefault(false);
-      Application.Run(new TestForm());
+      if (defValue == MyValues.V1)
+      {
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+        Application.Run(new TestForm());
+      }
     }
   }
 }
