@@ -203,7 +203,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       // File locking issues in Mono.Cecil are a real pain in the ass so let's create a working directory of files to process, then copy them back when we're done.
       var tempFilePathToInputOutputFilePairMap = new Dictionary<string, InputOutputFilePair>();
-      var tempPath = Path.Combine(Path.GetTempPath(), "StrongNameSigner");
+      var tempPath = Path.Combine(Path.GetTempPath(), "StrongNameSigner-" + Guid.NewGuid().ToString());
       Directory.CreateDirectory(tempPath);
 
       foreach (var inputOutpuFilePair in assemblyInputOutputPaths)
