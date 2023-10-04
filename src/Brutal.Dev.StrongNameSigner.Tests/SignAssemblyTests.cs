@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
+using System.Threading.Tasks;
 using Shouldly;
 using Xunit;
 
@@ -263,6 +266,15 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       {
         Directory.Delete(tempDir, true);
       }
+    }
+
+    [Fact]
+    public void SignAssembly_InParralel_Should_Succeed()
+    {
+      Parallel.Invoke(
+        SignAssembly_Public_API_Test,
+        SignAssembly_Should_Reassemble_NET_45_Assembly_Correctly
+      );
     }
   }
 }
