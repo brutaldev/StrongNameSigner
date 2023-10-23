@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
   <PropertyGroup>
     <!-- The configuration and platform will be used to determine which
          assemblies to include from solution and project documentation
@@ -8,7 +8,7 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{21654cb4-04d2-45c5-8473-3cbaf1967a0d}</ProjectGuid>
-    <SHFBSchemaVersion>1.9.5.0</SHFBSchemaVersion>
+    <SHFBSchemaVersion>2017.9.26.0</SHFBSchemaVersion>
     <!-- AssemblyName, Name, and RootNamespace are not used by SHFB but Visual
          Studio adds them anyway -->
     <AssemblyName>Documentation</AssemblyName>
@@ -30,7 +30,7 @@
     <SyntaxFilters>Standard</SyntaxFilters>
     <SdkLinkTarget>Blank</SdkLinkTarget>
     <RootNamespaceContainer>False</RootNamespaceContainer>
-    <PresentationStyle>VS2010</PresentationStyle>
+    <PresentationStyle>VS2013</PresentationStyle>
     <Preliminary>False</Preliminary>
     <NamingMethod>Guid</NamingMethod>
     <HelpTitle>.NET Assembly Strong-Name Signer</HelpTitle>
@@ -50,9 +50,10 @@
     <CatalogVersion>100</CatalogVersion>
     <CatalogProductId>VS</CatalogProductId>
     <DocumentationSources>
-      <DocumentationSource sourceFile="..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.dll" />
-<DocumentationSource sourceFile="..\Brutal.Dev.StrongNameSigner\bin\Release\Brutal.Dev.StrongNameSigner.XML" /></DocumentationSources>
+      <DocumentationSource sourceFile="..\Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj" />
+    </DocumentationSources>
     <MissingTags>Summary, Parameter, Returns, AutoDocumentCtors, TypeParameter, AutoDocumentDispose</MissingTags>
+    <SaveComponentCacheCapacity>100</SaveComponentCacheCapacity>
   </PropertyGroup>
   <!-- There are no properties for these groups.  AnyCPU needs to appear in
        order for Visual Studio to perform the build.  The others are optional

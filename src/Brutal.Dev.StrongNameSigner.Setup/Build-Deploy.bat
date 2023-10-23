@@ -3,7 +3,7 @@
 cls
 
 pushd .
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsMSBuildCmd.bat"
+call "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsMSBuildCmd.bat"
 popd
 
 dotnet restore -c Release 
