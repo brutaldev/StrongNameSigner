@@ -65,6 +65,12 @@ namespace Brutal.Dev.StrongNameSigner
           }
 
           var sep = Path.DirectorySeparatorChar;
+          var nugetPackagesEnvVariable = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+          if (string.IsNullOrEmpty(nugetPackagesEnvVariable))
+          {
+            // Just use the default check we already use.
+            nugetPackagesEnvVariable = $"{sep}.nuget{sep}packages{sep}";
+          }
 
           if (References[i].ItemSpec.IndexOf($"{sep}Reference Assemblies{sep}Microsoft{sep}", StringComparison.OrdinalIgnoreCase) == -1 &&
               References[i].ItemSpec.IndexOf($"{sep}Microsoft.NET{sep}Framework{sep}", StringComparison.OrdinalIgnoreCase) == -1 &&
@@ -77,7 +83,9 @@ namespace Brutal.Dev.StrongNameSigner
               References[i].ItemSpec.IndexOf($"{sep}.nuget{sep}packages{sep}", StringComparison.OrdinalIgnoreCase) == -1 &&
               References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}sdk{sep}", StringComparison.OrdinalIgnoreCase) == -1 &&
               References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}packs{sep}", StringComparison.OrdinalIgnoreCase) == -1 &&
-              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}shared{sep}Microsoft.", StringComparison.OrdinalIgnoreCase) == -1)
+              References[i].ItemSpec.IndexOf($"{sep}dotnet{sep}shared{sep}Microsoft.", StringComparison.OrdinalIgnoreCase) == -1 &&
+              References[i].ItemSpec.IndexOf($"{sep}MSBuild{sep}Microsoft.NET.", StringComparison.OrdinalIgnoreCase) == -1 &&
+              References[i].ItemSpec.IndexOf(nugetPackagesEnvVariable, StringComparison.OrdinalIgnoreCase) == -1)
           {
             Log.LogMessage(MessageImportance.High, $"Adding '{References[i].ItemSpec}' for processing.");
             assembliesToSign.Add(References[i].ItemSpec);
