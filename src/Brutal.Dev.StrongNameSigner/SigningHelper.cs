@@ -206,29 +206,29 @@ namespace Brutal.Dev.StrongNameSigner
       var tempPath = Path.Combine(Path.GetTempPath(), "StrongNameSigner-" + Guid.NewGuid().ToString());
       Directory.CreateDirectory(tempPath);
 
-      foreach (var inputOutpuFilePair in assemblyInputOutputPaths)
+      foreach (var inputOutputFilePair in assemblyInputOutputPaths)
       {
         try
         {
-          var tempFilePath = Path.Combine(tempPath, $"{Path.GetFileNameWithoutExtension(inputOutpuFilePair.InputFilePath)}.{Guid.NewGuid()}{Path.GetExtension(inputOutpuFilePair.InputFilePath)}");
-          File.Copy(inputOutpuFilePair.InputFilePath, tempFilePath, true);
+          var tempFilePath = Path.Combine(tempPath, $"{Path.GetFileNameWithoutExtension(inputOutputFilePair.InputFilePath)}.{Guid.NewGuid()}{Path.GetExtension(inputOutputFilePair.InputFilePath)}");
+          File.Copy(inputOutputFilePair.InputFilePath, tempFilePath, true);
 
-          if (inputOutpuFilePair.HasSymbols)
+          if (inputOutputFilePair.HasSymbols)
           {
-            File.Copy(inputOutpuFilePair.InputPdbPath, Path.ChangeExtension(tempFilePath, ".pdb"), true);
+            File.Copy(inputOutputFilePair.InputPdbPath, Path.ChangeExtension(tempFilePath, ".pdb"), true);
           }
 
-          tempFilePathToInputOutputFilePairMap.Add(tempFilePath, inputOutpuFilePair);
+          tempFilePathToInputOutputFilePairMap.Add(tempFilePath, inputOutputFilePair);
 
           allAssemblies.Add(new AssemblyInfo(tempFilePath, probingPaths));
         }
         catch (BadImageFormatException ex)
         {
-          Log($"   Unsupported assembly '{inputOutpuFilePair.InputFilePath}': {ex.Message}");
+          Log($"   Unsupported assembly '{inputOutputFilePair.InputFilePath}': {ex.Message}");
         }
         catch (Exception ex)
         {
-          Log($"   Failed to load assembly '{inputOutpuFilePair.InputFilePath}': {ex.Message}");
+          Log($"   Failed to load assembly '{inputOutputFilePair.InputFilePath}': {ex.Message}");
         }
       }
 
