@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Company>Brutal.Dev.StrongNameSigner</Company>
-    <Version>3.4.0.0</Version>
-    <Version>3.4.0</Version>
+    <Version>3.5.0.0</Version>
+    <Version>3.5.0</Version>
     <Description>Simple API to sign .NET assemblies with a strong-name key and fix assembly references.</Description>
     <Copyright>Copyright © 2013-2023</Copyright>
     <PackageProjectUrl>https://brutaldev.com/post/net-assembly-strong-name-signer</PackageProjectUrl>
@@ -17,8 +17,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Build.Framework" Version="17.7.2" />
-    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.7.2" />
+    <PackageReference Include="Microsoft.Build.Framework" Version="17.8.3" />
+    <PackageReference Include="Microsoft.Build.Utilities.Core" Version="17.8.3" />
     <PackageReference Include="Mono.Cecil" Version="0.11.5" />
   </ItemGroup>
 </Project>
