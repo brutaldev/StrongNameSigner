@@ -1,12 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+<package>
   <metadata>
     <id>Brutal.Dev.StrongNameSigner</id>
     <version>3.5.0</version>
     <title>.NET Assembly Strong-Name Signer</title>
     <authors>Werner van Deventer</authors>
     <owners>Werner van Deventer</owners>
-    <licenseUrl>https://github.com/brutaldev/StrongNameSigner#license</licenseUrl>
     <projectUrl>https://github.com/brutaldev/StrongNameSigner</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/brutaldev/StrongNameSigner/master/src/Brutal.Dev.StrongNameSigner.UI/Icon.ico</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -23,6 +22,9 @@ The tool will also re-write the assembly references (as well as any InternalsVis
     <releaseNotes>
 Fix #82 - Add additional probing paths for legacy .NET framework assembly signing.
     </releaseNotes>
+    <icon>images\Icon.png</icon>
+    <license type="file">docs\LICENSE.md</license>
+    <readme>docs\README.md</readme>
     <copyright>Werner van Deventer (https://brutaldev.com)</copyright>
     <language>en-US</language>
     <tags>strongname assembly gac unsigned strong name automatic</tags>
@@ -37,5 +39,8 @@ Fix #82 - Add additional probing paths for legacy .NET framework assembly signin
     <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\PowerArgs.dll" target="build" />
     <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe" target="build" />
     <file src="..\Brutal.Dev.StrongNameSigner.Console\bin\Release\StrongNameSigner.Console.exe.config" target="build" />
+    <file src="..\..\LICENSE.md" target="docs" />
+    <file src="..\..\README.md" target="docs" />
+    <file src="..\Brutal.Dev.StrongNameSigner.UI\Icon.png" target="images" />
   </files>
 </package>
