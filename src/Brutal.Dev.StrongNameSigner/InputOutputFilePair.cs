@@ -1,10 +1,12 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
 
 namespace Brutal.Dev.StrongNameSigner
 {
   /// <summary>
   /// An input/output pair of file paths used for providing the option to write files to another location.
   /// </summary>
+  [DebuggerDisplay("{InputFilePath}")]
   public class InputOutputFilePair
   {
     /// <summary>

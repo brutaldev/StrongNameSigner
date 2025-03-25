@@ -231,40 +231,67 @@ namespace Brutal.Dev.StrongNameSigner
           Log($"   Failed to load assembly '{inputOutputFilePair.InputFilePath}': {ex.Message}");
         }
       }
+      var mixedMode = allAssemblies.Where(x => !x.IsManagedAssembly);
+      if (mixedMode.Any())
+      {
+        Log("   Warning: mixed mode assemblies are not modified:");
+        foreach (var assembly in mixedMode)
+        {
+          Log($"   - {tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}");
+        }
+        allAssemblies.RemoveWhere(x => !x.IsManagedAssembly);
+      }
 
       Log($"{step++}. Checking assembly references...");
-
       try
       {
         // Start with assemblies that are not signed.
-        var assembliesToProcess = new HashSet<AssemblyInfo>(allAssemblies.Where(a => !a.IsSigned));
+        var assembliesToSign = new HashSet<AssemblyInfo>(allAssemblies.Where(a => !a.IsSigned && a.IsManagedAssembly));
+        foreach (var assembly in assembliesToSign)
+        {
+          Log($"   Assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}' is not signed.");
+        }
 
         var keyPair = GetStrongNameKeyPair(keyFilePath, keyFilePassword);
         var publicKey = GetPublicKey(keyPair);
         var token = GetPublicKeyToken(publicKey);
 
         // Add references that need to be updated and signed.
-        var set = new HashSet<string>(assembliesToProcess.Select(x => x.Definition.Name.Name));
+        var assembliesToSignNames = new HashSet<string>(assembliesToSign.Select(x => x.Definition.Name.Name));
 
         foreach (var assembly in allAssemblies)
         {
           Log($"   Checking assembly references in '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
           foreach (var reference in assembly.Definition.MainModule.AssemblyReferences
-            .Where(reference => set.Contains(reference.Name)))
+            .Where(reference => assembliesToSignNames.Contains(reference.Name)))
           {
+            if (!assembly.IsManagedAssembly)
+            {
+
+            }
+            if (reference.PublicKey.Length != 0)
+            {
+              Log($"       Warning: Public key was not null.");
+            }
+            Log($"     changed key in reference to '{reference.Name}'.");
             reference.PublicKey = publicKey;
-            assembliesToProcess.Add(assembly);
+            assembliesToSign.Add(assembly); // this was in the original code
+            // assembliesToProcessNames.Add(assembly.Definition.Name.Name);
           }
         }
 
         Log($"{step++}. Strong-name unsigned assemblies...");
 
         // Strong-name sign all the unsigned assemblies.
-        foreach (var assembly in assembliesToProcess)
+        foreach (var assembly in assembliesToSign)
         {
+          if (assembly.IsSigned)
+          {
+            Log($"   Skipping already signed assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
+            continue;
+          }
           Log($"   Signing assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
-
           var name = assembly.Definition.Name;
           name.HashAlgorithm = AssemblyHashAlgorithm.SHA1;
           name.PublicKey = publicKey;
@@ -287,7 +314,7 @@ namespace Brutal.Dev.StrongNameSigner
             if (argument.Type == assembly.Definition.MainModule.TypeSystem.String)
             {
               var originalAssemblyName = (string)argument.Value;
-              var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
+              var signedAssembly = assembliesToSign.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
 
               if (signedAssembly != null)
               {
@@ -323,7 +350,7 @@ namespace Brutal.Dev.StrongNameSigner
                 {
                   if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef)
                   {
-                    var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
+                    var signedAssembly = assembliesToSign.FirstOrDefault(a => a.Definition.Name.Name == typeRef.Scope.Name);
 
                     if (signedAssembly != null)
                     {
@@ -390,7 +417,7 @@ namespace Brutal.Dev.StrongNameSigner
                     foreach (Match match in BamlRegex.Matches(data))
                     {
                       var name = match.Groups["name"].Value;
-                      if (assembliesToProcess.Any(x => x.Definition.Name.Name == name))
+                      if (assembliesToSign.Any(x => x.Definition.Name.Name == name))
                       {
                         elementsToReplace.Add(match);
                       }
@@ -398,7 +425,7 @@ namespace Brutal.Dev.StrongNameSigner
 
                     if (elementsToReplace.Count != 0)
                     {
-                      assembliesToProcess.Add(assembly);
+                      assembliesToSign.Add(assembly);
                       modifyResource = true;
 
                       FixBinaryBaml(token, writer, resourceName, charList, elementsToReplace);
@@ -435,7 +462,7 @@ namespace Brutal.Dev.StrongNameSigner
         Log($"{step++}. Save assembly changes...");
 
         // Write all updated assemblies.
-        foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
+        foreach (var assembly in assembliesToSign.Where(a => !a.Definition.Name.IsRetargetable))
         {
           var inputOutpuFilePair = tempFilePathToInputOutputFilePairMap[assembly.FilePath];
 
@@ -519,6 +546,11 @@ namespace Brutal.Dev.StrongNameSigner
           Log($"   Failed to delete temp working directory '{tempPath}': {ioex.Message}");
         }
       }
+    }
+
+    private static string Hex(byte[] publicKey)
+    {
+      return BitConverter.ToString(publicKey);
     }
 
     private static byte[] GenerateStrongNameKeyPair()
