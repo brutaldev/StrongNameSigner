@@ -131,6 +131,7 @@ namespace Brutal.Dev.StrongNameSigner
     {
       if (modifiedDefintion.IsValueCreated && !isDisposed)
       {
+        EnsureFileDirectory(assemblyPath);
         modifiedDefintion.Value.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
 
         if (assemblyPath == FilePath)
@@ -138,6 +139,23 @@ namespace Brutal.Dev.StrongNameSigner
           RefreshSigningType(modifiedDefintion.Value);
         }
       }
+    }
+
+    private void EnsureFileDirectory(string assemblyPath)
+    {
+      var dir = new FileInfo(assemblyPath);
+      if (dir.Directory != null && !dir.Directory.Exists)
+      {
+        EnsureDirectory(dir.Directory);
+      }
+    }
+
+    private void EnsureDirectory(DirectoryInfo directory)
+    {
+      if (!directory.Parent.Exists)
+        EnsureDirectory(directory.Parent);
+      if (!directory.Exists)
+        directory.Create();
     }
 
     /// <inheritdoc/>
