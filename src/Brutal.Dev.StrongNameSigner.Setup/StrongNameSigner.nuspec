@@ -20,7 +20,7 @@ The tool will also re-write the assembly references (as well as any InternalsVis
     </description>
     <summary>Automatic strong-name signing of referenced assemblies. Utility software to strong-name sign .NET assemblies, including assemblies you do not have the source code for.</summary>
     <releaseNotes>
-Fix #82 - Add additional probing paths for legacy .NET framework assembly signing.
+Fix #101 - Disable FIPS enforcement in configuration.
     </releaseNotes>
     <icon>images\Icon.png</icon>
     <license type="file">docs\LICENSE.md</license>

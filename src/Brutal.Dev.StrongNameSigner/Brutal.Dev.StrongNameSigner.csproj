@@ -6,7 +6,7 @@
     <Version>3.5.1.0</Version>
     <Version>3.5.1</Version>
     <Description>Simple API to sign .NET assemblies with a strong-name key and fix assembly references.</Description>
-    <Copyright>Copyright © 2013-2023</Copyright>
+    <Copyright>Copyright © 2013-2025</Copyright>
     <PackageProjectUrl>https://brutaldev.com/post/net-assembly-strong-name-signer</PackageProjectUrl>
     <RepositoryUrl>https://github.com/brutaldev/StrongNameSigner/</RepositoryUrl>
     <LangVersion>latest</LangVersion>

@@ -131,6 +131,7 @@ namespace Brutal.Dev.StrongNameSigner
     {
       if (modifiedDefintion.IsValueCreated && !isDisposed)
       {
+        Directory.CreateDirectory(Path.GetDirectoryName(assemblyPath));
         modifiedDefintion.Value.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
 
         if (assemblyPath == FilePath)

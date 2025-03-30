@@ -101,7 +101,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       var outputFile = Path.Combine(Path.GetFullPath(outputPath), Path.GetFileName(assemblyPath));
 
-      SignAssemblies(new[] { new InputOutputFilePair(assemblyPath, outputFile) }, keyFilePath, keyFilePassword, probingPaths);
+      SignAssemblies([new InputOutputFilePair(assemblyPath, outputFile)], keyFilePath, keyFilePassword, probingPaths);
 
       return new AssemblyInfo(outputFile, probingPaths);
     }
@@ -114,7 +114,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<string> assemblyPaths) => SignAssemblies(assemblyPaths, string.Empty, string.Empty);
+    public static bool SignAssemblies(IEnumerable<string> assemblyPaths) => SignAssemblies(assemblyPaths, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -125,7 +125,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath) => SignAssemblies(assemblyPaths, keyFilePath, string.Empty);
+    public static bool SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath) => SignAssemblies(assemblyPaths, keyFilePath, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -138,7 +138,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
+    public static bool SignAssemblies(IEnumerable<string> assemblyPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
       => SignAssemblies(assemblyPaths.Select(path => new InputOutputFilePair(path, path)), keyFilePath, keyFilePassword, probingPaths);
 
     /// <summary>
@@ -149,7 +149,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths) => SignAssemblies(assemblyInputOutputPaths, string.Empty, string.Empty);
+    public static bool SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths) => SignAssemblies(assemblyInputOutputPaths, string.Empty, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -160,7 +160,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath) => SignAssemblies(assemblyInputOutputPaths, keyFilePath, string.Empty);
+    public static bool SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath) => SignAssemblies(assemblyInputOutputPaths, keyFilePath, string.Empty);
 
     /// <summary>
     /// Signs the assembly at the specified path with your own strong-name key file.
@@ -173,18 +173,19 @@ namespace Brutal.Dev.StrongNameSigner
     /// or
     /// Could not find provided strong-name key file.</exception>
     /// <exception cref="System.BadImageFormatException">One or more files are not a .NET managed assemblies.</exception>
-    public static void SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
+    public static bool SignAssemblies(IEnumerable<InputOutputFilePair> assemblyInputOutputPaths, string keyFilePath, string keyFilePassword, params string[] probingPaths)
     {
       // If no logger has been set, just use the console.
       Log ??= Console.WriteLine;
-      
+
       // Verify assembly paths were passed in.
       if (assemblyInputOutputPaths?.Any() != true)
       {
         Log("No assembly paths were provided.");
-        return;
+        return false;
       }
 
+      var hasErrors = false;
       var step = 1;
 
       // Make sure the files actually exist.
@@ -225,10 +226,12 @@ namespace Brutal.Dev.StrongNameSigner
         catch (BadImageFormatException ex)
         {
           Log($"   Unsupported assembly '{inputOutputFilePair.InputFilePath}': {ex.Message}");
+          hasErrors = true;
         }
         catch (Exception ex)
         {
           Log($"   Failed to load assembly '{inputOutputFilePair.InputFilePath}': {ex.Message}");
+          hasErrors = true;
         }
       }
 
@@ -261,7 +264,7 @@ namespace Brutal.Dev.StrongNameSigner
         Log($"{step++}. Strong-name unsigned assemblies...");
 
         // Strong-name sign all the unsigned assemblies.
-        foreach (var assembly in assembliesToProcess)
+        foreach (var assembly in assembliesToProcess.Where(a => !a.IsSigned))
         {
           Log($"   Signing assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
@@ -343,6 +346,7 @@ namespace Brutal.Dev.StrongNameSigner
             catch (AssemblyResolutionException ex)
             {
               Log($"   Failed to check custom attribute '{customAttribute.AttributeType.FullName}' in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}': {ex.Message}");
+              hasErrors = true;
             }
           }
         }
@@ -365,13 +369,13 @@ namespace Brutal.Dev.StrongNameSigner
                   continue;
                 }
 
-                var embededResource = (EmbeddedResource)resource;
+                var embeddedResource = (EmbeddedResource)resource;
                 var modifyResource = false;
 
                 using var memoryStream = new MemoryStream();
                 using var writer = new ResourceWriter(memoryStream);
 
-                using var resourceStream = embededResource.GetResourceStream();
+                using var resourceStream = embeddedResource.GetResourceStream();
                 using var reader = new ResourceReader(resourceStream);
 
                 foreach (var entry in reader.OfType<DictionaryEntry>().ToArray())
@@ -381,10 +385,10 @@ namespace Brutal.Dev.StrongNameSigner
                   if (resourceName.EndsWith(".baml", StringComparison.InvariantCulture) && entry.Value is Stream bamlStream)
                   {
                     var br = new BinaryReader(bamlStream);
-                    var datab = br.ReadBytes((int)br.BaseStream.Length);
+                    var dataBytes = br.ReadBytes((int)br.BaseStream.Length);
 
-                    var charList = datab.Select(b => (char)b).ToList();
-                    var data = new string(charList.ToArray());
+                    var charList = dataBytes.Select(b => (char)b).ToList();
+                    var data = new string([.. charList]);
                     var elementsToReplace = new List<Match>();
 
                     foreach (Match match in BamlRegex.Matches(data))
@@ -424,8 +428,8 @@ namespace Brutal.Dev.StrongNameSigner
                   var array = memoryStream.ToArray();
                   memoryStream.Position = 0;
 
-                  var newEmbeded = new EmbeddedResource(resource.Name, resource.Attributes, array);
-                  resources.Insert(resIndex, newEmbeded);
+                  var newEmbedded = new EmbeddedResource(resource.Name, resource.Attributes, array);
+                  resources.Insert(resIndex, newEmbedded);
                 }
               }
             }
@@ -437,58 +441,60 @@ namespace Brutal.Dev.StrongNameSigner
         // Write all updated assemblies.
         foreach (var assembly in assembliesToProcess.Where(a => !a.Definition.Name.IsRetargetable))
         {
-          var inputOutpuFilePair = tempFilePathToInputOutputFilePairMap[assembly.FilePath];
+          var inputOutputFilePair = tempFilePathToInputOutputFilePairMap[assembly.FilePath];
 
-          if (inputOutpuFilePair.IsSameFile)
+          if (inputOutputFilePair.IsSameFile)
           {
             try
             {
-              File.Copy(inputOutpuFilePair.InputFilePath, inputOutpuFilePair.BackupAssemblyPath, true);
+              File.Copy(inputOutputFilePair.InputFilePath, inputOutputFilePair.BackupAssemblyPath, true);
 
-              if (inputOutpuFilePair.HasSymbols)
+              if (inputOutputFilePair.HasSymbols)
               {
-                File.Copy(inputOutpuFilePair.InputPdbPath, inputOutpuFilePair.BackupPdbPath, true);
+                File.Copy(inputOutputFilePair.InputPdbPath, inputOutputFilePair.BackupPdbPath, true);
               }
             }
             catch (IOException ioex)
             {
-              Log($"   Failed to backup assembly '{inputOutpuFilePair.InputFilePath}': {ioex.Message}");
+              Log($"   Failed to backup assembly '{inputOutputFilePair.InputFilePath}': {ioex.Message}");
+              hasErrors = true;
             }
           }
 
-          Log($"   Saving changes to assembly '{inputOutpuFilePair.OutputFilePath}'.");
+          Log($"   Saving changes to assembly '{inputOutputFilePair.OutputFilePath}'.");
 
           try
           {
-            assembly.Save(inputOutpuFilePair.OutputFilePath, keyPair);
+            assembly.Save(inputOutputFilePair.OutputFilePath, keyPair);
           }
           catch (Exception ex)
           {
-            Log($"   Failed to save assembly '{inputOutpuFilePair.OutputFilePath}': {ex.Message}");
+            Log($"   Failed to save assembly '{inputOutputFilePair.OutputFilePath}': {ex.Message}");
+            hasErrors = true;
 
-            if (inputOutpuFilePair.IsSameFile)
+            if (inputOutputFilePair.IsSameFile)
             {
               try
               {
                 // Restore the backup that would have been created above.
-                File.Copy(inputOutpuFilePair.BackupAssemblyPath, inputOutpuFilePair.InputFilePath, true);
-                File.Delete(inputOutpuFilePair.BackupAssemblyPath);
+                File.Copy(inputOutputFilePair.BackupAssemblyPath, inputOutputFilePair.InputFilePath, true);
+                File.Delete(inputOutputFilePair.BackupAssemblyPath);
               }
               catch (IOException ioex)
               {
-                Log($"   Failed to restore assembly '{inputOutpuFilePair.InputFilePath} from backup '{inputOutpuFilePair.BackupAssemblyPath}': {ioex.Message}");
+                Log($"   Failed to restore assembly '{inputOutputFilePair.InputFilePath} from backup '{inputOutputFilePair.BackupAssemblyPath}': {ioex.Message}");
               }
 
-              if (inputOutpuFilePair.HasSymbols)
+              if (inputOutputFilePair.HasSymbols)
               {
                 try
                 {
-                  File.Copy(inputOutpuFilePair.BackupPdbPath, inputOutpuFilePair.InputPdbPath, true);
-                  File.Delete(inputOutpuFilePair.BackupPdbPath);
+                  File.Copy(inputOutputFilePair.BackupPdbPath, inputOutputFilePair.InputPdbPath, true);
+                  File.Delete(inputOutputFilePair.BackupPdbPath);
                 }
                 catch (IOException ioex)
                 {
-                  Log($"   Failed to restore PDB '{inputOutpuFilePair.InputPdbPath} from backup '{inputOutpuFilePair.BackupPdbPath}': {ioex.Message}");
+                  Log($"   Failed to restore PDB '{inputOutputFilePair.InputPdbPath} from backup '{inputOutputFilePair.BackupPdbPath}': {ioex.Message}");
                 }
               }
             }
@@ -517,8 +523,11 @@ namespace Brutal.Dev.StrongNameSigner
         catch (IOException ioex)
         {
           Log($"   Failed to delete temp working directory '{tempPath}': {ioex.Message}");
+          hasErrors = true;
         }
       }
+
+      return !hasErrors;
     }
 
     private static byte[] GenerateStrongNameKeyPair()
@@ -599,7 +608,7 @@ namespace Brutal.Dev.StrongNameSigner
 
     private static void FixBinaryBaml(string publicKeyToken, ResourceWriter rw, string resourceName, List<char> charList, List<Match> elementsToReplace)
     {
-      elementsToReplace = elementsToReplace.OrderBy(x => x.Index).ToList();
+      elementsToReplace = [.. elementsToReplace.OrderBy(x => x.Index)];
 
       using var buffer = new MemoryStream();
       using var bufferWriter = new BinaryWriter(buffer);
@@ -628,7 +637,9 @@ namespace Brutal.Dev.StrongNameSigner
           bufferWriter.Write((byte)id[1]);
           bufferWriter.Write(newAssembly);
 
+#pragma warning disable S127 // "for" loop stop conditions should be invariant
           i += match.Length - 1;
+#pragma warning restore S127 // "for" loop stop conditions should be invariant
 
           elementsToReplace.RemoveAt(0);
         }
@@ -657,7 +668,7 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       list.Add((byte)num);
-      return list.ToArray();
+      return [.. list];
     }
   }
 }

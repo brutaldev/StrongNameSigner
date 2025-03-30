@@ -107,8 +107,8 @@ namespace Brutal.Dev.StrongNameSigner
           {
             Directory.CreateDirectory(OutputPath.ItemSpec);
           }
-          var inoutassemblies = assembliesToSign.Select(assm => new InputOutputFilePair(assm, Path.Combine(OutputPath.ItemSpec, Path.GetFileName(assm))));
-          SigningHelper.SignAssemblies(inoutassemblies, KeyFile, Password, probingPaths);
+          var inOutAssemblies = assembliesToSign.Select(assm => new InputOutputFilePair(assm, Path.Combine(OutputPath.ItemSpec, Path.GetFileName(assm))));
+          SigningHelper.SignAssemblies(inOutAssemblies, KeyFile, Password, probingPaths);
           Log.LogMessage(MessageImportance.Normal, $"Signing files to output folder '{OutputPath.ItemSpec}'");
         }
 

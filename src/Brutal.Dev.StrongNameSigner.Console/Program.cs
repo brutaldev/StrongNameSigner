@@ -19,7 +19,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       if (bool.TryParse(Environment.GetEnvironmentVariable("SNS_DISABLE_CONSOLE_SIGNING"), out var disabled) && disabled)
       {
         PrintMessageColor(".NET Assembly Strong-Name Signer is disabled via the SNS_DISABLE_CONSOLE_SIGNING environment variable.", LogLevel.Default, ConsoleColor.Red);
-        return 0;
+        return 4;
       }
 
       try
@@ -44,7 +44,10 @@ namespace Brutal.Dev.StrongNameSigner.Console
             PrintHeader();
           }
 
-          SignAssemblies(parsed);
+          if (!SignAssemblies(parsed))
+          {
+            return 3;
+          }
         }
       }
       catch (ArgException ex)
@@ -104,7 +107,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
       C.ResetColor();
     }
 
-    private static void SignAssemblies(Options options)
+    private static bool SignAssemblies(Options options)
     {
       var filesToSign = new HashSet<string>();
 
@@ -171,7 +174,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
         assemblyInputOutputPaths.Add(new InputOutputFilePair(fullFilePath, Path.Combine(Path.GetFullPath(outputFilePath), Path.GetFileName(filePath))));
       }
 
-      SigningHelper.SignAssemblies(assemblyInputOutputPaths, options.KeyFile, options.Password, probingPaths);
+      return SigningHelper.SignAssemblies(assemblyInputOutputPaths, options.KeyFile, options.Password, probingPaths);
     }
 
     private static IEnumerable<string> GetFilesToSign(string directory)
