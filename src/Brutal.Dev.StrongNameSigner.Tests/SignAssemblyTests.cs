@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Shouldly;
@@ -218,6 +220,126 @@ namespace Brutal.Dev.StrongNameSigner.Tests
           File.Exists(outAssembly).ShouldBeTrue();
           File.Exists(Path.ChangeExtension(outAssembly, ".pdb")).ShouldBeTrue();
           info.IsSigned.ShouldBeTrue();
+        }
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnAssembly_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnAssembly());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnTypes_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnTypes());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnMethods_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnMethods());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnMethodParameters_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnParameters());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnMethodReturn_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnReturnParameters());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnFields_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnFields());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnProperties_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnProperties());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnEvents_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnEvents());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnEventMethods_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnEventMethods());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnEventFields_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnEventFields());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnConstructors_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnConstructors());
+    }
+
+    [Fact]
+    public void SignAssembly_CustomAttributesOnConstructorParameters_Should_Succeed()
+    {
+      SignAssemblyAndRunTestInAppDomain(assemblyTester => assemblyTester.TestCustomAttributesOnConstructorParameters());
+    }
+
+    private void SignAssemblyAndRunTestInAppDomain(Action<AppDomainAssemblyTester> testAction)
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      var outDir = Path.Combine(tempDir, "out");
+      Directory.CreateDirectory(outDir);
+      try
+      {
+        string sourceAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), sourceAssemblyPath);
+        string dependingAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll"), dependingAssemblyPath);
+
+        List<InputOutputFilePair> pairs = new List<InputOutputFilePair>
+        {
+          new InputOutputFilePair(sourceAssemblyPath, Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath))),
+          new InputOutputFilePair(dependingAssemblyPath, Path.Combine(outDir, Path.GetFileName(dependingAssemblyPath)))
+        };
+
+        SigningHelper.SignAssemblies(pairs).ShouldBeTrue();
+
+        string outAssembly = Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath));
+        File.Exists(outAssembly).ShouldBeTrue();
+
+        // Run test in separate AppDomain so that we can unload it after the test and delete the assembly
+        AppDomain appDomain = AppDomain.CreateDomain("TestDomain", null, new AppDomainSetup() { ApplicationBase = AppDomain.CurrentDomain.BaseDirectory });
+        try
+        {
+          var assemblyTester = (AppDomainAssemblyTester)appDomain.CreateInstanceAndUnwrap(
+            typeof(AppDomainAssemblyTester).Assembly.FullName,
+            typeof(AppDomainAssemblyTester).FullName);
+
+          assemblyTester.LoadAssembly(Path.Combine(outDir, Path.GetFileName(dependingAssemblyPath)));
+          assemblyTester.LoadAssembly(outAssembly);
+
+          testAction(assemblyTester);
+        }
+        finally
+        {
+          AppDomain.Unload(appDomain);
         }
       }
       finally
