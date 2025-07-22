@@ -266,7 +266,7 @@ namespace Mono.Security.Cryptography
 
     static public RSA FromCapiKeyBlob(byte[] blob, int offset)
     {
-      if (blob == null)
+      if (blob is null)
       {
         throw new ArgumentNullException(nameof(blob));
       }

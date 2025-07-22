@@ -313,7 +313,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         string dependingAssemblyPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll");
         File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll"), dependingAssemblyPath);
 
-        List<InputOutputFilePair> pairs = new List<InputOutputFilePair>
+        var pairs = new List<InputOutputFilePair>
         {
           new InputOutputFilePair(sourceAssemblyPath, Path.Combine(outDir, Path.GetFileName(sourceAssemblyPath))),
           new InputOutputFilePair(dependingAssemblyPath, Path.Combine(outDir, Path.GetFileName(dependingAssemblyPath)))
@@ -325,7 +325,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
         File.Exists(outAssembly).ShouldBeTrue();
 
         // Run test in separate AppDomain so that we can unload it after the test and delete the assembly
-        AppDomain appDomain = AppDomain.CreateDomain("TestDomain", null, new AppDomainSetup() { ApplicationBase = AppDomain.CurrentDomain.BaseDirectory });
+        var appDomain = AppDomain.CreateDomain("TestDomain", null, new AppDomainSetup() { ApplicationBase = AppDomain.CurrentDomain.BaseDirectory });
         try
         {
           var assemblyTester = (AppDomainAssemblyTester)appDomain.CreateInstanceAndUnwrap(
@@ -396,7 +396,7 @@ namespace Brutal.Dev.StrongNameSigner.Tests
 
     [Fact]
 #pragma warning disable S2699 // Tests should include assertions
-    public void SignAssembly_InParralel_Should_Succeed()
+    public void SignAssembly_InParallel_Should_Succeed()
     {
       Parallel.Invoke(
         SignAssembly_Public_API_Test,

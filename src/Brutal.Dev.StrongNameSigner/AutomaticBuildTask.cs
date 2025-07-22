@@ -38,7 +38,7 @@ namespace Brutal.Dev.StrongNameSigner
 
         Log.LogMessage(MessageImportance.High, "-- Starting Brutal Developer .NET Assembly Strong-Name Signer Task --");
 
-        if (References == null || References.Length == 0)
+        if (References is null || References.Length == 0)
         {
           return true;
         }
@@ -112,7 +112,7 @@ namespace Brutal.Dev.StrongNameSigner
           Log.LogMessage(MessageImportance.Normal, $"Signing files to output folder '{OutputPath.ItemSpec}'");
         }
 
-        if (CopyLocalPaths != null)
+        if (CopyLocalPaths is not null)
         {
           NewCopyLocalFiles = new ITaskItem[CopyLocalPaths.Length];
           for (int i = 0; i < CopyLocalPaths.Length; i++)

@@ -292,7 +292,7 @@ namespace Brutal.Dev.StrongNameSigner
               var originalAssemblyName = (string)argument.Value;
               var signedAssembly = assembliesToProcess.FirstOrDefault(a => a.Definition.Name.Name == originalAssemblyName);
 
-              if (signedAssembly != null)
+              if (signedAssembly is not null)
               {
                 Log($"   Fixing {signedAssembly.Definition.Name.Name} friend reference in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
@@ -500,84 +500,60 @@ namespace Brutal.Dev.StrongNameSigner
       var assembliesByName = allAssemblies.ToDictionary(a => a.Definition.Name.Name);
       foreach (var assembly in allAssemblies)
       {
-        var types = (from m in assembly.Definition.Modules
-                     from t in m.GetTypes()
-                     select t).ToList();
+        var types = assembly.Definition.Modules
+          .SelectMany(m => m.GetTypes())
+          .ToList();
 
-        var methods = (from t in types
-                       from method in t.Methods
-                       select method).ToList();
+        var methods = types
+          .SelectMany(t => t.Methods)
+          .ToList();
 
         // Assembly-level custom attributes
         FixAttributes(assembly.Definition.CustomAttributes, assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Module-level custom attributes
-        FixAttributes(from m in assembly.Definition.Modules
-                      where m.HasCustomAttributes
-                      from ca in m.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(assembly.Definition.Modules
+          .Where(m => m.HasCustomAttributes)
+          .SelectMany(m => m.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Type-level custom attributes
-        FixAttributes(from t in types
-                      where t.HasCustomAttributes
-                      from ca in t.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(types
+          .Where(t => t.HasCustomAttributes)
+          .SelectMany(t => t.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Method-level custom attributes
-        FixAttributes(from m in methods
-                      where m.HasCustomAttributes
-                      from ca in m.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(methods
+          .Where(m => m.HasCustomAttributes)
+          .SelectMany(m => m.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Parameter-level custom attributes
-        FixAttributes(from m in methods
-                      from p in m.Parameters
-                      where p.HasCustomAttributes
-                      from ca in p.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(methods
+          .SelectMany(m => m.Parameters)
+          .Where(p => p.HasCustomAttributes)
+          .SelectMany(p => p.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Method return type custom attributes
-        FixAttributes(from m in methods
-                      where m.MethodReturnType.HasCustomAttributes
-                      from ca in m.MethodReturnType.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(methods
+          .Where(m => m.MethodReturnType.HasCustomAttributes)
+          .SelectMany(m => m.MethodReturnType.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Field-level custom attributes
-        FixAttributes(from t in types
-                      from f in t.Fields
-                      where f.HasCustomAttributes
-                      from ca in f.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(types
+          .SelectMany(t => t.Fields)
+          .Where(f => f.HasCustomAttributes)
+          .SelectMany(f => f.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Event-level custom attributes
-        FixAttributes(from t in types
-                      from e in t.Events
-                      where e.HasCustomAttributes
-                      from ca in e.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(types
+          .SelectMany(t => t.Events)
+          .Where(e => e.HasCustomAttributes)
+          .SelectMany(e => e.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
 
         // Property-level custom attributes
-        FixAttributes(from t in types
-                      from p in t.Properties
-                      where p.HasCustomAttributes
-                      from ca in p.CustomAttributes
-                      select ca,
-
-                         assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(types
+          .SelectMany(t => t.Properties)
+          .Where(p => p.HasCustomAttributes)
+          .SelectMany(p => p.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
       }
     }
 
@@ -588,7 +564,7 @@ namespace Brutal.Dev.StrongNameSigner
         Dictionary<string, AssemblyInfo> assembliesByName,
         ref bool hasErrors)
     {
-      foreach (CustomAttribute customAttribute in customAttributes)
+      foreach (var customAttribute in customAttributes)
       {
         try
         {
@@ -598,7 +574,7 @@ namespace Brutal.Dev.StrongNameSigner
             {
               if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef)
               {
-                if (assembliesByName.TryGetValue(typeRef.Scope.Name, out AssemblyInfo signedAssembly))
+                if (assembliesByName.TryGetValue(typeRef.Scope.Name, out var signedAssembly))
                 {
                   Log($"   Fixing {signedAssembly.Definition.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
@@ -658,7 +634,7 @@ namespace Brutal.Dev.StrongNameSigner
       else
       {
         // Only cache generated keys so all signed assemblies use the same public key.
-        if (keyPairCache != null)
+        if (keyPairCache is not null)
         {
           return keyPairCache;
         }
