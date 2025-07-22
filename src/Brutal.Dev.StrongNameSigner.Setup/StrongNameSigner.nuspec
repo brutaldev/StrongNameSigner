@@ -2,7 +2,7 @@
 <package>
   <metadata>
     <id>Brutal.Dev.StrongNameSigner</id>
-    <version>3.6.0</version>
+    <version>3.6.1</version>
     <title>.NET Assembly Strong-Name Signer</title>
     <authors>Werner van Deventer</authors>
     <owners>Werner van Deventer</owners>
