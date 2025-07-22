@@ -13,7 +13,7 @@ namespace Brutal.Dev.StrongNameSigner
   [Serializable]
   public sealed class AssemblyInfo : IEquatable<AssemblyInfo>, IDisposable
   {
-    private readonly Lazy<AssemblyDefinition> modifiedDefintion;
+    private readonly Lazy<AssemblyDefinition> modifiedDefinition;
 
     private bool isDisposed;
 
@@ -36,7 +36,7 @@ namespace Brutal.Dev.StrongNameSigner
 
       RefreshSigningType(currentDefinition);
 
-      modifiedDefintion = new Lazy<AssemblyDefinition>(() => AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths)));
+      modifiedDefinition = new Lazy<AssemblyDefinition>(() => AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths)));
     }
 
     /// <inheritdoc/>
@@ -59,7 +59,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     /// The assembly definition.
     /// </value>
-    public AssemblyDefinition Definition => modifiedDefintion.Value;
+    public AssemblyDefinition Definition => modifiedDefinition.Value;
 
     /// <summary>
     /// Gets the .NET version that this assembly was built for, this will be the version of the CLR that is targeted.
@@ -129,14 +129,14 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="keyPair">The key pair.</param>
     public void Save(string assemblyPath, byte[] keyPair)
     {
-      if (modifiedDefintion.IsValueCreated && !isDisposed)
+      if (modifiedDefinition.IsValueCreated && !isDisposed)
       {
         Directory.CreateDirectory(Path.GetDirectoryName(assemblyPath));
-        modifiedDefintion.Value.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
+        modifiedDefinition.Value.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
 
         if (assemblyPath == FilePath)
         {
-          RefreshSigningType(modifiedDefintion.Value);
+          RefreshSigningType(modifiedDefinition.Value);
         }
       }
     }
@@ -160,9 +160,9 @@ namespace Brutal.Dev.StrongNameSigner
       GC.SuppressFinalize(this);
     }
 
-    private void RefreshSigningType(AssemblyDefinition defintion)
+    private void RefreshSigningType(AssemblyDefinition definition)
     {
-      if (!defintion.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
+      if (!definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
       {
         SigningType = StrongNameType.NotSigned;
       }
@@ -174,7 +174,7 @@ namespace Brutal.Dev.StrongNameSigner
         {
           var runtimeInterface = RuntimeEnvironment.GetRuntimeInterfaceAsObject(new Guid("B79B0ACD-F5CD-409b-B5A5-A16244610B92"), new Guid("9FD93CCF-3280-4391-B3A9-96E1CDE77C8D"));
 
-          if (runtimeInterface != null)
+          if (runtimeInterface is not null)
           {
             clrStrongName = runtimeInterface as IClrStrongName;
           }
@@ -219,27 +219,102 @@ namespace Brutal.Dev.StrongNameSigner
       using var resolver = new DefaultAssemblyResolver();
       if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
       {
+        resolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyPath));
         resolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
       }
 
-      if (probingPaths != null)
+      if (probingPaths is not null)
       {
         foreach (var searchDir in probingPaths.Where(Directory.Exists))
         {
+          resolver.RemoveSearchDirectory(searchDir);
           resolver.AddSearchDirectory(searchDir);
         }
       }
 
-      // Add well known locations.
-      resolver.RemoveSearchDirectory("C:\\Windows\\Microsoft.NET\\assembly");
-      resolver.RemoveSearchDirectory("C:\\Windows\\assembly");
-      resolver.RemoveSearchDirectory("C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319");
-      resolver.RemoveSearchDirectory("C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
-      
-      resolver.AddSearchDirectory("C:\\Windows\\Microsoft.NET\\assembly");
-      resolver.AddSearchDirectory("C:\\Windows\\assembly");
-      resolver.AddSearchDirectory("C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319");
-      resolver.AddSearchDirectory("C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319");
+      // 1. Current runtime directory.
+      var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
+      if (!string.IsNullOrEmpty(runtimeDir))
+      {
+        resolver.RemoveSearchDirectory(runtimeDir.TrimEnd(Path.DirectorySeparatorChar));
+        resolver.AddSearchDirectory(runtimeDir.TrimEnd(Path.DirectorySeparatorChar));
+      }
+
+      // 2. Application base directory.
+      resolver.RemoveSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
+      resolver.AddSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+      // 3. .NET Framework runtime.
+      try
+      {
+        var frameworkDir = RuntimeEnvironment.GetRuntimeDirectory();
+        if (Directory.Exists(frameworkDir))
+        {
+          resolver.RemoveSearchDirectory(frameworkDir.TrimEnd(Path.DirectorySeparatorChar));
+          resolver.AddSearchDirectory(frameworkDir.TrimEnd(Path.DirectorySeparatorChar));
+        }
+      }
+      catch { /* Ignore if not available */ }
+
+      // 4. .NET Core/5+ reference assemblies.
+      var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT") ??
+                       Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
+
+      if (Directory.Exists(dotnetRoot))
+      {
+        // Shared framework.
+        var sharedDir = Path.Combine(dotnetRoot, "shared", "Microsoft.NETCore.App");
+        if (Directory.Exists(sharedDir))
+        {
+          var latestVersion = Directory.GetDirectories(sharedDir)
+            .Select(d => new DirectoryInfo(d).Name)
+            .OrderByDescending(v => v)
+            .FirstOrDefault();
+
+          if (latestVersion is not null)
+          {
+            resolver.RemoveSearchDirectory(Path.Combine(sharedDir, latestVersion));
+            resolver.AddSearchDirectory(Path.Combine(sharedDir, latestVersion));
+          }
+        }
+      }
+
+      // 5. Reference assemblies for different frameworks.
+      var refAssemblies = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Reference Assemblies", "Microsoft", "Framework");
+
+      // .NET Framework reference assemblies.
+      foreach (var version in new[] { "v4.8", "v4.7.2", "v4.7.1", "v4.7", "v4.6.2", "v4.6.1", "v4.6" })
+      {
+        var frameworkRefDir = Path.Combine(refAssemblies, ".NETFramework", version);
+        if (Directory.Exists(frameworkRefDir))
+        {
+          resolver.RemoveSearchDirectory(frameworkRefDir);
+          resolver.AddSearchDirectory(frameworkRefDir);
+          break; // Use the first available.
+        }
+      }
+
+      // .NET Standard reference assemblies.
+      var netStandardRef = Path.Combine(refAssemblies, ".NETStandard");
+      if (Directory.Exists(netStandardRef))
+      {
+        var latestStandard = Directory.GetDirectories(netStandardRef)
+          .OrderByDescending(d => d)
+          .FirstOrDefault();
+
+        if (latestStandard is not null)
+        {
+          resolver.RemoveSearchDirectory(Path.Combine(latestStandard, "ref"));
+          resolver.AddSearchDirectory(Path.Combine(latestStandard, "ref"));
+        }
+      }
+
+      // Add other well known locations.
+      resolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
+      resolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
+
+      resolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
+      resolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
 
       ReaderParameters readParams;
 
@@ -270,9 +345,9 @@ namespace Brutal.Dev.StrongNameSigner
     {
       if (!isDisposed)
       {
-        if (disposing && modifiedDefintion.IsValueCreated)
+        if (disposing && modifiedDefinition.IsValueCreated)
         {
-          modifiedDefintion.Value.Dispose();
+          modifiedDefinition.Value.Dispose();
         }
 
         isDisposed = true;
