@@ -216,7 +216,7 @@ namespace Brutal.Dev.StrongNameSigner
 
     private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
     {
-      using var resolver = new DefaultAssemblyResolver();
+      var resolver = new DefaultAssemblyResolver();
       if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
       {
         resolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyPath));
@@ -232,36 +232,35 @@ namespace Brutal.Dev.StrongNameSigner
         }
       }
 
-      // 1. Current runtime directory.
-      var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
-      if (!string.IsNullOrEmpty(runtimeDir))
-      {
-        resolver.RemoveSearchDirectory(runtimeDir.TrimEnd(Path.DirectorySeparatorChar));
-        resolver.AddSearchDirectory(runtimeDir.TrimEnd(Path.DirectorySeparatorChar));
-      }
-
-      // 2. Application base directory.
+      // 1. Application base directory.
       resolver.RemoveSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
       resolver.AddSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
-      // 3. .NET Framework runtime.
-      try
-      {
-        var frameworkDir = RuntimeEnvironment.GetRuntimeDirectory();
-        if (Directory.Exists(frameworkDir))
-        {
-          resolver.RemoveSearchDirectory(frameworkDir.TrimEnd(Path.DirectorySeparatorChar));
-          resolver.AddSearchDirectory(frameworkDir.TrimEnd(Path.DirectorySeparatorChar));
-        }
-      }
-      catch { /* Ignore if not available */ }
 
-      // 4. .NET Core/5+ reference assemblies.
+      // 2. .NET Core/5+ reference assemblies.
       var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT") ??
                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
 
       if (Directory.Exists(dotnetRoot))
       {
+        // Packs directory for .NET Core/5+ reference assemblies.
+        var packsDir = Path.Combine(dotnetRoot, "packs", "Microsoft.NETCore.App.Ref");
+        if (Directory.Exists(packsDir))
+        {
+          var latestVersion = Directory.GetDirectories(packsDir)
+            .Select(d => new DirectoryInfo(d).Name)
+            .OrderByDescending(v => v)
+            .FirstOrDefault();
+
+          if (latestVersion is not null)
+          {
+            var majorMinorVersion = latestVersion.Split('.').Take(2).Aggregate((a, b) => $"{a}.{b}");
+            var dirToSearch = Path.Combine(packsDir, latestVersion, "ref", $"net{majorMinorVersion}");
+            resolver.RemoveSearchDirectory(dirToSearch);
+            resolver.AddSearchDirectory(dirToSearch);
+          }
+        }
+
         // Shared framework.
         var sharedDir = Path.Combine(dotnetRoot, "shared", "Microsoft.NETCore.App");
         if (Directory.Exists(sharedDir))
@@ -273,29 +272,18 @@ namespace Brutal.Dev.StrongNameSigner
 
           if (latestVersion is not null)
           {
-            resolver.RemoveSearchDirectory(Path.Combine(sharedDir, latestVersion));
-            resolver.AddSearchDirectory(Path.Combine(sharedDir, latestVersion));
+            var dirToSearch = Path.Combine(sharedDir, latestVersion);
+            resolver.RemoveSearchDirectory(dirToSearch);
+            resolver.AddSearchDirectory(dirToSearch);
           }
         }
       }
 
-      // 5. Reference assemblies for different frameworks.
-      var refAssemblies = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Reference Assemblies", "Microsoft", "Framework");
-
-      // .NET Framework reference assemblies.
-      foreach (var version in new[] { "v4.8", "v4.7.2", "v4.7.1", "v4.7", "v4.6.2", "v4.6.1", "v4.6" })
-      {
-        var frameworkRefDir = Path.Combine(refAssemblies, ".NETFramework", version);
-        if (Directory.Exists(frameworkRefDir))
-        {
-          resolver.RemoveSearchDirectory(frameworkRefDir);
-          resolver.AddSearchDirectory(frameworkRefDir);
-          break; // Use the first available.
-        }
-      }
+      // 3. Reference assemblies for different frameworks.
+      var refAssembliesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Reference Assemblies", "Microsoft", "Framework");
 
       // .NET Standard reference assemblies.
-      var netStandardRef = Path.Combine(refAssemblies, ".NETStandard");
+      var netStandardRef = Path.Combine(refAssembliesDir, ".NETStandard");
       if (Directory.Exists(netStandardRef))
       {
         var latestStandard = Directory.GetDirectories(netStandardRef)
@@ -304,10 +292,45 @@ namespace Brutal.Dev.StrongNameSigner
 
         if (latestStandard is not null)
         {
-          resolver.RemoveSearchDirectory(Path.Combine(latestStandard, "ref"));
-          resolver.AddSearchDirectory(Path.Combine(latestStandard, "ref"));
+          var dirToSearch = Path.Combine(latestStandard, "ref");
+          resolver.RemoveSearchDirectory(dirToSearch);
+          resolver.AddSearchDirectory(dirToSearch);
         }
       }
+
+      // .NET Framework reference assemblies.
+      foreach (var version in new[] { "v4.8", "v4.7.2", "v4.7.1", "v4.7", "v4.6.2", "v4.6.1", "v4.6" })
+      {
+        var frameworkRefDir = Path.Combine(refAssembliesDir, ".NETFramework", version);
+        if (Directory.Exists(frameworkRefDir))
+        {
+          resolver.RemoveSearchDirectory(frameworkRefDir);
+          resolver.AddSearchDirectory(frameworkRefDir);
+          break; // Use the first available.
+        }
+      }
+
+      // 4. Current runtime directory.
+      var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
+      if (!string.IsNullOrEmpty(runtimeDir))
+      {
+        var dirToSearch = runtimeDir.TrimEnd(Path.DirectorySeparatorChar);
+        resolver.RemoveSearchDirectory(dirToSearch);
+        resolver.AddSearchDirectory(dirToSearch);
+      }
+
+      // 5. .NET Framework runtime.
+      try
+      {
+        var frameworkDir = RuntimeEnvironment.GetRuntimeDirectory();
+        if (Directory.Exists(frameworkDir))
+        {
+          var dirToSearch = frameworkDir.TrimEnd(Path.DirectorySeparatorChar);
+          resolver.RemoveSearchDirectory(dirToSearch);
+          resolver.AddSearchDirectory(dirToSearch);
+        }
+      }
+      catch { /* Ignore if not available */ }
 
       // Add other well known locations.
       resolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
@@ -325,7 +348,8 @@ namespace Brutal.Dev.StrongNameSigner
           InMemory = true,
           ReadingMode = ReadingMode.Deferred,
           AssemblyResolver = resolver,
-          ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb"))
+          MetadataResolver = new MetadataResolver(resolver),
+          ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")),
         };
       }
       catch (InvalidOperationException)
@@ -334,7 +358,8 @@ namespace Brutal.Dev.StrongNameSigner
         {
           InMemory = true,
           ReadingMode = ReadingMode.Deferred,
-          AssemblyResolver = resolver
+          AssemblyResolver = resolver,
+          MetadataResolver = new MetadataResolver(resolver),
         };
       }
 
