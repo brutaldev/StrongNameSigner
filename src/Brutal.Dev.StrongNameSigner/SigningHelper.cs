@@ -497,7 +497,19 @@ namespace Brutal.Dev.StrongNameSigner
 
     private static void FixCustomAttributes(HashSet<AssemblyInfo> allAssemblies, Dictionary<string, InputOutputFilePair> tempFilePathToInputOutputFilePairMap, ref bool hasErrors)
     {
-      var assembliesByName = allAssemblies.ToDictionary(a => a.Definition.Name.Name);
+      var assembliesByName = new Dictionary<string, List<AssemblyInfo>>();
+      foreach (var assembly in allAssemblies)
+      {
+        if (!assembliesByName.TryGetValue(assembly.Definition.Name.Name, out var value))
+        {
+          assembliesByName.Add(assembly.Definition.Name.Name, [assembly]);
+        }
+        else
+        {
+          value.Add(assembly);
+        }
+      }
+
       foreach (var assembly in allAssemblies)
       {
         var types = assembly.Definition.Modules
@@ -561,7 +573,7 @@ namespace Brutal.Dev.StrongNameSigner
         IEnumerable<CustomAttribute> customAttributes,
         AssemblyInfo assembly,
         Dictionary<string, InputOutputFilePair> tempFilePathToInputOutputFilePairMap,
-        Dictionary<string, AssemblyInfo> assembliesByName,
+        Dictionary<string, List<AssemblyInfo>> assembliesByName,
         ref bool hasErrors)
     {
       foreach (var customAttribute in customAttributes)
@@ -572,20 +584,18 @@ namespace Brutal.Dev.StrongNameSigner
           {
             foreach (var argument in customAttribute.ConstructorArguments.ToArray())
             {
-              if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef)
+              if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef && assembliesByName.TryGetValue(typeRef.Scope.Name, out var value))
               {
-                if (assembliesByName.TryGetValue(typeRef.Scope.Name, out var signedAssembly))
+                foreach (var signedAssembly in value.Select(sa => sa.Definition))
                 {
-                  Log($"   Fixing {signedAssembly.Definition.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
+                  Log($"   Fixing {signedAssembly.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
-                  var updatedTypeRef = signedAssembly.Definition.MainModule.GetType(typeRef.FullName);
+                  signedAssembly.MainModule.GetType(typeRef.FullName);
 
                   // Import the type reference into the current module, so it gets the correct scope.
                   // Without this import, the type reference in the ILASM will only point to the type (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A")
                   // instead of the full assembly-qualified name (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A, Brutal.Dev.StrongNameSigner.TestAssembly.A, Version=1.0.0.0, PublicKeyToken=...").
-                  var importedTypeRef = assembly.Definition.MainModule.ImportReference(
-                      signedAssembly.Definition.MainModule.GetType(typeRef.FullName)
-                  );
+                  var importedTypeRef = assembly.Definition.MainModule.ImportReference(signedAssembly.MainModule.GetType(typeRef.FullName));
 
                   var updatedArgument = new CustomAttributeArgument(argument.Type, importedTypeRef);
 
