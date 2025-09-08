@@ -120,7 +120,7 @@ namespace Brutal.Dev.StrongNameSigner.Console
             string firstWildCardPart = inputDir.Substring(0, inputDir.IndexOf("*"));
             string searchPath = firstWildCardPart.Substring(0, firstWildCardPart.LastIndexOf(Path.DirectorySeparatorChar));
 
-            foreach (var dir in Directory.GetDirectories(searchPath, "*", SearchOption.AllDirectories)
+            foreach (var dir in Directory.EnumerateDirectories(searchPath, "*", SearchOption.AllDirectories)
               .Where(d => Regex.IsMatch(d, "^" + Regex.Escape(inputDir).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase)))
             {
               foreach (var file in GetFilesToSign(dir))

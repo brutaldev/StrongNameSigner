@@ -314,7 +314,7 @@ namespace Brutal.Dev.StrongNameSigner
         Log($"{step++}. Fix CustomAttributes with Type references...");
 
         // Fix CustomAttributes with Type references.
-        FixCustomAttributes(allAssemblies, tempFilePathToInputOutputFilePairMap, ref hasErrors);
+        FixCustomAttributes(allAssemblies, tempFilePathToInputOutputFilePairMap);
 
         Log($"{step++}. Fix BAML references...");
 
@@ -495,7 +495,7 @@ namespace Brutal.Dev.StrongNameSigner
       return !hasErrors;
     }
 
-    private static void FixCustomAttributes(HashSet<AssemblyInfo> allAssemblies, Dictionary<string, InputOutputFilePair> tempFilePathToInputOutputFilePairMap, ref bool hasErrors)
+    private static void FixCustomAttributes(HashSet<AssemblyInfo> allAssemblies, Dictionary<string, InputOutputFilePair> tempFilePathToInputOutputFilePairMap)
     {
       var assembliesByName = new Dictionary<string, List<AssemblyInfo>>();
       foreach (var assembly in allAssemblies)
@@ -521,51 +521,51 @@ namespace Brutal.Dev.StrongNameSigner
           .ToList();
 
         // Assembly-level custom attributes
-        FixAttributes(assembly.Definition.CustomAttributes, assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+        FixAttributes(assembly.Definition.CustomAttributes, assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Module-level custom attributes
         FixAttributes(assembly.Definition.Modules
           .Where(m => m.HasCustomAttributes)
-          .SelectMany(m => m.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(m => m.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Type-level custom attributes
         FixAttributes(types
           .Where(t => t.HasCustomAttributes)
-          .SelectMany(t => t.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(t => t.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Method-level custom attributes
         FixAttributes(methods
           .Where(m => m.HasCustomAttributes)
-          .SelectMany(m => m.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(m => m.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Parameter-level custom attributes
         FixAttributes(methods
           .SelectMany(m => m.Parameters)
           .Where(p => p.HasCustomAttributes)
-          .SelectMany(p => p.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(p => p.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Method return type custom attributes
         FixAttributes(methods
           .Where(m => m.MethodReturnType.HasCustomAttributes)
-          .SelectMany(m => m.MethodReturnType.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(m => m.MethodReturnType.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Field-level custom attributes
         FixAttributes(types
           .SelectMany(t => t.Fields)
           .Where(f => f.HasCustomAttributes)
-          .SelectMany(f => f.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(f => f.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Event-level custom attributes
         FixAttributes(types
           .SelectMany(t => t.Events)
           .Where(e => e.HasCustomAttributes)
-          .SelectMany(e => e.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(e => e.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
 
         // Property-level custom attributes
         FixAttributes(types
           .SelectMany(t => t.Properties)
           .Where(p => p.HasCustomAttributes)
-          .SelectMany(p => p.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName, ref hasErrors);
+          .SelectMany(p => p.CustomAttributes), assembly, tempFilePathToInputOutputFilePairMap, assembliesByName);
       }
     }
 
@@ -573,44 +573,45 @@ namespace Brutal.Dev.StrongNameSigner
         IEnumerable<CustomAttribute> customAttributes,
         AssemblyInfo assembly,
         Dictionary<string, InputOutputFilePair> tempFilePathToInputOutputFilePairMap,
-        Dictionary<string, List<AssemblyInfo>> assembliesByName,
-        ref bool hasErrors)
+        Dictionary<string, List<AssemblyInfo>> assembliesByName)
     {
       foreach (var customAttribute in customAttributes)
       {
+        var hasConstructorArguments = false;
         try
         {
-          if (customAttribute.HasConstructorArguments)
-          {
-            foreach (var argument in customAttribute.ConstructorArguments.ToArray())
-            {
-              if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef && assembliesByName.TryGetValue(typeRef.Scope.Name, out var value))
-              {
-                foreach (var signedAssembly in value.Select(sa => sa.Definition))
-                {
-                  Log($"   Fixing {signedAssembly.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
-
-                  signedAssembly.MainModule.GetType(typeRef.FullName);
-
-                  // Import the type reference into the current module, so it gets the correct scope.
-                  // Without this import, the type reference in the ILASM will only point to the type (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A")
-                  // instead of the full assembly-qualified name (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A, Brutal.Dev.StrongNameSigner.TestAssembly.A, Version=1.0.0.0, PublicKeyToken=...").
-                  var importedTypeRef = assembly.Definition.MainModule.ImportReference(signedAssembly.MainModule.GetType(typeRef.FullName));
-
-                  var updatedArgument = new CustomAttributeArgument(argument.Type, importedTypeRef);
-
-                  var idx = customAttribute.ConstructorArguments.IndexOf(argument);
-                  customAttribute.ConstructorArguments.RemoveAt(idx);
-                  customAttribute.ConstructorArguments.Insert(idx, updatedArgument);
-                }
-              }
-            }
-          }
+          hasConstructorArguments = customAttribute.HasConstructorArguments;
         }
         catch (AssemblyResolutionException ex)
         {
           Log($"   Failed to check custom attribute '{customAttribute.AttributeType.FullName}' in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}': {ex.Message}");
-          hasErrors = true;
+        }
+
+        if (hasConstructorArguments)
+        {
+          foreach (var argument in customAttribute.ConstructorArguments.ToArray())
+          {
+            if (argument.Type.FullName == "System.Type" && argument.Value is TypeReference typeRef && assembliesByName.TryGetValue(typeRef.Scope.Name, out var value))
+            {
+              foreach (var signedAssembly in value.Select(sa => sa.Definition))
+              {
+                Log($"   Fixing {signedAssembly.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
+
+                signedAssembly.MainModule.GetType(typeRef.FullName);
+
+                // Import the type reference into the current module, so it gets the correct scope.
+                // Without this import, the type reference in the ILASM will only point to the type (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A")
+                // instead of the full assembly-qualified name (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A, Brutal.Dev.StrongNameSigner.TestAssembly.A, Version=1.0.0.0, PublicKeyToken=...").
+                var importedTypeRef = assembly.Definition.MainModule.ImportReference(signedAssembly.MainModule.GetType(typeRef.FullName));
+
+                var updatedArgument = new CustomAttributeArgument(argument.Type, importedTypeRef);
+
+                var idx = customAttribute.ConstructorArguments.IndexOf(argument);
+                customAttribute.ConstructorArguments.RemoveAt(idx);
+                customAttribute.ConstructorArguments.Insert(idx, updatedArgument);
+              }
+            }
+          }
         }
       }
     }

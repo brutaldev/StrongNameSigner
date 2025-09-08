@@ -176,8 +176,8 @@ namespace Brutal.Dev.StrongNameSigner.UI
       if (e.Data.GetData(DataFormats.FileDrop) is IEnumerable<string> data)
       {
         var files = data.Where(d => (Path.GetExtension(d).Equals(".exe", StringComparison.OrdinalIgnoreCase) ||
-                                          Path.GetExtension(d).Equals(".dll", StringComparison.OrdinalIgnoreCase)) &&
-                                          File.Exists(d)).ToList();
+                                     Path.GetExtension(d).Equals(".dll", StringComparison.OrdinalIgnoreCase)) &&
+                                     File.Exists(d)).ToList();
 
         // Add all files in directories.
         var directories = data.Where(d => Directory.Exists(d) && File.GetAttributes(d).HasFlag(FileAttributes.Directory)).ToList();
