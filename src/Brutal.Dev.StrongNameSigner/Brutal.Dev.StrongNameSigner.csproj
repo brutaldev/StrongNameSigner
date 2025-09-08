@@ -3,7 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Company>Brutal.Dev.StrongNameSigner</Company>
-    <Version>3.6.2.0</Version>
+    <Version>3.6.3.0</Version>
     <Description>Simple API to sign .NET assemblies with a strong-name key and fix assembly references.</Description>
     <Copyright>Copyright © 2013-2025</Copyright>
     <PackageProjectUrl>https://brutaldev.com/post/net-assembly-strong-name-signer</PackageProjectUrl>
