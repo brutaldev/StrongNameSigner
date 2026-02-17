@@ -13,7 +13,7 @@ namespace Brutal.Dev.StrongNameSigner
   [Serializable]
   public sealed class AssemblyInfo : IEquatable<AssemblyInfo>, IDisposable
   {
-    private static DefaultAssemblyResolver assemblyResolver = null;
+    internal static CachingAssemblyResolver AssemblyResolver { get; set; }
 
     private readonly Lazy<AssemblyDefinition> modifiedDefinition;
 
@@ -218,29 +218,29 @@ namespace Brutal.Dev.StrongNameSigner
 
     private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
     {
-      var usingCachedResolver = assemblyResolver is not null;
-      assemblyResolver ??= new DefaultAssemblyResolver();
+      var usingCachedResolver = AssemblyResolver is not null;
+      AssemblyResolver ??= new CachingAssemblyResolver();
 
       if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
       {
-        assemblyResolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyPath));
-        assemblyResolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
+        AssemblyResolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyPath));
+        AssemblyResolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
       }
 
       if (probingPaths is not null)
       {
         foreach (var searchDir in probingPaths.Where(Directory.Exists))
         {
-          assemblyResolver.RemoveSearchDirectory(searchDir);
-          assemblyResolver.AddSearchDirectory(searchDir);
+          AssemblyResolver.RemoveSearchDirectory(searchDir);
+          AssemblyResolver.AddSearchDirectory(searchDir);
         }
       }
 
       if (!usingCachedResolver)
       {
         // 1. Application base directory.
-        assemblyResolver.RemoveSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
-        assemblyResolver.AddSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
+        AssemblyResolver.RemoveSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
+        AssemblyResolver.AddSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
         // 2. .NET Core/5+ reference assemblies.
         var dotnetRoot = Environment.GetEnvironmentVariable("DOTNET_ROOT") ??
@@ -264,8 +264,8 @@ namespace Brutal.Dev.StrongNameSigner
               foreach (var dirToSearch in Directory.EnumerateDirectories(packsDir, "*", SearchOption.AllDirectories)
                                                    .Where(d => d.EndsWith(Path.Combine(".Ref", latestVersion, "ref", $"net{majorMinorVersion}"))))
               {
-                assemblyResolver.RemoveSearchDirectory(dirToSearch);
-                assemblyResolver.AddSearchDirectory(dirToSearch);
+                AssemblyResolver.RemoveSearchDirectory(dirToSearch);
+                AssemblyResolver.AddSearchDirectory(dirToSearch);
               }
             }
           }
@@ -285,8 +285,8 @@ namespace Brutal.Dev.StrongNameSigner
               foreach (var dirToSearch in Directory.EnumerateDirectories(sharedDir, "*", SearchOption.AllDirectories)
                                                    .Where(d => d.EndsWith(Path.Combine(".App", latestVersion))))
               {
-                assemblyResolver.RemoveSearchDirectory(dirToSearch);
-                assemblyResolver.AddSearchDirectory(dirToSearch);
+                AssemblyResolver.RemoveSearchDirectory(dirToSearch);
+                AssemblyResolver.AddSearchDirectory(dirToSearch);
               }
             }
           }
@@ -306,8 +306,8 @@ namespace Brutal.Dev.StrongNameSigner
           if (latestStandard is not null)
           {
             var dirToSearch = Path.Combine(latestStandard, "ref");
-            assemblyResolver.RemoveSearchDirectory(dirToSearch);
-            assemblyResolver.AddSearchDirectory(dirToSearch);
+            AssemblyResolver.RemoveSearchDirectory(dirToSearch);
+            AssemblyResolver.AddSearchDirectory(dirToSearch);
           }
         }
 
@@ -317,8 +317,8 @@ namespace Brutal.Dev.StrongNameSigner
           var frameworkRefDir = Path.Combine(refAssembliesDir, ".NETFramework", version);
           if (Directory.Exists(frameworkRefDir))
           {
-            assemblyResolver.RemoveSearchDirectory(frameworkRefDir);
-            assemblyResolver.AddSearchDirectory(frameworkRefDir);
+            AssemblyResolver.RemoveSearchDirectory(frameworkRefDir);
+            AssemblyResolver.AddSearchDirectory(frameworkRefDir);
             break; // Use the first available.
           }
         }
@@ -328,8 +328,8 @@ namespace Brutal.Dev.StrongNameSigner
         if (!string.IsNullOrEmpty(runtimeDir))
         {
           var dirToSearch = runtimeDir.TrimEnd(Path.DirectorySeparatorChar);
-          assemblyResolver.RemoveSearchDirectory(dirToSearch);
-          assemblyResolver.AddSearchDirectory(dirToSearch);
+          AssemblyResolver.RemoveSearchDirectory(dirToSearch);
+          AssemblyResolver.AddSearchDirectory(dirToSearch);
         }
 
         // 5. .NET Framework runtime.
@@ -339,8 +339,8 @@ namespace Brutal.Dev.StrongNameSigner
           if (Directory.Exists(frameworkDir))
           {
             var dirToSearch = frameworkDir.TrimEnd(Path.DirectorySeparatorChar);
-            assemblyResolver.RemoveSearchDirectory(dirToSearch);
-            assemblyResolver.AddSearchDirectory(dirToSearch);
+            AssemblyResolver.RemoveSearchDirectory(dirToSearch);
+            AssemblyResolver.AddSearchDirectory(dirToSearch);
           }
         }
         catch { /* Ignore if not available */ }
@@ -354,17 +354,17 @@ namespace Brutal.Dev.StrongNameSigner
           foreach (var dirToSearch in Directory.EnumerateDirectories(nugetPackagesPath, "*", SearchOption.AllDirectories)
                                                .Where(d => d.Contains($"{Path.DirectorySeparatorChar}lib{Path.DirectorySeparatorChar}net")))
           {
-            assemblyResolver.RemoveSearchDirectory(dirToSearch);
-            assemblyResolver.AddSearchDirectory(dirToSearch);
+            AssemblyResolver.RemoveSearchDirectory(dirToSearch);
+            AssemblyResolver.AddSearchDirectory(dirToSearch);
           }
         }
 
         // Add other well known locations.
-        assemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
-        assemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
+        AssemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
+        AssemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
 
-        assemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
-        assemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
+        AssemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
+        AssemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
       }
 
       ReaderParameters readParams;
@@ -375,8 +375,8 @@ namespace Brutal.Dev.StrongNameSigner
         {
           InMemory = true,
           ReadingMode = ReadingMode.Deferred,
-          AssemblyResolver = assemblyResolver,
-          MetadataResolver = new MetadataResolver(assemblyResolver),
+          AssemblyResolver = AssemblyResolver,
+          MetadataResolver = new MetadataResolver(AssemblyResolver),
           ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")),
         };
       }
@@ -386,8 +386,8 @@ namespace Brutal.Dev.StrongNameSigner
         {
           InMemory = true,
           ReadingMode = ReadingMode.Deferred,
-          AssemblyResolver = assemblyResolver,
-          MetadataResolver = new MetadataResolver(assemblyResolver),
+          AssemblyResolver = AssemblyResolver,
+          MetadataResolver = new MetadataResolver(AssemblyResolver),
         };
       }
 
