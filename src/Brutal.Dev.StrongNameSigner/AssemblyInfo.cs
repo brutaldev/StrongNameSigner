@@ -13,9 +13,7 @@ namespace Brutal.Dev.StrongNameSigner
   [Serializable]
   public sealed class AssemblyInfo : IEquatable<AssemblyInfo>, IDisposable
   {
-    private static DefaultAssemblyResolver assemblyResolver = null;
-
-    private readonly Lazy<AssemblyDefinition> modifiedDefinition;
+    private static CustomAssemblyResolver assemblyResolver = null;
 
     private bool isDisposed;
 
@@ -28,17 +26,17 @@ namespace Brutal.Dev.StrongNameSigner
     {
       FilePath = Path.GetFullPath(assemblyPath);
 
-      using var currentDefinition = AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths));
+      ConfigureAssemblyResolver();
 
-      DotNetVersion = GetDotNetVersion(currentDefinition.MainModule.Runtime);
-      IsManagedAssembly = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly);
-      Is64BitOnly = currentDefinition.MainModule.Architecture == TargetArchitecture.AMD64 || currentDefinition.MainModule.Architecture == TargetArchitecture.IA64;
-      Is32BitOnly = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
-      Is32BitPreferred = currentDefinition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
+      Definition = AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths));
 
-      RefreshSigningType(currentDefinition);
+      DotNetVersion = GetDotNetVersion(Definition.MainModule.Runtime);
+      IsManagedAssembly = Definition.MainModule.Attributes.HasFlag(ModuleAttributes.ILOnly);
+      Is64BitOnly = Definition.MainModule.Architecture == TargetArchitecture.AMD64 || Definition.MainModule.Architecture == TargetArchitecture.IA64;
+      Is32BitOnly = Definition.MainModule.Attributes.HasFlag(ModuleAttributes.Required32Bit) && !Definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
+      Is32BitPreferred = Definition.MainModule.Attributes.HasFlag(ModuleAttributes.Preferred32Bit);
 
-      modifiedDefinition = new Lazy<AssemblyDefinition>(() => AssemblyDefinition.ReadAssembly(FilePath, GetReadParameters(FilePath, probingPaths)));
+      Refresh();
     }
 
     /// <inheritdoc/>
@@ -61,7 +59,7 @@ namespace Brutal.Dev.StrongNameSigner
     /// <value>
     /// The assembly definition.
     /// </value>
-    public AssemblyDefinition Definition => modifiedDefinition.Value;
+    public AssemblyDefinition Definition { get; }
 
     /// <summary>
     /// Gets the .NET version that this assembly was built for, this will be the version of the CLR that is targeted.
@@ -131,14 +129,14 @@ namespace Brutal.Dev.StrongNameSigner
     /// <param name="keyPair">The key pair.</param>
     public void Save(string assemblyPath, byte[] keyPair)
     {
-      if (modifiedDefinition.IsValueCreated && !isDisposed)
+      if (!isDisposed)
       {
         Directory.CreateDirectory(Path.GetDirectoryName(assemblyPath));
-        modifiedDefinition.Value.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
+        Definition.Write(assemblyPath, new WriterParameters { StrongNameKeyBlob = keyPair, WriteSymbols = File.Exists(Path.ChangeExtension(FilePath, ".pdb")) });
 
         if (assemblyPath == FilePath)
         {
-          RefreshSigningType(modifiedDefinition.Value);
+          Refresh();
         }
       }
     }
@@ -162,9 +160,12 @@ namespace Brutal.Dev.StrongNameSigner
       GC.SuppressFinalize(this);
     }
 
-    private void RefreshSigningType(AssemblyDefinition definition)
+    /// <summary>
+    /// Refresh the assembly information, this is useful to call after saving the assembly to update the signing type and refresh the assembly resolver cache.
+    /// </summary>
+    public void Refresh()
     {
-      if (!definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
+      if (!Definition.MainModule.Attributes.HasFlag(ModuleAttributes.StrongNameSigned))
       {
         SigningType = StrongNameType.NotSigned;
       }
@@ -202,6 +203,8 @@ namespace Brutal.Dev.StrongNameSigner
           SigningType = StrongNameType.DelaySigned;
         }
       }
+
+      assemblyResolver.CacheAssemblyDefinition(Definition);
     }
 
     private static string GetDotNetVersion(TargetRuntime runtime)
@@ -216,27 +219,12 @@ namespace Brutal.Dev.StrongNameSigner
       };
     }
 
-    private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
+    private static void ConfigureAssemblyResolver()
     {
-      var usingCachedResolver = assemblyResolver is not null;
-      assemblyResolver ??= new DefaultAssemblyResolver();
+      var isAssemblyResolverSetup = assemblyResolver is not null;
+      assemblyResolver ??= new CustomAssemblyResolver();
 
-      if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
-      {
-        assemblyResolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyPath));
-        assemblyResolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
-      }
-
-      if (probingPaths is not null)
-      {
-        foreach (var searchDir in probingPaths.Where(Directory.Exists))
-        {
-          assemblyResolver.RemoveSearchDirectory(searchDir);
-          assemblyResolver.AddSearchDirectory(searchDir);
-        }
-      }
-
-      if (!usingCachedResolver)
+      if (!isAssemblyResolverSetup)
       {
         // 1. Application base directory.
         assemblyResolver.RemoveSearchDirectory(AppDomain.CurrentDomain.BaseDirectory);
@@ -290,81 +278,99 @@ namespace Brutal.Dev.StrongNameSigner
               }
             }
           }
-        }
 
-        // 3. Reference assemblies for different frameworks.
-        var refAssembliesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Reference Assemblies", "Microsoft", "Framework");
+          // 3. Reference assemblies for different frameworks.
+          var refAssembliesDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Reference Assemblies", "Microsoft", "Framework");
 
-        // .NET Standard reference assemblies.
-        var netStandardRef = Path.Combine(refAssembliesDir, ".NETStandard");
-        if (Directory.Exists(netStandardRef))
-        {
-          var latestStandard = Directory.EnumerateDirectories(netStandardRef)
-            .OrderByDescending(d => d)
-            .FirstOrDefault();
-
-          if (latestStandard is not null)
+          // .NET Standard reference assemblies.
+          var netStandardRef = Path.Combine(refAssembliesDir, ".NETStandard");
+          if (Directory.Exists(netStandardRef))
           {
-            var dirToSearch = Path.Combine(latestStandard, "ref");
+            var latestStandard = Directory.EnumerateDirectories(netStandardRef)
+              .OrderByDescending(d => d)
+              .FirstOrDefault();
+
+            if (latestStandard is not null)
+            {
+              var dirToSearch = Path.Combine(latestStandard, "ref");
+              assemblyResolver.RemoveSearchDirectory(dirToSearch);
+              assemblyResolver.AddSearchDirectory(dirToSearch);
+            }
+          }
+
+          // .NET Framework reference assemblies.
+          foreach (var version in new[] { "v4.8", "v4.7.2", "v4.7.1", "v4.7", "v4.6.2", "v4.6.1", "v4.6" })
+          {
+            var frameworkRefDir = Path.Combine(refAssembliesDir, ".NETFramework", version);
+            if (Directory.Exists(frameworkRefDir))
+            {
+              assemblyResolver.RemoveSearchDirectory(frameworkRefDir);
+              assemblyResolver.AddSearchDirectory(frameworkRefDir);
+              break; // Use the first available.
+            }
+          }
+
+          // 4. Current runtime directory.
+          var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
+          if (!string.IsNullOrEmpty(runtimeDir))
+          {
+            var dirToSearch = runtimeDir.TrimEnd(Path.DirectorySeparatorChar);
             assemblyResolver.RemoveSearchDirectory(dirToSearch);
             assemblyResolver.AddSearchDirectory(dirToSearch);
           }
-        }
 
-        // .NET Framework reference assemblies.
-        foreach (var version in new[] { "v4.8", "v4.7.2", "v4.7.1", "v4.7", "v4.6.2", "v4.6.1", "v4.6" })
-        {
-          var frameworkRefDir = Path.Combine(refAssembliesDir, ".NETFramework", version);
-          if (Directory.Exists(frameworkRefDir))
+          // 5. .NET Framework runtime.
+          try
           {
-            assemblyResolver.RemoveSearchDirectory(frameworkRefDir);
-            assemblyResolver.AddSearchDirectory(frameworkRefDir);
-            break; // Use the first available.
+            var frameworkDir = RuntimeEnvironment.GetRuntimeDirectory();
+            if (Directory.Exists(frameworkDir))
+            {
+              var dirToSearch = frameworkDir.TrimEnd(Path.DirectorySeparatorChar);
+              assemblyResolver.RemoveSearchDirectory(dirToSearch);
+              assemblyResolver.AddSearchDirectory(dirToSearch);
+            }
           }
-        }
+          catch { /* Ignore if not available */ }
 
-        // 4. Current runtime directory.
-        var runtimeDir = Path.GetDirectoryName(typeof(object).Assembly.Location);
-        if (!string.IsNullOrEmpty(runtimeDir))
-        {
-          var dirToSearch = runtimeDir.TrimEnd(Path.DirectorySeparatorChar);
-          assemblyResolver.RemoveSearchDirectory(dirToSearch);
-          assemblyResolver.AddSearchDirectory(dirToSearch);
-        }
+          // 6. Add the NuGet pacakges directotry.
+          var nugetPackagesPath = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ??
+                                  Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
 
-        // 5. .NET Framework runtime.
-        try
-        {
-          var frameworkDir = RuntimeEnvironment.GetRuntimeDirectory();
-          if (Directory.Exists(frameworkDir))
+          if (Directory.Exists(nugetPackagesPath))
           {
-            var dirToSearch = frameworkDir.TrimEnd(Path.DirectorySeparatorChar);
-            assemblyResolver.RemoveSearchDirectory(dirToSearch);
-            assemblyResolver.AddSearchDirectory(dirToSearch);
+            foreach (var dirToSearch in Directory.EnumerateDirectories(nugetPackagesPath, "*", SearchOption.AllDirectories)
+                                                 .Where(d => d.Contains($"{Path.DirectorySeparatorChar}lib{Path.DirectorySeparatorChar}net")))
+            {
+              assemblyResolver.RemoveSearchDirectory(dirToSearch);
+              assemblyResolver.AddSearchDirectory(dirToSearch);
+            }
           }
+
+          // Add other well known locations.
+          assemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
+          assemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
+
+          assemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
+          assemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
         }
-        catch { /* Ignore if not available */ }
+      }
+    }
 
-        // 6. Add the NuGet pacakges directotry.
-        var nugetPackagesPath = Environment.GetEnvironmentVariable("NUGET_PACKAGES") ??
-                                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+    private static ReaderParameters GetReadParameters(string assemblyPath, string[] probingPaths)
+    {
+      if (!string.IsNullOrEmpty(assemblyPath) && File.Exists(assemblyPath))
+      {
+        assemblyResolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyPath));
+        assemblyResolver.AddSearchDirectory(Path.GetDirectoryName(assemblyPath));
+      }
 
-        if (Directory.Exists(nugetPackagesPath))
+      if (probingPaths is not null)
+      {
+        foreach (var searchDir in probingPaths.Where(Directory.Exists))
         {
-          foreach (var dirToSearch in Directory.EnumerateDirectories(nugetPackagesPath, "*", SearchOption.AllDirectories)
-                                               .Where(d => d.Contains($"{Path.DirectorySeparatorChar}lib{Path.DirectorySeparatorChar}net")))
-          {
-            assemblyResolver.RemoveSearchDirectory(dirToSearch);
-            assemblyResolver.AddSearchDirectory(dirToSearch);
-          }
+          assemblyResolver.RemoveSearchDirectory(searchDir);
+          assemblyResolver.AddSearchDirectory(searchDir);
         }
-
-        // Add other well known locations.
-        assemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
-        assemblyResolver.RemoveSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
-
-        assemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "assembly"));
-        assemblyResolver.AddSearchDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "assembly"));
       }
 
       ReaderParameters readParams;
@@ -398,13 +404,18 @@ namespace Brutal.Dev.StrongNameSigner
     {
       if (!isDisposed)
       {
-        if (disposing && modifiedDefinition.IsValueCreated)
+        if (disposing)
         {
-          modifiedDefinition.Value.Dispose();
+          Definition.Dispose();
         }
 
         isDisposed = true;
       }
+    }
+
+    private sealed class CustomAssemblyResolver : DefaultAssemblyResolver
+    {
+      public void CacheAssemblyDefinition(AssemblyDefinition assembly) => RegisterAssembly(assembly);
     }
   }
 }

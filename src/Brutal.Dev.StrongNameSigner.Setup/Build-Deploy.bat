@@ -3,16 +3,16 @@
 cls
 
 pushd .
-call "C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\Tools\VsMSBuildCmd.bat"
+call "C:\Program Files\Microsoft Visual Studio\18\Insiders\Common7\Tools\VsMSBuildCmd.bat"
 popd
 
 dotnet restore -c Release 
 dotnet publish -c Release "..\Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj"
 
-MSBuild "..\Brutal.Dev.StrongNameSigner.sln" /t:Rebuild /p:Configuration=Release /m
+MSBuild "..\Brutal.Dev.StrongNameSigner.slnx" /t:Rebuild /p:Configuration=Release /m
 
 echo.
-"..\..\packages\Tools.InnoSetup.5.6.1\tools\ISCC.exe" StrongNameSigner.iss
+"%NUGET_PACKAGES%\tools.innosetup.5.6.1\tools\ISCC.exe" StrongNameSigner.iss
 echo.
 
 echo.

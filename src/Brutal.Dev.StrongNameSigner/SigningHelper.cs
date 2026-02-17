@@ -273,6 +273,8 @@ namespace Brutal.Dev.StrongNameSigner
           name.PublicKey = publicKey;
           name.HasPublicKey = true;
           name.Attributes |= AssemblyAttributes.PublicKey;
+
+          assembly.Refresh();
         }
 
         Log($"{step++}. Fix InternalVisibleToAttribute references...");
