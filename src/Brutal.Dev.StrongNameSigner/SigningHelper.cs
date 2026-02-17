@@ -221,7 +221,9 @@ namespace Brutal.Dev.StrongNameSigner
 
           tempFilePathToInputOutputFilePairMap.Add(tempFilePath, inputOutputFilePair);
 
-          allAssemblies.Add(new AssemblyInfo(tempFilePath, probingPaths));
+          var assemblyInfo = new AssemblyInfo(tempFilePath, probingPaths);
+          allAssemblies.Add(assemblyInfo);
+          AssemblyInfo.AssemblyResolver.RegisterAssembly(assemblyInfo.Definition);
         }
         catch (BadImageFormatException ex)
         {
@@ -273,6 +275,8 @@ namespace Brutal.Dev.StrongNameSigner
           name.PublicKey = publicKey;
           name.HasPublicKey = true;
           name.Attributes |= AssemblyAttributes.PublicKey;
+
+          AssemblyInfo.AssemblyResolver.RegisterAssembly(assembly.Definition);
         }
 
         Log($"{step++}. Fix InternalVisibleToAttribute references...");
@@ -479,6 +483,12 @@ namespace Brutal.Dev.StrongNameSigner
         foreach (var assembly in allAssemblies)
         {
           assembly.Dispose();
+        }
+
+        if (AssemblyInfo.AssemblyResolver != null)
+        {
+          AssemblyInfo.AssemblyResolver.Dispose();
+          AssemblyInfo.AssemblyResolver = null;
         }
 
         try
