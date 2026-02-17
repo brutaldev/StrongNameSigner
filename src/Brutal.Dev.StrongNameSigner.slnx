@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/.nuget/">
+    <File Path=".nuget/NuGet.exe" />
+    <File Path=".nuget/NuGet.targets" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="../README.md" />
+    <File Path=".editorconfig" />
+    <File Path="Brutal.Dev.StrongNameSigner.Setup/EULA.txt" />
+    <File Path="Brutal.Dev.StrongNameSigner.Setup/StrongNameSigner.iss" />
+    <File Path="Brutal.Dev.StrongNameSigner.Setup/StrongNameSigner.nuspec" />
+    <File Path="Brutal.Dev.StrongNameSigner/StrongNameSigner.targets" />
+  </Folder>
+  <Project Path="Brutal.Dev.StrongNameSigner.Console/Brutal.Dev.StrongNameSigner.Console.csproj" Id="81ad5094-fad3-40bc-a0ab-1b6f0b90ad5a" />
+  <Project Path="Brutal.Dev.StrongNameSigner.Tests/Brutal.Dev.StrongNameSigner.Tests.csproj" Id="3ea13c51-9a22-4045-8993-12391408a300">
+    <Build Solution="Release|*" Project="false" />
+  </Project>
+  <Project Path="Brutal.Dev.StrongNameSigner.UI/Brutal.Dev.StrongNameSigner.UI.csproj" Id="17e01b70-04dc-4446-bf8f-d2543e6c5056" />
+  <Project Path="Brutal.Dev.StrongNameSigner/Brutal.Dev.StrongNameSigner.csproj" />
+  <Properties Name="CodealikeProperties" Scope="PostLoad">
+    <Property Name="SolutionGuid" Value="b98c8034-a14d-47f1-b4f0-378f8a176e80" />
+  </Properties>
+</Solution>
