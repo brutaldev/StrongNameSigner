@@ -6,7 +6,7 @@ pushd .
 call "C:\Program Files\Microsoft Visual Studio\18\Insiders\Common7\Tools\VsMSBuildCmd.bat"
 popd
 
-dotnet restore -c Release 
+dotnet restore "..\Brutal.Dev.StrongNameSigner.slnx"
 dotnet publish -c Release "..\Brutal.Dev.StrongNameSigner\Brutal.Dev.StrongNameSigner.csproj"
 
 MSBuild "..\Brutal.Dev.StrongNameSigner.slnx" /t:Rebuild /p:Configuration=Release /m
