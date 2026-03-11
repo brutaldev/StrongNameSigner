@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Shouldly;
@@ -9,6 +8,7 @@ using Xunit;
 
 namespace Brutal.Dev.StrongNameSigner.Tests
 {
+  [Collection("FileSystem")]
   public class SignAssemblyTests
   {
     private static readonly string TestAssemblyDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "TestAssemblies");

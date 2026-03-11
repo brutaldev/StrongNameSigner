@@ -599,18 +599,20 @@ namespace Brutal.Dev.StrongNameSigner
               {
                 Log($"   Fixing {signedAssembly.Name.Name} reference in CustomAttribute in assembly '{tempFilePathToInputOutputFilePairMap[assembly.FilePath].InputFilePath}'.");
 
-                signedAssembly.MainModule.GetType(typeRef.FullName);
-
                 // Import the type reference into the current module, so it gets the correct scope.
                 // Without this import, the type reference in the ILASM will only point to the type (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A")
                 // instead of the full assembly-qualified name (like "Brutal.Dev.StrongNameSigner.TestAssembly.A.A, Brutal.Dev.StrongNameSigner.TestAssembly.A, Version=1.0.0.0, PublicKeyToken=...").
                 var importedTypeRef = assembly.Definition.MainModule.ImportReference(signedAssembly.MainModule.GetType(typeRef.FullName));
-
                 var updatedArgument = new CustomAttributeArgument(argument.Type, importedTypeRef);
 
                 var idx = customAttribute.ConstructorArguments.IndexOf(argument);
-                customAttribute.ConstructorArguments.RemoveAt(idx);
-                customAttribute.ConstructorArguments.Insert(idx, updatedArgument);
+
+                // Skip is not found (already removed).
+                if (idx >= 0)
+                {
+                  customAttribute.ConstructorArguments.RemoveAt(idx);
+                  customAttribute.ConstructorArguments.Insert(idx, updatedArgument);
+                }
               }
             }
           }
