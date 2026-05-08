@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
+using System.Threading;
 using Mono.Cecil;
 using Mono.Security.Cryptography;
 
@@ -430,14 +431,50 @@ namespace Brutal.Dev.StrongNameSigner
 
           Log($"   Saving changes to assembly '{inputOutputFilePair.OutputFilePath}'.");
 
+          // Write to a side-by-side temp file first so that any transient lock on the
+          // destination (e.g. antivirus, Windows Search) does not interfere with the
+          // potentially long Mono.Cecil write operation.
+          var stagingFilePath = inputOutputFilePair.OutputFilePath + ".snstaging";
+
           try
           {
-            assembly.Save(inputOutputFilePair.OutputFilePath, keyPair);
+            assembly.Save(stagingFilePath, keyPair);
+
+            // Swap the staging DLL into place with retries to handle brief transient locks.
+            ReplaceFileWithRetry(stagingFilePath, inputOutputFilePair.OutputFilePath, inputOutputFilePair.IsSameFile ? inputOutputFilePair.BackupAssemblyPath : null);
+
+            // Also swap the PDB that Mono.Cecil wrote alongside the staging DLL so the
+            // symbols match the new signed assembly. Without this the old PDB stays next
+            // to the new DLL and causes SymbolsNotMatchingException.
+            var stagingPdbPath = Path.ChangeExtension(stagingFilePath, ".pdb");
+            var outputPdbPath = Path.ChangeExtension(inputOutputFilePair.OutputFilePath, ".pdb");
+
+            if (File.Exists(stagingPdbPath))
+            {
+              ReplaceFileWithRetry(stagingPdbPath, outputPdbPath, inputOutputFilePair.IsSameFile ? inputOutputFilePair.BackupPdbPath : null);
+            }
           }
           catch (Exception ex)
           {
             Log($"   Failed to save assembly '{inputOutputFilePair.OutputFilePath}': {ex.Message}");
             hasErrors = true;
+
+            // Clean up the staging file and its PDB if they were left behind.
+            try
+            {
+              File.Delete(stagingFilePath);
+              var stagingPdbCleanup = Path.ChangeExtension(stagingFilePath, ".pdb");
+
+              if (File.Exists(stagingPdbCleanup))
+              {
+                File.Delete(stagingPdbCleanup);
+              }
+            }
+            catch (Exception delex)
+            {
+              // Ignore cleanup failures.
+              Log($"   Failed to cleanup staging file '{stagingFilePath}': {delex.Message}");
+            }
 
             if (inputOutputFilePair.IsSameFile)
             {
@@ -618,6 +655,43 @@ namespace Brutal.Dev.StrongNameSigner
           }
         }
       }
+    }
+
+    private static void ReplaceFileWithRetry(string sourceFilePath, string destinationFilePath, string backupFilePath)
+    {
+      IOException lastException = null;
+
+      for (var attempt = 0; attempt < 5; attempt++)
+      {
+        try
+        {
+          if (attempt > 0)
+          {
+            Thread.Sleep(200 * attempt);
+          }
+
+          if (!string.IsNullOrEmpty(backupFilePath) && File.Exists(backupFilePath))
+          {
+            File.Replace(sourceFilePath, destinationFilePath, backupFilePath);
+          }
+          else if (File.Exists(destinationFilePath))
+          {
+            File.Replace(sourceFilePath, destinationFilePath, null);
+          }
+          else
+          {
+            File.Move(sourceFilePath, destinationFilePath);
+          }
+
+          return;
+        }
+        catch (IOException ex)
+        {
+          lastException = ex;
+        }
+      }
+
+      throw new IOException($"Could not replace '{destinationFilePath}' after 5 attempts: {lastException?.Message}", lastException);
     }
 
     private static byte[] GenerateStrongNameKeyPair()

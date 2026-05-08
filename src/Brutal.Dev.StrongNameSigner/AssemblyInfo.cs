@@ -375,6 +375,9 @@ namespace Brutal.Dev.StrongNameSigner
 
       ReaderParameters readParams;
 
+      var pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
+      var pdbStream = File.Exists(pdbPath) ? new MemoryStream(File.ReadAllBytes(pdbPath)) : null;
+
       try
       {
         readParams = new ReaderParameters
@@ -383,11 +386,14 @@ namespace Brutal.Dev.StrongNameSigner
           ReadingMode = ReadingMode.Deferred,
           AssemblyResolver = assemblyResolver,
           MetadataResolver = new MetadataResolver(assemblyResolver),
-          ReadSymbols = File.Exists(Path.ChangeExtension(assemblyPath, ".pdb")),
+          ReadSymbols = pdbStream is not null,
+          SymbolStream = pdbStream,
         };
       }
       catch (InvalidOperationException)
       {
+        pdbStream?.Dispose();
+
         readParams = new ReaderParameters
         {
           InMemory = true,

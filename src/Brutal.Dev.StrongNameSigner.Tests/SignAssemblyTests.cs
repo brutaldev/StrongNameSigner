@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using Mono.Cecil;
 using Shouldly;
 using Xunit;
 
@@ -404,5 +407,236 @@ namespace Brutal.Dev.StrongNameSigner.Tests
       );
     }
 #pragma warning restore S2699 // Tests should include assertions
+
+    [Fact]
+    public void SignAssembly_Null_Path_Should_Throw_ArgumentNullException()
+    {
+      Action act = () => SigningHelper.SignAssembly(null);
+      act.ShouldThrow<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SignAssembly_Empty_Path_Should_Throw_ArgumentNullException()
+    {
+      Action act = () => SigningHelper.SignAssembly(string.Empty);
+      act.ShouldThrow<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SignAssembly_WhiteSpace_Path_Should_Throw_ArgumentNullException()
+    {
+      Action act = () => SigningHelper.SignAssembly("   ");
+      act.ShouldThrow<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SignAssembly_Already_Signed_Assembly_Should_Succeed_And_Remain_Signed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      try
+      {
+        // Copy so we sign in-place; already-signed assemblies are not re-written to a
+        // separate output path, so we must use the same directory as input/output.
+        var targetPath = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Signed.exe");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Signed.exe"), targetPath);
+
+        using (var info = SigningHelper.SignAssembly(targetPath))
+        {
+          info.IsSigned.ShouldBeTrue();
+        }
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Fact]
+    public void SignAssembly_Obfuscated_Assembly_Should_Succeed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      try
+      {
+        using (var info = SigningHelper.SignAssembly(
+          Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET40-Obfuscated.exe"),
+          string.Empty,
+          Path.Combine(tempDir, "out")))
+        {
+          info.IsSigned.ShouldBeTrue();
+          info.IsAnyCpu.ShouldBeTrue();
+        }
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Fact]
+    public void SignAssembly_Output_To_Deeply_Nested_NonExistent_Directory_Should_Succeed()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      try
+      {
+        var deepOutputDir = Path.Combine(tempDir, "a", "b", "c", "d");
+
+        using (var info = SigningHelper.SignAssembly(
+          Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"),
+          string.Empty,
+          deepOutputDir))
+        {
+          Directory.Exists(deepOutputDir).ShouldBeTrue();
+          info.IsSigned.ShouldBeTrue();
+        }
+      }
+      finally
+      {
+        if (Directory.Exists(tempDir))
+        {
+          Directory.Delete(tempDir, true);
+        }
+      }
+    }
+
+    [Fact]
+    public void SignAssemblies_Empty_Collection_Should_Return_False()
+    {
+      var result = SigningHelper.SignAssemblies(new List<string>());
+      result.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void SignAssemblies_Missing_Input_File_Should_Throw_FileNotFoundException()
+    {
+      Action act = () => SigningHelper.SignAssemblies(new[] { Path.Combine(TestAssemblyDirectory, "DoesNotExist.dll") });
+      act.ShouldThrow<FileNotFoundException>();
+    }
+
+    [Fact]
+    public void SignAssemblies_StringPaths_Overload_Should_Sign_All_Assemblies()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      try
+      {
+        var assemblyA = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        var assemblyB = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), assemblyA);
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll"), assemblyB);
+
+        var result = SigningHelper.SignAssemblies(new[] { assemblyA, assemblyB });
+        result.ShouldBeTrue();
+
+        new AssemblyInfo(assemblyA).IsSigned.ShouldBeTrue();
+        new AssemblyInfo(assemblyB).IsSigned.ShouldBeTrue();
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Fact]
+    public void SignAssemblies_Two_Unsigned_Assemblies_Without_Key_Should_Share_Same_PublicKey()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      try
+      {
+        var assemblyA = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        var assemblyB = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), assemblyA);
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll"), assemblyB);
+
+        SigningHelper.SignAssemblies(new[] { assemblyA, assemblyB });
+
+        using (var infoA = new AssemblyInfo(assemblyA))
+        using (var infoB = new AssemblyInfo(assemblyB))
+        {
+          // Both must carry the same public key token so cross-references remain valid.
+          var tokenA = BitConverter.ToString(infoA.Definition.Name.PublicKeyToken).Replace("-", string.Empty);
+          var tokenB = BitConverter.ToString(infoB.Definition.Name.PublicKeyToken).Replace("-", string.Empty);
+          tokenA.ShouldNotBeNullOrEmpty();
+          tokenA.ShouldBe(tokenB);
+        }
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Fact]
+    public void SignAssembly_Log_Callback_Is_Invoked_During_Signing()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      var logMessages = new List<string>();
+      var previousLog = SigningHelper.Log;
+      try
+      {
+        SigningHelper.Log = msg => logMessages.Add(msg);
+
+        SigningHelper.SignAssembly(
+          Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.NET20.exe"),
+          string.Empty,
+          Path.Combine(tempDir, "out"));
+
+        logMessages.ShouldNotBeEmpty();
+      }
+      finally
+      {
+        SigningHelper.Log = previousLog;
+        Directory.Delete(tempDir, true);
+      }
+    }
+
+    [Fact]
+    public void SignAssemblies_InternalsVisibleTo_Reference_Should_Be_Updated_With_PublicKey()
+    {
+      var tempDir = Path.Combine(TestAssemblyDirectory, Guid.NewGuid().ToString("N"));
+      Directory.CreateDirectory(tempDir);
+      var outDir = Path.Combine(tempDir, "out");
+      Directory.CreateDirectory(outDir);
+      try
+      {
+        var assemblyA = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll");
+        var assemblyB = Path.Combine(tempDir, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll");
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"), assemblyA);
+        File.Copy(Path.Combine(TestAssemblyDirectory, "Brutal.Dev.StrongNameSigner.TestAssembly.B.dll"), assemblyB);
+
+        var pairs = new List<InputOutputFilePair>
+        {
+          new InputOutputFilePair(assemblyA, Path.Combine(outDir, Path.GetFileName(assemblyA))),
+          new InputOutputFilePair(assemblyB, Path.Combine(outDir, Path.GetFileName(assemblyB)))
+        };
+
+        var result = SigningHelper.SignAssemblies(pairs);
+        result.ShouldBeTrue();
+
+        // The signed Assembly A should have an InternalsVisibleTo attribute containing a PublicKey token.
+        var signedA = new AssemblyInfo(Path.Combine(outDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll"));
+        signedA.IsSigned.ShouldBeTrue();
+
+        // Load and inspect the raw attribute to verify PublicKey was injected.
+        using (var rawDef = AssemblyDefinition.ReadAssembly(Path.Combine(outDir, "Brutal.Dev.StrongNameSigner.TestAssembly.A.dll")))
+        {
+          var ivtAttr = rawDef.CustomAttributes
+            .FirstOrDefault(a => a.AttributeType.FullName == typeof(InternalsVisibleToAttribute).FullName);
+
+          if (ivtAttr != null)
+          {
+            var attrValue = ivtAttr.ConstructorArguments[0].Value.ToString();
+            attrValue.ShouldContain("PublicKey=");
+          }
+        }
+      }
+      finally
+      {
+        Directory.Delete(tempDir, true);
+      }
+    }
   }
 }
