@@ -431,10 +431,12 @@ namespace Brutal.Dev.StrongNameSigner
 
           Log($"   Saving changes to assembly '{inputOutputFilePair.OutputFilePath}'.");
 
-          // Write to a side-by-side temp file first so that any transient lock on the
-          // destination (e.g. antivirus, Windows Search) does not interfere with the
-          // potentially long Mono.Cecil write operation.
-          var stagingFilePath = inputOutputFilePair.OutputFilePath + ".snstaging";
+          // Write the staging file into the temp working directory (already in %TEMP%) rather
+          // than next to the output file. AV / Windows Search aggressively watch the output
+          // directory and will lock a newly created file mid-write, causing assembly.Save to
+          // fail. Writing to %TEMP% hopefully avoids that; we move/copy the finished file into
+          // place afterwards via ReplaceFileWithRetry which handles cross-volume copy scenarios.
+          var stagingFilePath = Path.Combine(tempPath, Path.GetFileNameWithoutExtension(inputOutputFilePair.OutputFilePath) + "." + Guid.NewGuid() + Path.GetExtension(inputOutputFilePair.OutputFilePath));
 
           try
           {
@@ -672,15 +674,41 @@ namespace Brutal.Dev.StrongNameSigner
 
           if (!string.IsNullOrEmpty(backupFilePath) && File.Exists(backupFilePath))
           {
-            File.Replace(sourceFilePath, destinationFilePath, backupFilePath);
+            // File.Replace requires both source and destination to be on the same volume.
+            // If they differ, fall back to a copy-then-delete sequence.
+            if (IsSameVolume(sourceFilePath, destinationFilePath))
+            {
+              File.Replace(sourceFilePath, destinationFilePath, backupFilePath);
+            }
+            else
+            {
+              File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
+              File.Delete(sourceFilePath);
+            }
           }
           else if (File.Exists(destinationFilePath))
           {
-            File.Replace(sourceFilePath, destinationFilePath, null);
+            if (IsSameVolume(sourceFilePath, destinationFilePath))
+            {
+              File.Replace(sourceFilePath, destinationFilePath, null);
+            }
+            else
+            {
+              File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
+              File.Delete(sourceFilePath);
+            }
           }
           else
           {
-            File.Move(sourceFilePath, destinationFilePath);
+            if (IsSameVolume(sourceFilePath, destinationFilePath))
+            {
+              File.Move(sourceFilePath, destinationFilePath);
+            }
+            else
+            {
+              File.Copy(sourceFilePath, destinationFilePath, overwrite: true);
+              File.Delete(sourceFilePath);
+            }
           }
 
           return;
@@ -692,6 +720,13 @@ namespace Brutal.Dev.StrongNameSigner
       }
 
       throw new IOException($"Could not replace '{destinationFilePath}' after 5 attempts: {lastException?.Message}", lastException);
+    }
+
+    private static bool IsSameVolume(string path1, string path2)
+    {
+      var root1 = Path.GetPathRoot(Path.GetFullPath(path1));
+      var root2 = Path.GetPathRoot(Path.GetFullPath(path2));
+      return string.Equals(root1, root2, StringComparison.OrdinalIgnoreCase);
     }
 
     private static byte[] GenerateStrongNameKeyPair()
